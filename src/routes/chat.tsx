@@ -178,6 +178,16 @@ function ChatScreen() {
   };
 
   const handleFinish = () => {
+    try {
+      sessionStorage.setItem(
+        "knowgap:messages",
+        JSON.stringify(
+          messages
+            .filter((m) => !m.error)
+            .map((m) => ({ role: m.role, content: m.content })),
+        ),
+      );
+    } catch {}
     navigate({ to: "/summary" });
   };
 
