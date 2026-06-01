@@ -60,6 +60,7 @@ const STATUS_COLOR: Record<Status, string> = {
 
 function MapScreen() {
   const [topic, setTopic] = useState("your topic");
+  const navigate = useNavigate();
 
   useEffect(() => {
     try {
@@ -67,6 +68,10 @@ function MapScreen() {
       if (t) setTopic(t);
     } catch {}
   }, []);
+
+  const handleStart = () => {
+    navigate({ to: "/chat" });
+  };
 
   return (
     <main className="min-h-screen w-full bg-background px-6 py-10">
