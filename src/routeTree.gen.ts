@@ -14,6 +14,7 @@ import { Route as MapRouteImport } from './routes/map'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HistoryIdRouteImport } from './routes/history.$id'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const SummaryRoute = SummaryRouteImport.update({
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HistoryIdRoute = HistoryIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => HistoryRoute,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -50,33 +56,50 @@ const ApiChatRoute = ApiChatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
+  '/history': typeof HistoryRouteWithChildren
   '/map': typeof MapRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
+  '/history/$id': typeof HistoryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
+  '/history': typeof HistoryRouteWithChildren
   '/map': typeof MapRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
+  '/history/$id': typeof HistoryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
-  '/history': typeof HistoryRoute
+  '/history': typeof HistoryRouteWithChildren
   '/map': typeof MapRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
+  '/history/$id': typeof HistoryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/history' | '/map' | '/summary' | '/api/chat'
+  fullPaths:
+    | '/'
+    | '/chat'
+    | '/history'
+    | '/map'
+    | '/summary'
+    | '/api/chat'
+    | '/history/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/history' | '/map' | '/summary' | '/api/chat'
+  to:
+    | '/'
+    | '/chat'
+    | '/history'
+    | '/map'
+    | '/summary'
+    | '/api/chat'
+    | '/history/$id'
   id:
     | '__root__'
     | '/'
@@ -85,12 +108,13 @@ export interface FileRouteTypes {
     | '/map'
     | '/summary'
     | '/api/chat'
+    | '/history/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
-  HistoryRoute: typeof HistoryRoute
+  HistoryRoute: typeof HistoryRouteWithChildren
   MapRoute: typeof MapRoute
   SummaryRoute: typeof SummaryRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -133,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/history/$id': {
+      id: '/history/$id'
+      path: '/$id'
+      fullPath: '/history/$id'
+      preLoaderRoute: typeof HistoryIdRouteImport
+      parentRoute: typeof HistoryRoute
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -143,10 +174,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface HistoryRouteChildren {
+  HistoryIdRoute: typeof HistoryIdRoute
+}
+
+const HistoryRouteChildren: HistoryRouteChildren = {
+  HistoryIdRoute: HistoryIdRoute,
+}
+
+const HistoryRouteWithChildren =
+  HistoryRoute._addFileChildren(HistoryRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
-  HistoryRoute: HistoryRoute,
+  HistoryRoute: HistoryRouteWithChildren,
   MapRoute: MapRoute,
   SummaryRoute: SummaryRoute,
   ApiChatRoute: ApiChatRoute,
