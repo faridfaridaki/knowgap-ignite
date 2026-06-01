@@ -259,6 +259,36 @@ function SummaryScreen() {
           )}
         </div>
 
+        {/* Key Takeaways */}
+        {takeaways.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-xl font-bold text-foreground">Key Takeaways</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The core ideas behind the gaps you closed
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              {takeaways.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-4"
+                >
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FBBF24]/15 text-[#FBBF24]">
+                    <Lightbulb size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t.subtopic}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {t.explanation}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Session stats */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
