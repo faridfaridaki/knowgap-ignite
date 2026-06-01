@@ -101,9 +101,12 @@ function SummaryScreen() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [elapsedMin, setElapsedMin] = useState(1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [takeaways, setTakeaways] = useState<Takeaway[]>([]);
   const reviewRef = useRef<HTMLDivElement>(null);
   const suggest = useServerFn(suggestRelatedTopics);
+  const takeawaysFn = useServerFn(generateTakeaways);
   const suggestRef = useRef(false);
+  const takeawaysRef = useRef(false);
 
   useEffect(() => {
     try {
