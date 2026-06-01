@@ -100,3 +100,65 @@ export const analyzeTopic = createServerFn({ method: "POST" })
 
     return { subtopics: clean };
   });
+
+export const suggestRelatedTopics = createServerFn({ method: "POST" })
+  .inputValidator((input: { topic: string }) => {
+    if (!input || typeof input.topic !== "string" || !input.topic.trim()) {
+      throw new Error("Topic is required");
+    }
+    return { topic: input.topic.slice(0, 500) };
+  })
+  .handler(async ({ data }): Promise<{ topics: string[] }> => {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+
+    const prompt = `Given that a student just studied '${data.topic}', suggest exactly 3 related topics they should explore next. Return ONLY a JSON array: ['topic 1', 'topic 2', 'topic 3']`;
+
+    const res = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("Groq suggest error:", res.status, body);
+      throw new Error(`Groq API error: ${res.status}`);
+    }
+
+    const payload = await res.json();
+    const content: string = payload?.choices?.[0]?.message?.content ?? "";
+    const cleaned = content
+      .replace(/^\s*```json\s*/i, "")
+      .replace(/^\s*```\s*/i, "")
+      .replace(/\s*```\s*$/i, "")
+      .trim();
+
+    // Find first JSON array in the response
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    const raw = match ? match[0].replace(/'/g, '"') : cleaned;
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.error("Failed to parse suggestions:", err, "raw:", content);
+      throw new Error("Failed to parse AI response");
+    }
+    if (!Array.isArray(parsed)) throw new Error("Invalid response shape");
+    const topics = parsed
+      .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+      .slice(0, 3);
+    if (topics.length === 0) throw new Error("No topics returned");
+    return { topics };
+  });
