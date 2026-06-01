@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, BookOpen, Clock, ArrowRight } from "lucide-react";
+import { MessageCircle, BookOpen, Clock, ArrowRight, CheckCircle2 } from "lucide-react";
 import { suggestRelatedTopics } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/summary")({
@@ -190,6 +190,13 @@ function SummaryScreen() {
         <p className="mt-2 text-center text-sm text-muted-foreground">
           Your understanding of <span className="text-foreground">{topic}</span>
         </p>
+
+        <div className="mt-4 flex justify-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4ADE80]/40 bg-[#4ADE80]/10 px-3 py-1 text-xs font-medium text-[#4ADE80]">
+            <CheckCircle2 size={14} />
+            Session saved to your history
+          </span>
+        </div>
 
         {/* Before/After table */}
         <div className="mt-10 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-2 sm:p-4">

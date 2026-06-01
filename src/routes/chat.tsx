@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send } from "lucide-react";
+import { saveSession, type HistorySession } from "@/lib/history";
 
 interface Message {
   id: string;
@@ -183,16 +184,39 @@ function ChatScreen() {
   };
 
   const handleFinish = () => {
+    const cleanMsgs = messages
+      .filter((m) => !m.error)
+      .map((m) => ({ role: m.role, content: m.content }));
     try {
-      sessionStorage.setItem(
-        "knowgap:messages",
-        JSON.stringify(
-          messages
-            .filter((m) => !m.error)
-            .map((m) => ({ role: m.role, content: m.content })),
-        ),
-      );
+      sessionStorage.setItem("knowgap:messages", JSON.stringify(cleanMsgs));
     } catch {}
+
+    // Persist to history (localStorage)
+    try {
+      let subs: HistorySession["subtopics"] = [];
+      const storedSubs = sessionStorage.getItem("knowgap:subtopics");
+      if (storedSubs) subs = JSON.parse(storedSubs);
+
+      const startedAt = Number(sessionStorage.getItem("knowgap:startedAt")) || Date.now();
+      const durationMinutes = Math.max(
+        1,
+        Math.round((Date.now() - startedAt) / 60000),
+      );
+      const questionsAnswered = cleanMsgs.filter((m) => m.role === "user").length;
+
+      const session: HistorySession = {
+        id: String(Date.now()),
+        topic,
+        date: new Date().toISOString(),
+        subtopics: subs,
+        messages: cleanMsgs,
+        stats: { questionsAnswered, durationMinutes },
+      };
+      saveSession(session);
+    } catch (e) {
+      console.error("Failed to save history:", e);
+    }
+
     navigate({ to: "/summary" });
   };
 
