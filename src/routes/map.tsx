@@ -73,6 +73,10 @@ function MapScreen() {
       setLoading(true);
       setError(null);
       setSubtopics(null);
+      // Clear any stale subtopics so a failed/slow call can't leak prior session
+      try {
+        sessionStorage.removeItem("knowgap:subtopics");
+      } catch {}
       analyze({ data: { topic: t } })
         .then((res) => {
           setSubtopics(res.subtopics);

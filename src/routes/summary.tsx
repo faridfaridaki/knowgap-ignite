@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, BookOpen, Clock, ArrowRight } from "lucide-react";
+import { suggestRelatedTopics } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/summary")({
   head: () => ({
@@ -100,6 +102,8 @@ function SummaryScreen() {
   const [elapsedMin, setElapsedMin] = useState(1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const reviewRef = useRef<HTMLDivElement>(null);
+  const suggest = useServerFn(suggestRelatedTopics);
+  const suggestRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -117,35 +121,55 @@ function SummaryScreen() {
     } catch {}
   }, []);
 
+  const fallbackSuggestions = (t: string) => [
+    `Deep dive into ${t}: edge cases`,
+    `History and origins of ${t}`,
+    `How ${t} connects to related fields`,
+  ];
+
   useEffect(() => {
     if (!topic || topic === "your topic") return;
-    setSuggestions([
-      `Deep dive into ${topic}: edge cases`,
-      `History and origins of ${topic}`,
-      `How ${topic} connects to related fields`,
-    ]);
-  }, [topic]);
+    if (suggestRef.current) return;
+    suggestRef.current = true;
+    suggest({ data: { topic } })
+      .then((res) => {
+        if (res?.topics && res.topics.length > 0) {
+          setSuggestions(res.topics);
+        } else {
+          setSuggestions(fallbackSuggestions(topic));
+        }
+      })
+      .catch((e) => {
+        console.error("suggestRelatedTopics failed:", e);
+        setSuggestions(fallbackSuggestions(topic));
+      });
+  }, [topic, suggest]);
 
   const questionsAnswered = useMemo(
     () => messages.filter((m) => m.role === "user").length,
     [messages],
   );
 
-  const handleStartTopic = (newTopic: string) => {
+  const resetSession = () => {
     try {
-      sessionStorage.setItem("knowgap:topic", newTopic);
-      sessionStorage.setItem("knowgap:pendingTopic", newTopic);
+      sessionStorage.removeItem("knowgap:topic");
       sessionStorage.removeItem("knowgap:subtopics");
       sessionStorage.removeItem("knowgap:messages");
       sessionStorage.removeItem("knowgap:startedAt");
+      sessionStorage.removeItem("knowgap:pendingTopic");
+    } catch {}
+  };
+
+  const handleStartTopic = (newTopic: string) => {
+    resetSession();
+    try {
+      sessionStorage.setItem("knowgap:pendingTopic", newTopic);
     } catch {}
     navigate({ to: "/" });
   };
 
   const handleNewTopic = () => {
-    try {
-      sessionStorage.clear();
-    } catch {}
+    resetSession();
     navigate({ to: "/" });
   };
 
