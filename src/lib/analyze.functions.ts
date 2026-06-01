@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseStatus } from "@tanstack/react-start/server";
 
 export type Status = "Likely Clear" | "Partially Clear" | "Likely Missing";
 
@@ -63,7 +64,20 @@ export const analyzeTopic = createServerFn({ method: "POST" })
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content !== "string") throw new Error("Empty response");
 
-    const parsed = JSON.parse(content);
+    const cleaned = content
+      .replace(/^\s*```json\s*/i, "")
+      .replace(/^\s*```\s*/i, "")
+      .replace(/\s*```\s*$/i, "")
+      .trim();
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (err) {
+      console.error("Failed to parse AI response:", err, "raw:", content);
+      setResponseStatus(500);
+      return { error: "Failed to parse AI response" } as any;
+    }
     const subtopics = parsed?.subtopics;
     if (!Array.isArray(subtopics) || subtopics.length === 0) {
       throw new Error("Invalid response shape");
