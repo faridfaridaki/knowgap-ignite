@@ -157,6 +157,7 @@ function MapScreen() {
 
           <button
             type="button"
+            onClick={handleStart}
             className="mt-5 w-full rounded-xl px-6 py-3.5 text-base font-semibold text-white transition-transform duration-150 hover:scale-[1.02] active:scale-[0.99] shadow-[0_8px_24px_-8px_rgba(124,106,247,0.6)]"
             style={{
               backgroundImage:
