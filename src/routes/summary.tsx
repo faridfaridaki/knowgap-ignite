@@ -191,6 +191,13 @@ function SummaryScreen() {
           Your understanding of <span className="text-foreground">{topic}</span>
         </p>
 
+        <div className="mt-4 flex justify-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4ADE80]/40 bg-[#4ADE80]/10 px-3 py-1 text-xs font-medium text-[#4ADE80]">
+            <CheckCircle2 size={14} />
+            Session saved to your history
+          </span>
+        </div>
+
         {/* Before/After table */}
         <div className="mt-10 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-2 sm:p-4">
           <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 sm:gap-x-3 gap-y-1 items-center px-2 sm:px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground">
