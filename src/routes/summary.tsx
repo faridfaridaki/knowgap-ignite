@@ -148,6 +148,22 @@ function SummaryScreen() {
       });
   }, [topic, suggest]);
 
+  useEffect(() => {
+    if (!topic || topic === "your topic") return;
+    if (subtopics.length === 0) return;
+    if (takeawaysRef.current) return;
+    const missing = subtopics
+      .filter((s) => s.status === "Likely Missing")
+      .map((s) => s.name);
+    if (missing.length === 0) return;
+    takeawaysRef.current = true;
+    takeawaysFn({ data: { topic, subtopics: missing } })
+      .then((res) => {
+        if (res?.takeaways) setTakeaways(res.takeaways);
+      })
+      .catch((e) => console.error("generateTakeaways failed:", e));
+  }, [topic, subtopics, takeawaysFn]);
+
   const questionsAnswered = useMemo(
     () => messages.filter((m) => m.role === "user").length,
     [messages],
