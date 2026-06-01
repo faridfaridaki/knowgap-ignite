@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Search, MessageCircle, Brain } from "lucide-react";
 
@@ -27,6 +27,7 @@ const MAX_CHARS = 5000;
 function Index() {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -36,6 +37,14 @@ function Index() {
   }, [value]);
 
   const disabled = value.trim().length === 0;
+
+  const handleAnalyze = () => {
+    if (disabled) return;
+    try {
+      sessionStorage.setItem("knowgap:topic", value.trim());
+    } catch {}
+    navigate({ to: "/map" });
+  };
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center px-6 py-16 bg-background">
@@ -60,9 +69,7 @@ function Index() {
             <textarea
               ref={textareaRef}
               value={value}
-              onChange={(e) =>
-                setValue(e.target.value.slice(0, MAX_CHARS))
-              }
+              onChange={(e) => setValue(e.target.value.slice(0, MAX_CHARS))}
               placeholder="e.g. 'The French Revolution' or paste your study notes here..."
               className="w-full resize-none bg-transparent px-5 py-4 pb-9 text-foreground placeholder:text-muted-foreground/70 outline-none text-base leading-relaxed"
               style={{ minHeight: 120 }}
@@ -74,6 +81,7 @@ function Index() {
 
           <button
             type="button"
+            onClick={handleAnalyze}
             disabled={disabled}
             className="mt-4 w-full rounded-xl px-6 py-3.5 text-base font-semibold text-white transition-transform duration-150 disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:scale-[1.02] enabled:active:scale-[0.99] shadow-[0_8px_24px_-8px_rgba(124,106,247,0.6)]"
             style={{
@@ -103,3 +111,6 @@ function Index() {
     </main>
   );
 }
+
+// keep Link import used (re-export prevents tree-shake warnings)
+export { Link };
