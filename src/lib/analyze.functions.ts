@@ -162,3 +162,80 @@ export const suggestRelatedTopics = createServerFn({ method: "POST" })
     if (topics.length === 0) throw new Error("No topics returned");
     return { topics };
   });
+
+export interface Takeaway {
+  subtopic: string;
+  explanation: string;
+}
+
+export const generateTakeaways = createServerFn({ method: "POST" })
+  .inputValidator((input: { topic: string; subtopics: string[] }) => {
+    if (!input || typeof input.topic !== "string" || !input.topic.trim()) {
+      throw new Error("Topic is required");
+    }
+    if (!Array.isArray(input.subtopics)) {
+      throw new Error("Subtopics must be an array");
+    }
+    return {
+      topic: input.topic.slice(0, 500),
+      subtopics: input.subtopics
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .slice(0, 10),
+    };
+  })
+  .handler(async ({ data }): Promise<{ takeaways: Takeaway[] }> => {
+    if (data.subtopics.length === 0) return { takeaways: [] };
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+
+    const list = data.subtopics.map((s) => `"${s}"`).join(", ");
+    const prompt = `For the topic '${data.topic}', give a 1-sentence correct explanation for each of these subtopics: [${list}]. Return ONLY JSON: [{"subtopic": "name", "explanation": "one sentence"}]`;
+
+    const res = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.5,
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("Groq takeaways error:", res.status, body);
+      throw new Error(`Groq API error: ${res.status}`);
+    }
+
+    const payload = await res.json();
+    const content: string = payload?.choices?.[0]?.message?.content ?? "";
+    const cleaned = content
+      .replace(/^\s*```json\s*/i, "")
+      .replace(/^\s*```\s*/i, "")
+      .replace(/\s*```\s*$/i, "")
+      .trim();
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    const raw = match ? match[0] : cleaned;
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.error("Failed to parse takeaways:", err, "raw:", content);
+      throw new Error("Failed to parse AI response");
+    }
+    if (!Array.isArray(parsed)) throw new Error("Invalid response shape");
+    const takeaways: Takeaway[] = parsed
+      .filter(
+        (t: any) =>
+          t && typeof t.subtopic === "string" && typeof t.explanation === "string",
+      )
+      .map((t: any) => ({ subtopic: t.subtopic, explanation: t.explanation }));
+    return { takeaways };
+  });

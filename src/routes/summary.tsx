@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, BookOpen, Clock, ArrowRight, CheckCircle2 } from "lucide-react";
-import { suggestRelatedTopics } from "@/lib/analyze.functions";
+import { MessageCircle, BookOpen, Clock, ArrowRight, CheckCircle2, Lightbulb } from "lucide-react";
+import { suggestRelatedTopics, generateTakeaways, type Takeaway } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/summary")({
   head: () => ({
@@ -101,9 +101,12 @@ function SummaryScreen() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [elapsedMin, setElapsedMin] = useState(1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [takeaways, setTakeaways] = useState<Takeaway[]>([]);
   const reviewRef = useRef<HTMLDivElement>(null);
   const suggest = useServerFn(suggestRelatedTopics);
+  const takeawaysFn = useServerFn(generateTakeaways);
   const suggestRef = useRef(false);
+  const takeawaysRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -144,6 +147,22 @@ function SummaryScreen() {
         setSuggestions(fallbackSuggestions(topic));
       });
   }, [topic, suggest]);
+
+  useEffect(() => {
+    if (!topic || topic === "your topic") return;
+    if (subtopics.length === 0) return;
+    if (takeawaysRef.current) return;
+    const missing = subtopics
+      .filter((s) => s.status === "Likely Missing")
+      .map((s) => s.name);
+    if (missing.length === 0) return;
+    takeawaysRef.current = true;
+    takeawaysFn({ data: { topic, subtopics: missing } })
+      .then((res) => {
+        if (res?.takeaways) setTakeaways(res.takeaways);
+      })
+      .catch((e) => console.error("generateTakeaways failed:", e));
+  }, [topic, subtopics, takeawaysFn]);
 
   const questionsAnswered = useMemo(
     () => messages.filter((m) => m.role === "user").length,
@@ -239,6 +258,36 @@ function SummaryScreen() {
             })
           )}
         </div>
+
+        {/* Key Takeaways */}
+        {takeaways.length > 0 && (
+          <section className="mt-10">
+            <h2 className="text-xl font-bold text-foreground">Key Takeaways</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The core ideas behind the gaps you closed
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              {takeaways.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-4"
+                >
+                  <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FBBF24]/15 text-[#FBBF24]">
+                    <Lightbulb size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {t.subtopic}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {t.explanation}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Session stats */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
