@@ -66,24 +66,31 @@ function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const analyze = useServerFn(analyzeTopic);
 
-  const run = useCallback((t: string) => {
-    setLoading(true);
-    setError(null);
-    setSubtopics(null);
-    analyzeTopic(t)
-      .then((subs) => {
-        setSubtopics(subs);
-        try {
-          sessionStorage.setItem("knowgap:subtopics", JSON.stringify(subs));
-        } catch {}
-      })
-      .catch((e) => {
-        console.error("analyzeTopic failed:", e);
-        setError("Couldn't analyze this topic. Please try again.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const run = useCallback(
+    (t: string) => {
+      setLoading(true);
+      setError(null);
+      setSubtopics(null);
+      analyze({ data: { topic: t } })
+        .then((res) => {
+          setSubtopics(res.subtopics);
+          try {
+            sessionStorage.setItem(
+              "knowgap:subtopics",
+              JSON.stringify(res.subtopics),
+            );
+          } catch {}
+        })
+        .catch((e) => {
+          console.error("analyzeTopic failed:", e);
+          setError("Couldn't analyze this topic. Please try again.");
+        })
+        .finally(() => setLoading(false));
+    },
+    [analyze],
+  );
 
   useEffect(() => {
     let t = "your topic";
