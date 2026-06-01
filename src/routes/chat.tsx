@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send } from "lucide-react";
+import { saveSession, type HistorySession } from "@/lib/history";
 
 interface Message {
   id: string;
