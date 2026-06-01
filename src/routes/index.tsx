@@ -27,8 +27,13 @@ const MAX_CHARS = 5000;
 
 function Index() {
   const [value, setValue] = useState("");
+  const [hasHistory, setHasHistory] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setHasHistory(loadHistory().length > 0);
+  }, []);
 
   useEffect(() => {
     try {
