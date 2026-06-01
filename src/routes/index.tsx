@@ -50,8 +50,14 @@ function Index() {
 
   const handleAnalyze = () => {
     if (disabled) return;
+    const fresh = value.trim();
     try {
-      sessionStorage.setItem("knowgap:topic", value.trim());
+      // Wipe ALL prior session state so a new topic never inherits old data
+      sessionStorage.removeItem("knowgap:subtopics");
+      sessionStorage.removeItem("knowgap:messages");
+      sessionStorage.removeItem("knowgap:startedAt");
+      sessionStorage.removeItem("knowgap:pendingTopic");
+      sessionStorage.setItem("knowgap:topic", fresh);
     } catch {}
     navigate({ to: "/map" });
   };
