@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Search, MessageCircle, Brain } from "lucide-react";
+import { Search, MessageCircle, Brain, History as HistoryIcon } from "lucide-react";
+import { loadHistory } from "@/lib/history";
 
 export const Route = createFileRoute("/")({
   head: () => ({
