@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, BookOpen, Clock, ArrowRight } from "lucide-react";
+import { MessageCircle, BookOpen, Clock, ArrowRight, CheckCircle2 } from "lucide-react";
 import { suggestRelatedTopics } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/summary")({
