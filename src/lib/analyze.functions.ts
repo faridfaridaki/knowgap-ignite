@@ -56,8 +56,8 @@ export const analyzeTopic = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      console.error("Groq API error:", res.status, body);
-      throw new Error(`Groq API error: ${res.status}`);
+      console.error("Groq API error:", res.status, res.statusText, body);
+      throw new Error(`Groq API error: ${res.status} - ${body}`);
     }
 
     const payload = await res.json();
