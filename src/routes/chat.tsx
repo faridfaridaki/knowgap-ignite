@@ -60,6 +60,11 @@ function ChatScreen() {
           .map((s) => s.name);
       }
     } catch {}
+    try {
+      if (!sessionStorage.getItem("knowgap:startedAt")) {
+        sessionStorage.setItem("knowgap:startedAt", String(Date.now()));
+      }
+    } catch {}
     setTopic(t);
     setGaps(g);
 
@@ -178,6 +183,16 @@ function ChatScreen() {
   };
 
   const handleFinish = () => {
+    try {
+      sessionStorage.setItem(
+        "knowgap:messages",
+        JSON.stringify(
+          messages
+            .filter((m) => !m.error)
+            .map((m) => ({ role: m.role, content: m.content })),
+        ),
+      );
+    } catch {}
     navigate({ to: "/summary" });
   };
 

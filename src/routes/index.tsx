@@ -30,6 +30,16 @@ function Index() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    try {
+      const pending = sessionStorage.getItem("knowgap:pendingTopic");
+      if (pending) {
+        setValue(pending);
+        sessionStorage.removeItem("knowgap:pendingTopic");
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
