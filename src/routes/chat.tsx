@@ -60,6 +60,11 @@ function ChatScreen() {
           .map((s) => s.name);
       }
     } catch {}
+    try {
+      if (!sessionStorage.getItem("knowgap:startedAt")) {
+        sessionStorage.setItem("knowgap:startedAt", String(Date.now()));
+      }
+    } catch {}
     setTopic(t);
     setGaps(g);
 
