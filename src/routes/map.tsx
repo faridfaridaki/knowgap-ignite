@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/map")({
   head: () => ({
@@ -24,54 +24,137 @@ interface Subtopic {
   status: Status;
 }
 
-const SUBTOPICS: Subtopic[] = [
-  {
-    name: "Causes of the Revolution",
-    description: "Economic crisis and social inequality",
-    status: "Likely Missing",
-  },
-  {
-    name: "Key Political Figures",
-    description: "Robespierre, Louis XVI, Napoleon",
-    status: "Partially Clear",
-  },
-  {
-    name: "The Estates System",
-    description: "Three-tier social structure of France",
-    status: "Likely Clear",
-  },
-  {
-    name: "The Reign of Terror",
-    description: "Period of mass executions 1793–94",
-    status: "Likely Missing",
-  },
-  {
-    name: "Long-term Impact",
-    description: "Effects on Europe and modern democracy",
-    status: "Partially Clear",
-  },
-];
-
 const STATUS_COLOR: Record<Status, string> = {
   "Likely Clear": "#4ADE80",
   "Partially Clear": "#FBBF24",
   "Likely Missing": "#F87171",
 };
 
+const SYSTEM_PROMPT = `You are a learning analysis AI. Given a topic or study notes, identify 4-6 key subtopics a student should understand. For each subtopic, predict whether a typical student without deep study would likely have it clear, partially clear, or missing from their understanding. Return ONLY valid JSON in this exact format, no other text:
+
+{
+  "subtopics": [
+    {
+      "name": "string",
+      "description": "string (one sentence)",
+      "status": "Likely Clear" | "Partially Clear" | "Likely Missing"
+    }
+  ]
+}`;
+
+async function analyzeTopic(topic: string): Promise<Subtopic[]> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
+  if (!apiKey) throw new Error("Missing VITE_OPENAI_API_KEY");
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: topic },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("Empty response");
+
+  const parsed = JSON.parse(content);
+  const subtopics = parsed.subtopics;
+  if (!Array.isArray(subtopics) || subtopics.length === 0) {
+    throw new Error("Invalid response shape");
+  }
+
+  const allowed: Status[] = ["Likely Clear", "Partially Clear", "Likely Missing"];
+  return subtopics.map((s: any) => {
+    if (
+      typeof s?.name !== "string" ||
+      typeof s?.description !== "string" ||
+      !allowed.includes(s?.status)
+    ) {
+      throw new Error("Invalid subtopic shape");
+    }
+    return { name: s.name, description: s.description, status: s.status as Status };
+  });
+}
+
+function SkeletonCard({ delay, full }: { delay: number; full: boolean }) {
+  return (
+    <div
+      className={`rounded-2xl bg-surface border border-surface-border p-5 overflow-hidden relative ${
+        full ? "sm:col-span-2" : ""
+      }`}
+      style={{ borderLeft: "3px solid #2A2A3A" }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div
+            className="h-4 w-2/3 rounded bg-[#1E1E2E] animate-pulse"
+            style={{ animationDelay: `${delay}ms` }}
+          />
+          <div
+            className="h-3 w-full rounded bg-[#1E1E2E] animate-pulse"
+            style={{ animationDelay: `${delay + 80}ms` }}
+          />
+        </div>
+        <div
+          className="h-6 w-20 shrink-0 rounded-full bg-[#1E1E2E] animate-pulse"
+          style={{ animationDelay: `${delay + 40}ms` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function MapScreen() {
   const [topic, setTopic] = useState("your topic");
+  const [subtopics, setSubtopics] = useState<Subtopic[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    try {
-      const t = sessionStorage.getItem("knowgap:topic");
-      if (t) setTopic(t);
-    } catch {}
+  const run = useCallback((t: string) => {
+    setLoading(true);
+    setError(null);
+    setSubtopics(null);
+    analyzeTopic(t)
+      .then((subs) => {
+        setSubtopics(subs);
+        try {
+          sessionStorage.setItem("knowgap:subtopics", JSON.stringify(subs));
+        } catch {}
+      })
+      .catch((e) => {
+        console.error("analyzeTopic failed:", e);
+        setError("Couldn't analyze this topic. Please try again.");
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    let t = "your topic";
+    try {
+      const stored = sessionStorage.getItem("knowgap:topic");
+      if (stored) t = stored;
+    } catch {}
+    setTopic(t);
+    run(t);
+  }, [run]);
 
   const handleStart = () => {
     navigate({ to: "/chat" });
   };
+
+  const skeletonLayout = [false, false, false, false, true];
 
   return (
     <main className="min-h-screen w-full bg-background px-6 py-10">
@@ -97,54 +180,83 @@ function MapScreen() {
           Your Understanding Map
         </h2>
 
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {SUBTOPICS.map((s, i) => {
-            const color = STATUS_COLOR[s.status];
-            const isLast = i === SUBTOPICS.length - 1;
-            return (
-              <div
-                key={s.name}
-                className={`opacity-0 animate-[fade-in_0.4s_ease-out_forwards] rounded-2xl bg-surface border border-surface-border p-5 ${
-                  isLast ? "sm:col-span-2" : ""
-                }`}
-                style={{
-                  animationDelay: `${i * 50}ms`,
-                  borderLeft: `3px solid ${color}`,
-                }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground text-base">
-                      {s.name}
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {s.description}
-                    </p>
+        {error ? (
+          <div className="mt-6 rounded-2xl bg-surface border border-surface-border p-6 text-center">
+            <p className="text-foreground font-medium">{error}</p>
+            <button
+              type="button"
+              onClick={() => run(topic)}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-transform duration-150 hover:scale-[1.02] active:scale-[0.99]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #7C6AF7 0%, #5B4FD4 100%)",
+              }}
+            >
+              <RefreshCw size={14} />
+              Try again
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {skeletonLayout.map((full, i) => (
+              <SkeletonCard key={i} delay={i * 120} full={full} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {subtopics!.map((s, i) => {
+              const color = STATUS_COLOR[s.status];
+              const isLast =
+                i === subtopics!.length - 1 && subtopics!.length % 2 === 1;
+              return (
+                <div
+                  key={`${s.name}-${i}`}
+                  className={`opacity-0 animate-[fade-in_0.4s_ease-out_forwards] rounded-2xl bg-surface border border-surface-border p-5 ${
+                    isLast ? "sm:col-span-2" : ""
+                  }`}
+                  style={{
+                    animationDelay: `${i * 50}ms`,
+                    borderLeft: `3px solid ${color}`,
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-foreground text-base">
+                        {s.name}
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {s.description}
+                      </p>
+                    </div>
+                    <span
+                      className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
+                      style={{
+                        color,
+                        backgroundColor: `${color}1A`,
+                        border: `1px solid ${color}40`,
+                      }}
+                    >
+                      {s.status}
+                    </span>
                   </div>
-                  <span
-                    className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
-                    style={{
-                      color,
-                      backgroundColor: `${color}1A`,
-                      border: `1px solid ${color}40`,
-                    }}
-                  >
-                    {s.status}
-                  </span>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
-        <p className="mt-5 text-xs text-muted-foreground">
-          This is a prediction, not a test result.
-        </p>
+        {!error && !loading && (
+          <p className="mt-5 text-xs text-muted-foreground">
+            This is a prediction, not a test result.
+          </p>
+        )}
 
         <div className="mt-8 rounded-2xl bg-surface border border-surface-border p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-foreground font-semibold">
-              5 subtopics to explore
+              {loading || error || !subtopics
+                ? "Analyzing subtopics…"
+                : `${subtopics.length} subtopics to explore`}
             </p>
             <p className="text-sm text-muted-foreground">
               Estimated session: ~10 minutes
@@ -158,7 +270,8 @@ function MapScreen() {
           <button
             type="button"
             onClick={handleStart}
-            className="mt-5 w-full rounded-xl px-6 py-3.5 text-base font-semibold text-white transition-transform duration-150 hover:scale-[1.02] active:scale-[0.99] shadow-[0_8px_24px_-8px_rgba(124,106,247,0.6)]"
+            disabled={loading || !!error || !subtopics}
+            className="mt-5 w-full rounded-xl px-6 py-3.5 text-base font-semibold text-white transition-transform duration-150 enabled:hover:scale-[1.02] enabled:active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_8px_24px_-8px_rgba(124,106,247,0.6)]"
             style={{
               backgroundImage:
                 "linear-gradient(135deg, #7C6AF7 0%, #5B4FD4 100%)",
