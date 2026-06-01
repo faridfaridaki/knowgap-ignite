@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import { analyzeTopic } from "@/lib/analyze.functions";
 
 export const Route = createFileRoute("/map")({
   head: () => ({
@@ -29,63 +31,6 @@ const STATUS_COLOR: Record<Status, string> = {
   "Partially Clear": "#FBBF24",
   "Likely Missing": "#F87171",
 };
-
-const SYSTEM_PROMPT = `You are a learning analysis AI. Given a topic or study notes, identify 4-6 key subtopics a student should understand. For each subtopic, predict whether a typical student without deep study would likely have it clear, partially clear, or missing from their understanding. Return ONLY valid JSON in this exact format, no other text:
-
-{
-  "subtopics": [
-    {
-      "name": "string",
-      "description": "string (one sentence)",
-      "status": "Likely Clear" | "Partially Clear" | "Likely Missing"
-    }
-  ]
-}`;
-
-async function analyzeTopic(topic: string): Promise<Subtopic[]> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined;
-  if (!apiKey) throw new Error("Missing VITE_OPENAI_API_KEY");
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: topic },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty response");
-
-  const parsed = JSON.parse(content);
-  const subtopics = parsed.subtopics;
-  if (!Array.isArray(subtopics) || subtopics.length === 0) {
-    throw new Error("Invalid response shape");
-  }
-
-  const allowed: Status[] = ["Likely Clear", "Partially Clear", "Likely Missing"];
-  return subtopics.map((s: any) => {
-    if (
-      typeof s?.name !== "string" ||
-      typeof s?.description !== "string" ||
-      !allowed.includes(s?.status)
-    ) {
-      throw new Error("Invalid subtopic shape");
-    }
-    return { name: s.name, description: s.description, status: s.status as Status };
-  });
-}
 
 function SkeletonCard({ delay, full }: { delay: number; full: boolean }) {
   return (
