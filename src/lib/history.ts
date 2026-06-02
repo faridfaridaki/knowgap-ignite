@@ -11,6 +11,27 @@ export interface HistoryMessage {
   content: string;
 }
 
+export interface HistoryQuizQuestion {
+  id: number;
+  type: "multiple_choice" | "short_answer";
+  question: string;
+  options?: string[];
+  correct_answer: string;
+  explanation: string;
+}
+
+export interface HistoryLessonConcept {
+  concept: string;
+  simple_explanation: string;
+  real_life_example: string;
+  key_takeaway: string;
+}
+
+export interface HistoryFlashcard {
+  term: string;
+  definition: string;
+}
+
 export interface HistorySession {
   id: string;
   topic: string;
@@ -21,6 +42,18 @@ export interface HistorySession {
     questionsAnswered: number;
     durationMinutes: number;
   };
+  preTest?: {
+    questions: HistoryQuizQuestion[];
+    answers: string[];
+    score: number;
+  };
+  finalTest?: {
+    questions: HistoryQuizQuestion[];
+    answers: string[];
+    score: number;
+  };
+  lesson?: HistoryLessonConcept[];
+  flashcards?: HistoryFlashcard[];
 }
 
 const KEY = "knowgap_history";

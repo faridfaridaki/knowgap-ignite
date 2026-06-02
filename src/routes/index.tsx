@@ -64,9 +64,10 @@ function Index() {
       sessionStorage.removeItem("knowgap:messages");
       sessionStorage.removeItem("knowgap:startedAt");
       sessionStorage.removeItem("knowgap:pendingTopic");
+      sessionStorage.removeItem("knowgap:state");
       sessionStorage.setItem("knowgap:topic", fresh);
     } catch {}
-    navigate({ to: "/map" });
+    navigate({ to: "/pretest" });
   };
 
   return (
