@@ -32,6 +32,11 @@ export interface HistoryFlashcard {
   definition: string;
 }
 
+export interface HistoryKnowledgeGap {
+  question: string;
+  correct_answer: string;
+}
+
 export interface HistorySession {
   id: string;
   topic: string;
@@ -46,14 +51,19 @@ export interface HistorySession {
     questions: HistoryQuizQuestion[];
     answers: string[];
     score: number;
+    total?: number;
   };
   finalTest?: {
     questions: HistoryQuizQuestion[];
     answers: string[];
     score: number;
+    total?: number;
   };
   lesson?: HistoryLessonConcept[];
   flashcards?: HistoryFlashcard[];
+  improvement?: number;
+  knowledgeGaps?: HistoryKnowledgeGap[];
+  suggestedTopics?: string[];
 }
 
 const KEY = "knowgap_history";

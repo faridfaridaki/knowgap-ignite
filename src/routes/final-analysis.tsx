@@ -26,6 +26,7 @@ function FinalAnalysisPage() {
 
   const [state, setState] = useState<LearningState | null>(null);
   const [related, setRelated] = useState<string[]>([]);
+  const [relatedReady, setRelatedReady] = useState(false);
   const [saved, setSaved] = useState<"idle" | "saving" | "saved-cloud" | "saved-local">(
     "idle",
   );
@@ -47,12 +48,13 @@ function FinalAnalysisPage() {
 
     suggest({ data: { topic: s.topic } })
       .then((res) => setRelated(res.topics ?? []))
-      .catch((e) => console.error("suggest failed", e));
+      .catch((e) => console.error("suggest failed", e))
+      .finally(() => setRelatedReady(true));
   }, [navigate, suggest]);
 
-  // Auto-save once we have the state + know auth status
+  // Auto-save once state + suggestions + auth status are settled
   useEffect(() => {
-    if (!state || authLoading || saved !== "idle") return;
+    if (!state || authLoading || !relatedReady || saved !== "idle") return;
     setSaved("saving");
     const startedAt = state.startedAt ? new Date(state.startedAt) : new Date();
     const duration = Math.max(
@@ -60,20 +62,37 @@ function FinalAnalysisPage() {
       Math.round((Date.now() - startedAt.getTime()) / 60000),
     );
 
+    const preTotal = state.preTestQuestions.length;
+    const finalTotal = state.finalTestQuestions.length;
+    const prePct = preTotal ? Math.round((state.preTestScore / preTotal) * 100) : 0;
+    const finalPct = finalTotal
+      ? Math.round((state.finalTestScore / finalTotal) * 100)
+      : 0;
+    const improvement = finalPct - prePct;
+    const knowledge_gaps = state.finalTestQuestions
+      .map((q, i) => ({ q, ok: isAnswerCorrect(q, state.finalTestAnswers[i] ?? "") }))
+      .filter((x) => !x.ok)
+      .map((x) => ({ question: x.q.question, correct_answer: x.q.correct_answer }));
+
     const payload = {
       topic: state.topic,
       pre_test_questions: state.preTestQuestions,
       pre_test_answers: state.preTestAnswers,
       pre_test_score: state.preTestScore,
+      pre_test_total: preTotal,
       final_test_questions: state.finalTestQuestions,
       final_test_answers: state.finalTestAnswers,
       final_test_score: state.finalTestScore,
+      final_test_total: finalTotal,
       lesson_content: state.lesson,
       flashcards: state.flashcards,
       duration_minutes: duration,
-      questions_count: state.preTestQuestions.length + state.finalTestQuestions.length,
+      questions_count: preTotal + finalTotal,
       subtopics: [],
       messages: [],
+      improvement,
+      knowledge_gaps,
+      suggested_topics: related,
     };
 
     (async () => {
@@ -83,7 +102,6 @@ function FinalAnalysisPage() {
           .insert({ ...payload, user_id: user.id } as never);
         if (error) {
           console.error("Save to cloud failed:", error);
-          // fall back to local
           saveSession({
             id: crypto.randomUUID(),
             topic: state.topic,
@@ -108,7 +126,7 @@ function FinalAnalysisPage() {
         setSaved("saved-local");
       }
     })();
-  }, [state, user, authLoading, saved]);
+  }, [state, user, authLoading, saved, related, relatedReady]);
 
   const data = useMemo(() => {
     if (!state) return null;
