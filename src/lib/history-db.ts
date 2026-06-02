@@ -6,6 +6,7 @@ import type {
   HistoryQuizQuestion,
   HistoryLessonConcept,
   HistoryFlashcard,
+  HistoryKnowledgeGap,
 } from "@/lib/history";
 
 interface ConversationRow {
@@ -19,15 +20,20 @@ interface ConversationRow {
   pre_test_questions: HistoryQuizQuestion[] | null;
   pre_test_answers: string[] | null;
   pre_test_score: number | null;
+  pre_test_total: number | null;
   final_test_questions: HistoryQuizQuestion[] | null;
   final_test_answers: string[] | null;
   final_test_score: number | null;
+  final_test_total: number | null;
   lesson_content: HistoryLessonConcept[] | null;
   flashcards: HistoryFlashcard[] | null;
+  improvement: number | null;
+  knowledge_gaps: HistoryKnowledgeGap[] | null;
+  suggested_topics: string[] | null;
 }
 
 const SELECT_COLS =
-  "id, topic, created_at, subtopics, messages, questions_count, duration_minutes, pre_test_questions, pre_test_answers, pre_test_score, final_test_questions, final_test_answers, final_test_score, lesson_content, flashcards";
+  "id, topic, created_at, subtopics, messages, questions_count, duration_minutes, pre_test_questions, pre_test_answers, pre_test_score, pre_test_total, final_test_questions, final_test_answers, final_test_score, final_test_total, lesson_content, flashcards, improvement, knowledge_gaps, suggested_topics";
 
 function rowToSession(row: ConversationRow): HistorySession {
   const preQs = Array.isArray(row.pre_test_questions) ? row.pre_test_questions : [];
@@ -47,6 +53,7 @@ function rowToSession(row: ConversationRow): HistorySession {
           questions: preQs,
           answers: Array.isArray(row.pre_test_answers) ? row.pre_test_answers : [],
           score: row.pre_test_score ?? 0,
+          total: row.pre_test_total ?? preQs.length,
         }
       : undefined,
     finalTest: finalQs.length
@@ -54,10 +61,14 @@ function rowToSession(row: ConversationRow): HistorySession {
           questions: finalQs,
           answers: Array.isArray(row.final_test_answers) ? row.final_test_answers : [],
           score: row.final_test_score ?? 0,
+          total: row.final_test_total ?? finalQs.length,
         }
       : undefined,
     lesson: Array.isArray(row.lesson_content) ? row.lesson_content : [],
     flashcards: Array.isArray(row.flashcards) ? row.flashcards : [],
+    improvement: row.improvement ?? undefined,
+    knowledgeGaps: Array.isArray(row.knowledge_gaps) ? row.knowledge_gaps : [],
+    suggestedTopics: Array.isArray(row.suggested_topics) ? row.suggested_topics : [],
   };
 }
 
