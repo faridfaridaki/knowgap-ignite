@@ -17,8 +17,11 @@ export type Database = {
       conversations: {
         Row: {
           created_at: string
+          duration_minutes: number
           id: string
           messages: Json
+          questions_count: number
+          subtopics: Json
           summary: Json | null
           topic: string
           updated_at: string
@@ -26,8 +29,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          duration_minutes?: number
           id?: string
           messages?: Json
+          questions_count?: number
+          subtopics?: Json
           summary?: Json | null
           topic: string
           updated_at?: string
@@ -35,8 +41,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          duration_minutes?: number
           id?: string
           messages?: Json
+          questions_count?: number
+          subtopics?: Json
           summary?: Json | null
           topic?: string
           updated_at?: string

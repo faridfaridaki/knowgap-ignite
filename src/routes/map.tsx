@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { analyzeTopic } from "@/lib/analyze.functions";
+import { AuthGuard } from "@/components/AuthGuard";
 
 export const Route = createFileRoute("/map")({
   head: () => ({
@@ -15,7 +16,11 @@ export const Route = createFileRoute("/map")({
       },
     ],
   }),
-  component: MapScreen,
+  component: () => (
+    <AuthGuard>
+      <MapScreen />
+    </AuthGuard>
+  ),
 });
 
 type Status = "Likely Clear" | "Partially Clear" | "Likely Missing";

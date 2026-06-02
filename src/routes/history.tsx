@@ -7,6 +7,9 @@ import {
   STATUS_COLOR,
   type HistorySession,
 } from "@/lib/history";
+import { fetchConversationsForUser } from "@/lib/history-db";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/history")({
   head: () => ({
@@ -15,15 +18,37 @@ export const Route = createFileRoute("/history")({
       { name: "description", content: "Past KnowGap learning sessions." },
     ],
   }),
-  component: HistoryScreen,
+  component: () => (
+    <AuthGuard>
+      <HistoryScreen />
+    </AuthGuard>
+  ),
 });
 
 function HistoryScreen() {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<HistorySession[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setSessions(loadHistory());
-  }, []);
+    let cancelled = false;
+    async function load() {
+      if (user) {
+        const rows = await fetchConversationsForUser(user.id);
+        if (!cancelled) {
+          setSessions(rows);
+          setLoading(false);
+        }
+      } else {
+        setSessions(loadHistory());
+        setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <main className="min-h-screen w-full bg-background px-6 py-10">
@@ -40,10 +65,12 @@ function HistoryScreen() {
           Your Learning History
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {sessions.length} saved session{sessions.length === 1 ? "" : "s"}
+          {loading
+            ? "Loading…"
+            : `${sessions.length} saved session${sessions.length === 1 ? "" : "s"}`}
         </p>
 
-        {sessions.length === 0 ? (
+        {!loading && sessions.length === 0 ? (
           <div className="mt-16 flex flex-col items-center text-center">
             <div
               className="flex h-20 w-20 items-center justify-center rounded-full"

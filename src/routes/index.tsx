@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Search, MessageCircle, Brain, History as HistoryIcon } from "lucide-react";
 import { loadHistory } from "@/lib/history";
+import { UserMenu } from "@/components/UserMenu";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -70,15 +71,18 @@ function Index() {
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center px-6 py-16 bg-background relative">
-      {hasHistory && (
-        <Link
-          to="/history"
-          className="absolute top-5 right-5 inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface"
-        >
-          <HistoryIcon size={14} />
-          <span>History</span>
-        </Link>
-      )}
+      <div className="absolute top-5 right-5 flex items-center gap-2">
+        {hasHistory && (
+          <Link
+            to="/history"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface"
+          >
+            <HistoryIcon size={14} />
+            <span>History</span>
+          </Link>
+        )}
+        <UserMenu />
+      </div>
       <div className="w-full max-w-[720px] flex flex-col items-center text-center">
         <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/50 px-3 py-1 text-xs font-medium text-[#7C6AF7] tracking-wide">
           AI-Powered Learning
