@@ -10,8 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SummaryRouteImport } from './routes/summary'
+import { Route as PretestResultsRouteImport } from './routes/pretest-results'
+import { Route as PretestRouteImport } from './routes/pretest'
 import { Route as MapRouteImport } from './routes/map'
+import { Route as LearnRouteImport } from './routes/learn'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as FlashcardsRouteImport } from './routes/flashcards'
+import { Route as FinalTestRouteImport } from './routes/final-test'
+import { Route as FinalAnalysisRouteImport } from './routes/final-analysis'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,14 +29,44 @@ const SummaryRoute = SummaryRouteImport.update({
   path: '/summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PretestResultsRoute = PretestResultsRouteImport.update({
+  id: '/pretest-results',
+  path: '/pretest-results',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PretestRoute = PretestRouteImport.update({
+  id: '/pretest',
+  path: '/pretest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnRoute = LearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FlashcardsRoute = FlashcardsRouteImport.update({
+  id: '/flashcards',
+  path: '/flashcards',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinalTestRoute = FinalTestRouteImport.update({
+  id: '/final-test',
+  path: '/final-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinalAnalysisRoute = FinalAnalysisRouteImport.update({
+  id: '/final-analysis',
+  path: '/final-analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -63,8 +99,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
+  '/final-analysis': typeof FinalAnalysisRoute
+  '/final-test': typeof FinalTestRoute
+  '/flashcards': typeof FlashcardsRoute
   '/history': typeof HistoryRouteWithChildren
+  '/learn': typeof LearnRoute
   '/map': typeof MapRoute
+  '/pretest': typeof PretestRoute
+  '/pretest-results': typeof PretestResultsRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
   '/history/$id': typeof HistoryIdRoute
@@ -73,8 +115,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
+  '/final-analysis': typeof FinalAnalysisRoute
+  '/final-test': typeof FinalTestRoute
+  '/flashcards': typeof FlashcardsRoute
   '/history': typeof HistoryRouteWithChildren
+  '/learn': typeof LearnRoute
   '/map': typeof MapRoute
+  '/pretest': typeof PretestRoute
+  '/pretest-results': typeof PretestResultsRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
   '/history/$id': typeof HistoryIdRoute
@@ -84,8 +132,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
+  '/final-analysis': typeof FinalAnalysisRoute
+  '/final-test': typeof FinalTestRoute
+  '/flashcards': typeof FlashcardsRoute
   '/history': typeof HistoryRouteWithChildren
+  '/learn': typeof LearnRoute
   '/map': typeof MapRoute
+  '/pretest': typeof PretestRoute
+  '/pretest-results': typeof PretestResultsRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
   '/history/$id': typeof HistoryIdRoute
@@ -96,8 +150,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chat'
+    | '/final-analysis'
+    | '/final-test'
+    | '/flashcards'
     | '/history'
+    | '/learn'
     | '/map'
+    | '/pretest'
+    | '/pretest-results'
     | '/summary'
     | '/api/chat'
     | '/history/$id'
@@ -106,8 +166,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chat'
+    | '/final-analysis'
+    | '/final-test'
+    | '/flashcards'
     | '/history'
+    | '/learn'
     | '/map'
+    | '/pretest'
+    | '/pretest-results'
     | '/summary'
     | '/api/chat'
     | '/history/$id'
@@ -116,8 +182,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chat'
+    | '/final-analysis'
+    | '/final-test'
+    | '/flashcards'
     | '/history'
+    | '/learn'
     | '/map'
+    | '/pretest'
+    | '/pretest-results'
     | '/summary'
     | '/api/chat'
     | '/history/$id'
@@ -127,8 +199,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   ChatRoute: typeof ChatRoute
+  FinalAnalysisRoute: typeof FinalAnalysisRoute
+  FinalTestRoute: typeof FinalTestRoute
+  FlashcardsRoute: typeof FlashcardsRoute
   HistoryRoute: typeof HistoryRouteWithChildren
+  LearnRoute: typeof LearnRoute
   MapRoute: typeof MapRoute
+  PretestRoute: typeof PretestRoute
+  PretestResultsRoute: typeof PretestResultsRoute
   SummaryRoute: typeof SummaryRoute
   ApiChatRoute: typeof ApiChatRoute
 }
@@ -142,6 +220,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pretest-results': {
+      id: '/pretest-results'
+      path: '/pretest-results'
+      fullPath: '/pretest-results'
+      preLoaderRoute: typeof PretestResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pretest': {
+      id: '/pretest'
+      path: '/pretest'
+      fullPath: '/pretest'
+      preLoaderRoute: typeof PretestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/map': {
       id: '/map'
       path: '/map'
@@ -149,11 +241,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn': {
+      id: '/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LearnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/history': {
       id: '/history'
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flashcards': {
+      id: '/flashcards'
+      path: '/flashcards'
+      fullPath: '/flashcards'
+      preLoaderRoute: typeof FlashcardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/final-test': {
+      id: '/final-test'
+      path: '/final-test'
+      fullPath: '/final-test'
+      preLoaderRoute: typeof FinalTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/final-analysis': {
+      id: '/final-analysis'
+      path: '/final-analysis'
+      fullPath: '/final-analysis'
+      preLoaderRoute: typeof FinalAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -209,8 +329,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   ChatRoute: ChatRoute,
+  FinalAnalysisRoute: FinalAnalysisRoute,
+  FinalTestRoute: FinalTestRoute,
+  FlashcardsRoute: FlashcardsRoute,
   HistoryRoute: HistoryRouteWithChildren,
+  LearnRoute: LearnRoute,
   MapRoute: MapRoute,
+  PretestRoute: PretestRoute,
+  PretestResultsRoute: PretestResultsRoute,
   SummaryRoute: SummaryRoute,
   ApiChatRoute: ApiChatRoute,
 }
