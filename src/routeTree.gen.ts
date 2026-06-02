@@ -22,6 +22,7 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HistoryIdRouteImport } from './routes/history.$id'
+import { Route as FinalAnalysisIdRouteImport } from './routes/final-analysis.$id'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const SummaryRoute = SummaryRouteImport.update({
@@ -89,6 +90,11 @@ const HistoryIdRoute = HistoryIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => HistoryRoute,
 } as any)
+const FinalAnalysisIdRoute = FinalAnalysisIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => FinalAnalysisRoute,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -99,7 +105,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
-  '/final-analysis': typeof FinalAnalysisRoute
+  '/final-analysis': typeof FinalAnalysisRouteWithChildren
   '/final-test': typeof FinalTestRoute
   '/flashcards': typeof FlashcardsRoute
   '/history': typeof HistoryRouteWithChildren
@@ -109,13 +115,14 @@ export interface FileRoutesByFullPath {
   '/pretest-results': typeof PretestResultsRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
+  '/final-analysis/$id': typeof FinalAnalysisIdRoute
   '/history/$id': typeof HistoryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
-  '/final-analysis': typeof FinalAnalysisRoute
+  '/final-analysis': typeof FinalAnalysisRouteWithChildren
   '/final-test': typeof FinalTestRoute
   '/flashcards': typeof FlashcardsRoute
   '/history': typeof HistoryRouteWithChildren
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/pretest-results': typeof PretestResultsRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
+  '/final-analysis/$id': typeof FinalAnalysisIdRoute
   '/history/$id': typeof HistoryIdRoute
 }
 export interface FileRoutesById {
@@ -132,7 +140,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
-  '/final-analysis': typeof FinalAnalysisRoute
+  '/final-analysis': typeof FinalAnalysisRouteWithChildren
   '/final-test': typeof FinalTestRoute
   '/flashcards': typeof FlashcardsRoute
   '/history': typeof HistoryRouteWithChildren
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/pretest-results': typeof PretestResultsRoute
   '/summary': typeof SummaryRoute
   '/api/chat': typeof ApiChatRoute
+  '/final-analysis/$id': typeof FinalAnalysisIdRoute
   '/history/$id': typeof HistoryIdRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/pretest-results'
     | '/summary'
     | '/api/chat'
+    | '/final-analysis/$id'
     | '/history/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/pretest-results'
     | '/summary'
     | '/api/chat'
+    | '/final-analysis/$id'
     | '/history/$id'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/pretest-results'
     | '/summary'
     | '/api/chat'
+    | '/final-analysis/$id'
     | '/history/$id'
   fileRoutesById: FileRoutesById
 }
@@ -199,7 +211,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   ChatRoute: typeof ChatRoute
-  FinalAnalysisRoute: typeof FinalAnalysisRoute
+  FinalAnalysisRoute: typeof FinalAnalysisRouteWithChildren
   FinalTestRoute: typeof FinalTestRoute
   FlashcardsRoute: typeof FlashcardsRoute
   HistoryRoute: typeof HistoryRouteWithChildren
@@ -304,6 +316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoryIdRouteImport
       parentRoute: typeof HistoryRoute
     }
+    '/final-analysis/$id': {
+      id: '/final-analysis/$id'
+      path: '/$id'
+      fullPath: '/final-analysis/$id'
+      preLoaderRoute: typeof FinalAnalysisIdRouteImport
+      parentRoute: typeof FinalAnalysisRoute
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -313,6 +332,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface FinalAnalysisRouteChildren {
+  FinalAnalysisIdRoute: typeof FinalAnalysisIdRoute
+}
+
+const FinalAnalysisRouteChildren: FinalAnalysisRouteChildren = {
+  FinalAnalysisIdRoute: FinalAnalysisIdRoute,
+}
+
+const FinalAnalysisRouteWithChildren = FinalAnalysisRoute._addFileChildren(
+  FinalAnalysisRouteChildren,
+)
 
 interface HistoryRouteChildren {
   HistoryIdRoute: typeof HistoryIdRoute
@@ -329,7 +360,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   ChatRoute: ChatRoute,
-  FinalAnalysisRoute: FinalAnalysisRoute,
+  FinalAnalysisRoute: FinalAnalysisRouteWithChildren,
   FinalTestRoute: FinalTestRoute,
   FlashcardsRoute: FlashcardsRoute,
   HistoryRoute: HistoryRouteWithChildren,

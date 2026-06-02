@@ -114,7 +114,7 @@ function HistoryScreen() {
               return (
                 <Link
                   key={s.id}
-                  to="/history/$id"
+                  to="/final-analysis/$id"
                   params={{ id: s.id }}
                   className="block rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-5 transition-all hover:border-[#7C6AF7]/60 hover:bg-surface"
                 >
