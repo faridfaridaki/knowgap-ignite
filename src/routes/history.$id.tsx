@@ -1,6 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check, X, Lightbulb } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  X,
+  TrendingUp,
+  AlertTriangle,
+} from "lucide-react";
 import {
   getSession,
   formatDate,
@@ -39,72 +46,54 @@ function isCorrect(q: HistoryQuizQuestion, a: string) {
   return false;
 }
 
-function TestSection({
-  title,
-  questions,
-  answers,
+function ScoreCell({
+  label,
   score,
+  total,
+  pct,
+  highlight,
 }: {
-  title: string;
-  questions: HistoryQuizQuestion[];
-  answers: string[];
+  label: string;
   score: number;
+  total: number;
+  pct: number;
+  highlight?: boolean;
 }) {
-  const total = questions.length;
-  const pct = total ? Math.round((score / total) * 100) : 0;
   return (
-    <details className="mt-4 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm">
-      <summary className="cursor-pointer list-none p-5 flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {score}/{total} correct · {pct}%
-          </p>
-        </div>
-        <span className="text-xs text-muted-foreground">Expand</span>
-      </summary>
-      <div className="px-5 pb-5 space-y-3">
-        {questions.map((q, i) => {
-          const given = answers[i] ?? "";
-          const ok = isCorrect(q, given);
-          return (
-            <div
-              key={q.id ?? i}
-              className={`rounded-xl border p-4 ${
-                ok ? "border-emerald-500/30 bg-emerald-500/[0.04]" : "border-red-500/30 bg-red-500/[0.04]"
-              }`}
-            >
-              <div className="flex items-start gap-2.5">
-                <span
-                  className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                    ok ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
-                  }`}
-                >
-                  {ok ? <Check size={12} /> : <X size={12} />}
-                </span>
-                <div className="flex-1 text-sm">
-                  <p className="font-medium text-foreground">{q.question}</p>
-                  <p className="mt-1 text-muted-foreground">
-                    Your answer:{" "}
-                    <span className={ok ? "text-emerald-300" : "text-red-300"}>
-                      {given || <em className="opacity-60">(blank)</em>}
-                    </span>
-                  </p>
-                  {!ok && (
-                    <p className="mt-1 text-emerald-300">
-                      Correct: <span className="text-foreground">{q.correct_answer}</span>
-                    </p>
-                  )}
-                  {q.explanation && (
-                    <p className="mt-1 italic text-muted-foreground">{q.explanation}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+    <div
+      className={`rounded-xl border p-5 ${
+        highlight
+          ? "border-[#7C6AF7]/40 bg-[#7C6AF7]/[0.06]"
+          : "border-surface-border bg-background/30"
+      }`}
+    >
+      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
       </div>
-    </details>
+      <div className="mt-2 text-3xl font-bold text-foreground tabular-nums">
+        {score}/{total}
+      </div>
+      <div
+        className={`mt-1 text-sm ${highlight ? "text-[#7C6AF7]" : "text-muted-foreground"}`}
+      >
+        {pct}%
+      </div>
+    </div>
+  );
+}
+
+function ResultBadge({ ok }: { ok?: boolean }) {
+  if (ok === undefined) {
+    return <span className="mx-auto block text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <span
+      className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-full ${
+        ok ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
+      }`}
+    >
+      {ok ? <Check size={14} /> : <X size={14} />}
+    </span>
   );
 }
 
@@ -133,15 +122,6 @@ function HistoryDetail() {
     };
   }, [id, user]);
 
-  const handleRestart = () => {
-    if (!session) return;
-    try {
-      sessionStorage.removeItem("knowgap:state");
-      sessionStorage.setItem("knowgap:topic", session.topic);
-    } catch {}
-    navigate({ to: "/pretest" });
-  };
-
   if (session === undefined) {
     return (
       <main className="min-h-screen w-full bg-background px-6 py-10">
@@ -153,7 +133,10 @@ function HistoryDetail() {
     return (
       <main className="min-h-screen w-full bg-background px-6 py-10">
         <div className="mx-auto w-full max-w-[680px]">
-          <Link to="/history" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            to="/history"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft size={16} /> Back to history
           </Link>
           <p className="mt-8 text-sm text-foreground">Session not found.</p>
@@ -162,137 +145,237 @@ function HistoryDetail() {
     );
   }
 
-  const preTotal = session.preTest?.questions.length ?? 0;
-  const finalTotal = session.finalTest?.questions.length ?? 0;
-  const prePct = preTotal ? Math.round((session.preTest!.score / preTotal) * 100) : null;
-  const finalPct = finalTotal ? Math.round((session.finalTest!.score / finalTotal) * 100) : null;
-  const delta = prePct !== null && finalPct !== null ? finalPct - prePct : null;
+  const preTotal = session.preTest?.total ?? session.preTest?.questions.length ?? 0;
+  const finalTotal =
+    session.finalTest?.total ?? session.finalTest?.questions.length ?? 0;
+  const preScore = session.preTest?.score ?? 0;
+  const finalScore = session.finalTest?.score ?? 0;
+  const prePct = preTotal ? Math.round((preScore / preTotal) * 100) : 0;
+  const finalPct = finalTotal ? Math.round((finalScore / finalTotal) * 100) : 0;
+  const delta = session.improvement ?? finalPct - prePct;
+
+  const preRows = (session.preTest?.questions ?? []).map((q, i) => ({
+    label: q.question,
+    correct: isCorrect(q, session.preTest?.answers[i] ?? ""),
+  }));
+  const finalRows = (session.finalTest?.questions ?? []).map((q, i) => ({
+    label: q.question,
+    correct: isCorrect(q, session.finalTest?.answers[i] ?? ""),
+  }));
+
+  // Prefer saved knowledge gaps; fallback to recomputing from final test
+  const gaps =
+    session.knowledgeGaps && session.knowledgeGaps.length > 0
+      ? session.knowledgeGaps
+      : (session.finalTest?.questions ?? [])
+          .map((q, i) => ({
+            q,
+            ok: isCorrect(q, session.finalTest?.answers[i] ?? ""),
+          }))
+          .filter((x) => !x.ok)
+          .map((x) => ({
+            question: x.q.question,
+            correct_answer: x.q.correct_answer,
+          }));
+
+  const suggested = session.suggestedTopics ?? [];
+
+  const overallTone =
+    finalPct >= 80
+      ? "Outstanding work — you've genuinely got this."
+      : finalPct >= 60
+        ? "Solid progress. There's still room to deepen your grasp."
+        : delta > 0
+          ? "You're improving, but you're still building understanding in this area."
+          : "Be honest with yourself — this topic needs more work.";
 
   return (
     <main className="min-h-screen w-full bg-background px-6 py-10">
-      <div className="mx-auto w-full max-w-[760px]">
-        <Link to="/history" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <div className="mx-auto w-full max-w-[820px]">
+        <Link
+          to="/history"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft size={16} />
           <span>Back to history</span>
         </Link>
 
-        <h1 className="mt-6 text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-          {session.topic}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {formatDate(session.date)} · {session.stats.durationMinutes} min
-        </p>
+        <div className="mt-6 text-center mb-8">
+          <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
+            Final Analysis
+          </span>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-foreground">
+            {session.topic}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {formatDate(session.date)} · {session.stats.durationMinutes} min
+          </p>
+        </div>
 
-        {(prePct !== null || finalPct !== null) && (
-          <section className="mt-6 grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-surface-border bg-surface/60 p-4 text-center">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Pre-Test</div>
-              <div className="mt-1 text-2xl font-bold text-foreground tabular-nums">
-                {prePct !== null ? `${session.preTest!.score}/${preTotal}` : "—"}
-              </div>
-              {prePct !== null && (
-                <div className="text-xs text-muted-foreground">{prePct}%</div>
-              )}
-            </div>
-            <div className="rounded-xl border border-surface-border bg-surface/60 p-4 text-center flex items-center justify-center">
-              <div
-                className={`text-base font-semibold ${
-                  delta === null
-                    ? "text-muted-foreground"
-                    : delta > 0
+        {/* Score comparison */}
+        {(preTotal > 0 || finalTotal > 0) && (
+          <section className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <h2 className="text-lg font-semibold text-foreground mb-5">
+              Score Comparison
+            </h2>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <ScoreCell
+                label="Pre-Test"
+                score={preScore}
+                total={preTotal}
+                pct={prePct}
+              />
+              <div className="flex flex-col items-center justify-center">
+                <ArrowRight size={22} className="text-muted-foreground" />
+                <div
+                  className={`mt-2 text-sm font-semibold inline-flex items-center gap-1 ${
+                    delta > 0
                       ? "text-emerald-300"
                       : delta < 0
                         ? "text-red-300"
                         : "text-muted-foreground"
-                }`}
-              >
-                {delta === null ? "—" : delta > 0 ? `+${delta}%` : `${delta}%`}
+                  }`}
+                >
+                  {delta > 0 && <TrendingUp size={14} />}
+                  {delta > 0 ? `+${delta}%` : `${delta}%`}
+                </div>
               </div>
-            </div>
-            <div className="rounded-xl border border-[#7C6AF7]/40 bg-[#7C6AF7]/[0.08] p-4 text-center">
-              <div className="text-[11px] uppercase tracking-wider text-[#7C6AF7]">Final Test</div>
-              <div className="mt-1 text-2xl font-bold text-foreground tabular-nums">
-                {finalPct !== null ? `${session.finalTest!.score}/${finalTotal}` : "—"}
-              </div>
-              {finalPct !== null && (
-                <div className="text-xs text-[#7C6AF7]">{finalPct}%</div>
-              )}
+              <ScoreCell
+                label="Final Test"
+                score={finalScore}
+                total={finalTotal}
+                pct={finalPct}
+                highlight
+              />
             </div>
           </section>
         )}
 
-        {session.preTest && (
-          <TestSection
-            title="Pre-test questions"
-            questions={session.preTest.questions}
-            answers={session.preTest.answers}
-            score={session.preTest.score}
-          />
-        )}
-
-        {session.lesson && session.lesson.length > 0 && (
-          <details className="mt-4 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm">
-            <summary className="cursor-pointer list-none p-5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Lesson</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {session.lesson.length} concept{session.lesson.length === 1 ? "" : "s"}
-                </p>
+        {/* Question-by-question */}
+        {(preRows.length > 0 || finalRows.length > 0) && (
+          <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <h2 className="text-lg font-semibold text-foreground mb-1">
+              Concept-by-concept
+            </h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              How you performed on each question across both tests.
+            </p>
+            <div className="space-y-2">
+              <div className="grid grid-cols-[28px_1fr_60px_60px] items-center gap-3 px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span />
+                <span>Question</span>
+                <span className="text-center">Pre-Test</span>
+                <span className="text-center">Final Test</span>
               </div>
-              <span className="text-xs text-muted-foreground">Expand</span>
-            </summary>
-            <div className="px-5 pb-5 space-y-4">
-              {session.lesson.map((c, i) => (
-                <article key={i} className="rounded-xl border border-surface-border bg-background/40 p-4">
-                  <h4 className="text-base font-semibold text-foreground">{c.concept}</h4>
-                  <p className="mt-2 text-sm text-foreground leading-relaxed">{c.simple_explanation}</p>
-                  <div className="mt-3 rounded-lg border border-[#4FC4CF]/25 bg-[#4FC4CF]/[0.06] p-3 text-sm text-foreground">
-                    {c.real_life_example}
+              {Array.from({
+                length: Math.max(preRows.length, finalRows.length),
+              }).map((_, i) => {
+                const a = preRows[i];
+                const b = finalRows[i];
+                const improved = a && b && !a.correct && b.correct;
+                const stillGap = a && b && !a.correct && !b.correct;
+                return (
+                  <div
+                    key={i}
+                    className={`grid grid-cols-[28px_1fr_60px_60px] items-center gap-3 rounded-lg border px-3 py-2.5 ${
+                      improved
+                        ? "border-emerald-500/30 bg-emerald-500/[0.05]"
+                        : stillGap
+                          ? "border-red-500/30 bg-red-500/[0.05]"
+                          : "border-surface-border bg-background/30"
+                    }`}
+                  >
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      Q{i + 1}
+                    </span>
+                    <div
+                      className="text-sm text-foreground truncate"
+                      title={b?.label || a?.label || ""}
+                    >
+                      {b?.label || a?.label || ""}
+                    </div>
+                    <ResultBadge ok={a?.correct} />
+                    <ResultBadge ok={b?.correct} />
                   </div>
-                  <div className="mt-3 rounded-lg border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 p-3 text-sm text-foreground flex gap-2">
-                    <Lightbulb size={16} className="mt-0.5 text-[#7C6AF7] shrink-0" />
-                    <span className="font-medium">{c.key_takeaway}</span>
-                  </div>
-                </article>
-              ))}
+                );
+              })}
             </div>
-          </details>
+          </section>
         )}
 
+        {/* Knowledge gaps */}
         {session.finalTest && (
-          <TestSection
-            title="Final test questions"
-            questions={session.finalTest.questions}
-            answers={session.finalTest.answers}
-            score={session.finalTest.score}
-          />
+          <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="mt-0.5 text-amber-300 shrink-0" />
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Knowledge Gaps
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">{overallTone}</p>
+                {gaps.length === 0 ? (
+                  <p className="mt-4 text-sm text-emerald-300">
+                    No remaining gaps on this test — well done.
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-2">
+                    {gaps.map((g, i) => (
+                      <li
+                        key={i}
+                        className="rounded-lg border border-red-500/25 bg-red-500/[0.05] p-3"
+                      >
+                        <div className="text-sm font-medium text-foreground">
+                          {g.question}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Correct answer:{" "}
+                          <span className="text-emerald-300">{g.correct_answer}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </section>
         )}
 
-        {session.flashcards && session.flashcards.length > 0 && (
-          <details className="mt-4 rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm">
-            <summary className="cursor-pointer list-none p-5 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Flashcards</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {session.flashcards.length} cards
-                </p>
-              </div>
-              <span className="text-xs text-muted-foreground">Expand</span>
-            </summary>
-            <div className="px-5 pb-5 grid sm:grid-cols-2 gap-3">
-              {session.flashcards.map((f, i) => (
-                <div key={i} className="rounded-xl border border-surface-border bg-background/40 p-4">
-                  <div className="text-sm font-semibold text-foreground">{f.term}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">{f.definition}</div>
-                </div>
+        {/* Suggested next topics */}
+        {suggested.length > 0 && (
+          <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <h2 className="text-lg font-semibold text-foreground mb-4">
+              Suggested next topics
+            </h2>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {suggested.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => {
+                    try {
+                      sessionStorage.removeItem("knowgap:state");
+                      sessionStorage.setItem("knowgap:topic", t);
+                    } catch {}
+                    navigate({ to: "/pretest" });
+                  }}
+                  className="rounded-xl border border-surface-border bg-background/40 p-4 text-left text-sm font-medium text-foreground hover:border-[#7C6AF7]/50 hover:bg-[#7C6AF7]/5 transition-colors"
+                >
+                  {t}
+                </button>
               ))}
             </div>
-          </details>
+          </section>
         )}
 
         <button
           type="button"
-          onClick={handleRestart}
+          onClick={() => {
+            try {
+              sessionStorage.removeItem("knowgap:state");
+              sessionStorage.setItem("knowgap:topic", session.topic);
+            } catch {}
+            navigate({ to: "/pretest" });
+          }}
           className="mt-8 w-full rounded-xl px-6 py-3.5 text-base font-semibold text-white shadow-[0_8px_24px_-8px_rgba(124,106,247,0.6)] transition-transform hover:scale-[1.02] active:scale-[0.99]"
           style={{
             backgroundImage: "linear-gradient(135deg, #7C6AF7 0%, #5B4FD4 100%)",
