@@ -2,6 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Send } from "lucide-react";
 import { saveSession, type HistorySession } from "@/lib/history";
+import { saveConversation } from "@/lib/history-db";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Message {
   id: string;
@@ -23,7 +26,11 @@ export const Route = createFileRoute("/chat")({
       { name: "description", content: "Socratic learning session with KnowGap AI." },
     ],
   }),
-  component: ChatScreen,
+  component: () => (
+    <AuthGuard>
+      <ChatScreen />
+    </AuthGuard>
+  ),
 });
 
 function uid() {
@@ -40,6 +47,7 @@ function ChatScreen() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initRef = useRef(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Load topic + gaps + kick off first AI question
   useEffect(() => {
@@ -183,7 +191,7 @@ function ChatScreen() {
     void streamAssistant(next, topic, gaps);
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     const cleanMsgs = messages
       .filter((m) => !m.error)
       .map((m) => ({ role: m.role, content: m.content }));
@@ -191,19 +199,22 @@ function ChatScreen() {
       sessionStorage.setItem("knowgap:messages", JSON.stringify(cleanMsgs));
     } catch {}
 
-    // Persist to history (localStorage)
+    let subs: HistorySession["subtopics"] = [];
     try {
-      let subs: HistorySession["subtopics"] = [];
       const storedSubs = sessionStorage.getItem("knowgap:subtopics");
       if (storedSubs) subs = JSON.parse(storedSubs);
+    } catch {}
 
-      const startedAt = Number(sessionStorage.getItem("knowgap:startedAt")) || Date.now();
-      const durationMinutes = Math.max(
-        1,
-        Math.round((Date.now() - startedAt) / 60000),
-      );
-      const questionsAnswered = cleanMsgs.filter((m) => m.role === "user").length;
+    const startedAt =
+      Number(sessionStorage.getItem("knowgap:startedAt")) || Date.now();
+    const durationMinutes = Math.max(
+      1,
+      Math.round((Date.now() - startedAt) / 60000),
+    );
+    const questionsAnswered = cleanMsgs.filter((m) => m.role === "user").length;
 
+    // Always keep a local copy as a fallback
+    try {
       const session: HistorySession = {
         id: String(Date.now()),
         topic,
@@ -214,7 +225,27 @@ function ChatScreen() {
       };
       saveSession(session);
     } catch (e) {
-      console.error("Failed to save history:", e);
+      console.error("Failed to save local history:", e);
+    }
+
+    // Persist to database when signed in
+    if (user) {
+      const res = await saveConversation(user.id, {
+        topic,
+        subtopics: subs,
+        messages: cleanMsgs,
+        stats: { questionsAnswered, durationMinutes },
+      });
+      try {
+        sessionStorage.setItem(
+          "knowgap:lastSaved",
+          res.ok ? "db" : "local",
+        );
+      } catch {}
+    } else {
+      try {
+        sessionStorage.setItem("knowgap:lastSaved", "local");
+      } catch {}
     }
 
     navigate({ to: "/summary" });
