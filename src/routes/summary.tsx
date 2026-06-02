@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, BookOpen, Clock, ArrowRight, CheckCircle2, Lightbulb } from "lucide-react";
 import { suggestRelatedTopics, generateTakeaways, type Takeaway } from "@/lib/analyze.functions";
 
+import { AuthGuard } from "@/components/AuthGuard";
+
 export const Route = createFileRoute("/summary")({
   head: () => ({
     meta: [
@@ -11,7 +13,11 @@ export const Route = createFileRoute("/summary")({
       { name: "description", content: "Summary of your KnowGap learning session." },
     ],
   }),
-  component: SummaryScreen,
+  component: () => (
+    <AuthGuard>
+      <SummaryScreen />
+    </AuthGuard>
+  ),
 });
 
 type Status = "Likely Clear" | "Partially Clear" | "Likely Missing";
@@ -102,6 +108,7 @@ function SummaryScreen() {
   const [elapsedMin, setElapsedMin] = useState(1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [takeaways, setTakeaways] = useState<Takeaway[]>([]);
+  const [savedTo, setSavedTo] = useState<"db" | "local" | null>(null);
   const reviewRef = useRef<HTMLDivElement>(null);
   const suggest = useServerFn(suggestRelatedTopics);
   const takeawaysFn = useServerFn(generateTakeaways);
@@ -121,6 +128,8 @@ function SummaryScreen() {
         const min = Math.max(1, Math.round((Date.now() - Number(startedAt)) / 60000));
         setElapsedMin(min);
       }
+      const last = sessionStorage.getItem("knowgap:lastSaved");
+      if (last === "db" || last === "local") setSavedTo(last);
     } catch {}
   }, []);
 
@@ -213,7 +222,11 @@ function SummaryScreen() {
         <div className="mt-4 flex justify-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4ADE80]/40 bg-[#4ADE80]/10 px-3 py-1 text-xs font-medium text-[#4ADE80]">
             <CheckCircle2 size={14} />
-            Session saved to your history
+            {savedTo === "db"
+              ? "Session saved"
+              : savedTo === "local"
+                ? "Session saved locally"
+                : "Session saved to your history"}
           </span>
         </div>
 
