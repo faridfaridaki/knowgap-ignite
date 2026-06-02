@@ -68,8 +68,8 @@ export async function saveConversation(
   const { error } = await supabase.from("conversations").insert({
     user_id: userId,
     topic: session.topic,
-    subtopics: session.subtopics,
-    messages: session.messages,
+    subtopics: session.subtopics as unknown as never,
+    messages: session.messages as unknown as never,
     questions_count: session.stats.questionsAnswered,
     duration_minutes: session.stats.durationMinutes,
   });
