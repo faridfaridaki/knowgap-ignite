@@ -8,6 +8,9 @@ import {
   type HistorySession,
   type Status,
 } from "@/lib/history";
+import { fetchConversation } from "@/lib/history-db";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/history/$id")({
   head: () => ({
@@ -16,7 +19,11 @@ export const Route = createFileRoute("/history/$id")({
       { name: "description", content: "Saved KnowGap learning session." },
     ],
   }),
-  component: HistoryDetail,
+  component: () => (
+    <AuthGuard>
+      <HistoryDetail />
+    </AuthGuard>
+  ),
 });
 
 function StatusBadge({ status }: { status: Status }) {
@@ -38,13 +45,29 @@ function StatusBadge({ status }: { status: Status }) {
 function HistoryDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [session, setSession] = useState<HistorySession | null | undefined>(
     undefined,
   );
 
   useEffect(() => {
-    setSession(getSession(id) ?? null);
-  }, [id]);
+    let cancelled = false;
+    async function load() {
+      if (user) {
+        const row = await fetchConversation(user.id, id);
+        if (cancelled) return;
+        if (row) {
+          setSession(row);
+          return;
+        }
+      }
+      if (!cancelled) setSession(getSession(id) ?? null);
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user]);
 
   const handleRestart = () => {
     if (!session) return;
