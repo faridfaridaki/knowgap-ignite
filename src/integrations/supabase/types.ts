@@ -21,15 +21,20 @@ export type Database = {
           final_test_answers: Json
           final_test_questions: Json
           final_test_score: number
+          final_test_total: number
           flashcards: Json
           id: string
+          improvement: number
+          knowledge_gaps: Json
           lesson_content: Json
           messages: Json
           pre_test_answers: Json
           pre_test_questions: Json
           pre_test_score: number
+          pre_test_total: number
           questions_count: number
           subtopics: Json
+          suggested_topics: Json
           summary: Json | null
           topic: string
           updated_at: string
@@ -41,15 +46,20 @@ export type Database = {
           final_test_answers?: Json
           final_test_questions?: Json
           final_test_score?: number
+          final_test_total?: number
           flashcards?: Json
           id?: string
+          improvement?: number
+          knowledge_gaps?: Json
           lesson_content?: Json
           messages?: Json
           pre_test_answers?: Json
           pre_test_questions?: Json
           pre_test_score?: number
+          pre_test_total?: number
           questions_count?: number
           subtopics?: Json
+          suggested_topics?: Json
           summary?: Json | null
           topic: string
           updated_at?: string
@@ -61,15 +71,20 @@ export type Database = {
           final_test_answers?: Json
           final_test_questions?: Json
           final_test_score?: number
+          final_test_total?: number
           flashcards?: Json
           id?: string
+          improvement?: number
+          knowledge_gaps?: Json
           lesson_content?: Json
           messages?: Json
           pre_test_answers?: Json
           pre_test_questions?: Json
           pre_test_score?: number
+          pre_test_total?: number
           questions_count?: number
           subtopics?: Json
+          suggested_topics?: Json
           summary?: Json | null
           topic?: string
           updated_at?: string
