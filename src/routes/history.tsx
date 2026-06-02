@@ -100,46 +100,86 @@ function HistoryScreen() {
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-3">
-            {sessions.map((s) => (
-              <Link
-                key={s.id}
-                to="/history/$id"
-                params={{ id: s.id }}
-                className="block rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-5 transition-all hover:border-[#7C6AF7]/60 hover:bg-surface"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="truncate text-base font-bold text-foreground">
-                    {s.topic}
-                  </h2>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {formatDate(s.date)}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {s.stats.questionsAnswered} question
-                  {s.stats.questionsAnswered === 1 ? "" : "s"} ·{" "}
-                  {s.stats.durationMinutes} min
-                </p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {s.subtopics.map((sub, i) => {
-                    const color = STATUS_COLOR[sub.status];
-                    return (
-                      <span
-                        key={i}
-                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                        style={{
-                          color,
-                          backgroundColor: `${color}1A`,
-                          border: `1px solid ${color}40`,
-                        }}
-                      >
-                        {sub.name}
-                      </span>
-                    );
-                  })}
-                </div>
-              </Link>
-            ))}
+            {sessions.map((s) => {
+              const preTotal = s.preTest?.questions.length ?? 0;
+              const finalTotal = s.finalTest?.questions.length ?? 0;
+              const prePct = preTotal
+                ? Math.round((s.preTest!.score / preTotal) * 100)
+                : null;
+              const finalPct = finalTotal
+                ? Math.round((s.finalTest!.score / finalTotal) * 100)
+                : null;
+              const delta =
+                prePct !== null && finalPct !== null ? finalPct - prePct : null;
+              return (
+                <Link
+                  key={s.id}
+                  to="/history/$id"
+                  params={{ id: s.id }}
+                  className="block rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-5 transition-all hover:border-[#7C6AF7]/60 hover:bg-surface"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 className="truncate text-base font-bold text-foreground">
+                      {s.topic}
+                    </h2>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(s.date)}
+                    </span>
+                  </div>
+                  {prePct !== null || finalPct !== null ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      {prePct !== null && (
+                        <span className="rounded-full border border-surface-border bg-background/40 px-2.5 py-1 text-foreground">
+                          Pre {s.preTest!.score}/{preTotal} ({prePct}%)
+                        </span>
+                      )}
+                      {finalPct !== null && (
+                        <span className="rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-2.5 py-1 text-[#7C6AF7] font-medium">
+                          Final {s.finalTest!.score}/{finalTotal} ({finalPct}%)
+                        </span>
+                      )}
+                      {delta !== null && delta !== 0 && (
+                        <span
+                          className={`rounded-full px-2 py-1 font-semibold ${
+                            delta > 0
+                              ? "bg-emerald-500/15 text-emerald-300"
+                              : "bg-red-500/15 text-red-300"
+                          }`}
+                        >
+                          {delta > 0 ? `+${delta}%` : `${delta}%`}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {s.stats.questionsAnswered} question
+                      {s.stats.questionsAnswered === 1 ? "" : "s"} ·{" "}
+                      {s.stats.durationMinutes} min
+                    </p>
+                  )}
+                  {s.subtopics.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {s.subtopics.map((sub, i) => {
+                        const color = STATUS_COLOR[sub.status];
+                        return (
+                          <span
+                            key={i}
+                            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                            style={{
+                              color,
+                              backgroundColor: `${color}1A`,
+                              border: `1px solid ${color}40`,
+                            }}
+                          >
+                            {sub.name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
