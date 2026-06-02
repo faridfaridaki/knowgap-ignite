@@ -18,8 +18,16 @@ export type Database = {
         Row: {
           created_at: string
           duration_minutes: number
+          final_test_answers: Json
+          final_test_questions: Json
+          final_test_score: number
+          flashcards: Json
           id: string
+          lesson_content: Json
           messages: Json
+          pre_test_answers: Json
+          pre_test_questions: Json
+          pre_test_score: number
           questions_count: number
           subtopics: Json
           summary: Json | null
@@ -30,8 +38,16 @@ export type Database = {
         Insert: {
           created_at?: string
           duration_minutes?: number
+          final_test_answers?: Json
+          final_test_questions?: Json
+          final_test_score?: number
+          flashcards?: Json
           id?: string
+          lesson_content?: Json
           messages?: Json
+          pre_test_answers?: Json
+          pre_test_questions?: Json
+          pre_test_score?: number
           questions_count?: number
           subtopics?: Json
           summary?: Json | null
@@ -42,8 +58,16 @@ export type Database = {
         Update: {
           created_at?: string
           duration_minutes?: number
+          final_test_answers?: Json
+          final_test_questions?: Json
+          final_test_score?: number
+          flashcards?: Json
           id?: string
+          lesson_content?: Json
           messages?: Json
+          pre_test_answers?: Json
+          pre_test_questions?: Json
+          pre_test_score?: number
           questions_count?: number
           subtopics?: Json
           summary?: Json | null
