@@ -134,14 +134,18 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   if (providers.length === 0) throw new Error("No AI provider is configured");
 
   let lastError: unknown;
-  for (const provider of providers) {
+  for (let i = 0; i < providers.length; i += 1) {
+    const provider = providers[i];
+    const isLast = i === providers.length - 1;
     try {
       return await fetchProvider(provider, body);
     } catch (error) {
       lastError = error;
-      if (provider.name === "Groq" && providers.some((p) => p.name === "Lovable AI")) {
+      if (provider.name === "Groq") {
         groqCooldownUntil = Date.now() + 10 * 60 * 1000;
-        console.warn("Groq is rate-limited or unavailable; retrying with Lovable AI.");
+      }
+      if (!isLast) {
+        console.warn(`${provider.name} failed; falling back to next provider.`);
         continue;
       }
     }
