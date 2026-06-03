@@ -15,6 +15,7 @@ import {
   type HistoryQuizQuestion,
 } from "@/lib/history";
 import { fetchConversation } from "@/lib/history-db";
+import { AppHeader } from "@/components/AppHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { useAuth } from "@/hooks/use-auth";
 
