@@ -433,7 +433,7 @@ Rules:
       if (!lesson) throw new Error("Invalid lesson response");
       return { lesson };
     } catch (error) {
-      console.error(`generateLesson(${data.lessonNumber}) failed:`, error);
+      console.error(`generateCourseLesson(${data.lessonNumber}) failed:`, error);
       return { lesson: null, error: AI_BUSY_MESSAGE };
     }
   });
