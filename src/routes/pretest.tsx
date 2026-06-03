@@ -42,19 +42,30 @@ function PreTestPage() {
       return;
     }
     let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setError(friendlyAiError(new Error("AI service is busy")));
+    }, 25000);
     generate({ data: { topic: topicNow, language: lang } })
       .then((res) => {
         if (cancelled) return;
+        clearTimeout(timeoutId);
+        if (res.error || !res.questions || res.questions.length === 0) {
+          setError(res.error ?? friendlyAiError(new Error("busy")));
+          return;
+        }
         patchState({ preTestQuestions: res.questions });
         setQuestions(res.questions);
       })
       .catch((e) => {
         if (cancelled) return;
-        console.error(e);
+        clearTimeout(timeoutId);
         setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [generate, navigate, lang]);
 
