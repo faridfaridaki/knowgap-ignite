@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { callGroqJson } from "./groq";
+import { AI_BUSY_MESSAGE } from "./ai-error";
 
 type Lang = "en" | "ru";
 
@@ -93,17 +94,22 @@ export const generateFinalTest = createServerFn({ method: "POST" })
       };
     },
   )
-  .handler(async ({ data }): Promise<{ questions: QuizQuestion[] }> => {
+  .handler(async ({ data }): Promise<{ questions: QuizQuestion[]; error?: string }> => {
     const avoid = data.previousQuestions.map((q) => `- ${q}`).join("\n");
     const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
-    const parsed = await callGroqJson({
-      prompt: `Create a 5-question multiple-choice FINAL test on: "${data.topic}". These questions must be DIFFERENT from the pre-test questions below but cover the same core concepts:\n${avoid}\n${langInstruction(data.language)}`,
-      system: sys,
-      temperature: 0.8,
-    });
-    const questions = sanitizeQuestions(parsed);
-    if (questions.length < 3) throw new Error("Invalid quiz response");
-    return { questions };
+    try {
+      const parsed = await callGroqJson({
+        prompt: `Create a 5-question multiple-choice FINAL test on: "${data.topic}". These questions must be DIFFERENT from the pre-test questions below but cover the same core concepts:\n${avoid}\n${langInstruction(data.language)}`,
+        system: sys,
+        temperature: 0.8,
+      });
+      const questions = sanitizeQuestions(parsed);
+      if (questions.length < 3) throw new Error("Invalid quiz response");
+      return { questions };
+    } catch (error) {
+      console.error("generateFinalTest failed:", error);
+      return { questions: [], error: AI_BUSY_MESSAGE };
+    }
   });
 
 export const generateLesson = createServerFn({ method: "POST" })
