@@ -110,7 +110,8 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
     console.error(`${provider.name} error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, res.status, errorText);
 
     const isRetryable = res.status === 429 || res.status >= 500;
-    if (provider.name === "Groq" && res.status === 429 && isDailyTokenLimit(errorText)) {
+    if (provider.name === "Groq" && res.status === 429) {
+      // Stop retrying Groq immediately so we fall back to Lovable AI fast.
       throw new Error(AI_BUSY_MESSAGE);
     }
     if (isRetryable && attempt < RETRY_DELAYS_MS.length) {
