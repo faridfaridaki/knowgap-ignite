@@ -5,12 +5,16 @@ import { saveSession, type HistorySession } from "@/lib/history";
 import { saveConversation } from "@/lib/history-db";
 import { AuthGuard } from "@/components/AuthGuard";
 import { useAuth } from "@/hooks/use-auth";
+import { AI_BUSY_MESSAGE } from "@/lib/ai-error";
 
 interface Message {
   id: string;
   role: "assistant" | "user";
   content: string;
   error?: boolean;
+  retryHistory?: Message[];
+  retryTopic?: string;
+  retryGaps?: string[];
 }
 
 interface Subtopic {
@@ -170,8 +174,11 @@ function ChatScreen() {
           {
             id: uid(),
             role: "assistant",
-            content: "Something went wrong. Try sending again.",
+            content: AI_BUSY_MESSAGE,
             error: true,
+            retryHistory: history,
+            retryTopic: topicVal,
+            retryGaps: gapsVal,
           },
         ]);
       } finally {
