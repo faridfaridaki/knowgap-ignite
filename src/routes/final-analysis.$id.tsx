@@ -134,10 +134,10 @@ function SavedFinalAnalysis() {
       <main className="min-h-screen w-full bg-background px-6 py-10">
         <div className="mx-auto w-full max-w-[820px]">
           <Link
-            to="/history"
+            to="/dashboard"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft size={16} /> Back to history
+            <ArrowLeft size={16} /> Back to Dashboard
           </Link>
           <p className="mt-8 text-sm text-foreground">Session not found.</p>
         </div>
@@ -189,11 +189,11 @@ function SavedFinalAnalysis() {
     <main className="min-h-screen w-full bg-background px-6 py-10">
       <div className="mx-auto w-full max-w-[820px]">
         <Link
-          to="/history"
+          to="/dashboard"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft size={16} />
-          <span>Back to History</span>
+          <span>Back to Dashboard</span>
         </Link>
 
         <div className="mt-6 text-center mb-10">
@@ -396,10 +396,10 @@ function SavedFinalAnalysis() {
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
-            to="/history"
+            to="/dashboard"
             className="rounded-lg border border-surface-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground hover:bg-surface/70"
           >
-            ← Back to History
+            ← Back to Dashboard
           </Link>
           <button
             type="button"

@@ -19,11 +19,11 @@ interface ConversationRow {
   duration_minutes: number | null;
   pre_test_questions: HistoryQuizQuestion[] | null;
   pre_test_answers: string[] | null;
-  pre_test_score: number | null;
+  pre_test_score: number | string | null;
   pre_test_total: number | null;
   final_test_questions: HistoryQuizQuestion[] | null;
   final_test_answers: string[] | null;
-  final_test_score: number | null;
+  final_test_score: number | string | null;
   final_test_total: number | null;
   lesson_content: HistoryLessonConcept[] | null;
   flashcards: HistoryFlashcard[] | null;
@@ -34,6 +34,12 @@ interface ConversationRow {
 
 const SELECT_COLS =
   "id, topic, created_at, subtopics, messages, questions_count, duration_minutes, pre_test_questions, pre_test_answers, pre_test_score, pre_test_total, final_test_questions, final_test_answers, final_test_score, final_test_total, lesson_content, flashcards, improvement, knowledge_gaps, suggested_topics";
+
+function numOrZero(v: number | string | null | undefined): number {
+  if (v === null || v === undefined) return 0;
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+}
 
 function rowToSession(row: ConversationRow): HistorySession {
   const preQs = Array.isArray(row.pre_test_questions) ? row.pre_test_questions : [];
@@ -52,7 +58,7 @@ function rowToSession(row: ConversationRow): HistorySession {
       ? {
           questions: preQs,
           answers: Array.isArray(row.pre_test_answers) ? row.pre_test_answers : [],
-          score: row.pre_test_score ?? 0,
+          score: numOrZero(row.pre_test_score),
           total: row.pre_test_total ?? preQs.length,
         }
       : undefined,
@@ -60,7 +66,7 @@ function rowToSession(row: ConversationRow): HistorySession {
       ? {
           questions: finalQs,
           answers: Array.isArray(row.final_test_answers) ? row.final_test_answers : [],
-          score: row.final_test_score ?? 0,
+          score: numOrZero(row.final_test_score),
           total: row.final_test_total ?? finalQs.length,
         }
       : undefined,
