@@ -391,7 +391,7 @@ function LessonView({
             className="inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
             style={{ backgroundImage: "linear-gradient(135deg, #10b981, #059669)" }}
           >
-            <PartyPopper size={16} /> {t("courseCompleteCta")}
+            <PartyPopper size={16} /> Practice Flashcards →
           </button>
         ) : (
           <button
