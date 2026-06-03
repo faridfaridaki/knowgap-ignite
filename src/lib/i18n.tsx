@@ -53,7 +53,7 @@ const dict = {
     // Course
     stage3: "Stage 3 · Course",
     buildingCourse: "Building your 10-lesson course...",
-    buildingCourseSub: "This may take 15-30 seconds.",
+    buildingCourseSub: "This usually takes 5-10 seconds.",
     lessons: "Lessons",
     lesson: "Lesson",
     of: "of",
