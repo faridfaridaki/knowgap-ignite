@@ -328,34 +328,34 @@ CRITICAL Rules:
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
 - ${langInstruction(data.language)}`;
     try {
-      const [firstHalf, secondHalf] = await Promise.all([
-        callGroqJson({
-          prompt: makePrompt(1, 5),
-          temperature: 0.7,
-          maxTokens: 6000,
-          model: "google/gemini-2.5-flash",
-          timeoutMs: 25000,
-          retryCount: 0,
-          queued: false,
-        }),
-        callGroqJson({
-          prompt: makePrompt(6, 10),
-          temperature: 0.7,
-          maxTokens: 6000,
-          model: "google/gemini-2.5-flash",
-          timeoutMs: 25000,
-          retryCount: 0,
-          queued: false,
-        }),
-      ]);
-      const firstCourse = sanitizeCourse(firstHalf);
-      const secondCourse = sanitizeCourse(secondHalf);
-      if (!firstCourse || !secondCourse) throw new Error("Invalid course response");
-      const course = sanitizeCourse({
-        course_title: firstCourse.course_title || secondCourse.course_title,
-        lessons: [...firstCourse.lessons, ...secondCourse.lessons].sort(
-          (a, b) => a.lesson_number - b.lesson_number,
+      // Split into 5 parallel batches of 2 lessons each — maximizes parallelism
+      // and keeps each JSON response small enough to never truncate.
+      const batches: Array<[number, number]> = [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+        [7, 8],
+        [9, 10],
+      ];
+      const results = await Promise.all(
+        batches.map(([s, e]) =>
+          callGroqJson<{ course_title?: string; lessons?: any[] }>({
+            prompt: makePrompt(s, e),
+            temperature: 0.7,
+            maxTokens: 4000,
+            timeoutMs: 30000,
+            retryCount: 1,
+            queued: false,
+          }),
         ),
+      );
+      const sanitized = results.map((r) => sanitizeCourse(r));
+      if (sanitized.some((c) => !c)) throw new Error("Invalid course response");
+      const course = sanitizeCourse({
+        course_title: sanitized.find((c) => c?.course_title)?.course_title ?? `Course on ${data.topic}`,
+        lessons: sanitized
+          .flatMap((c) => c!.lessons)
+          .sort((a, b) => a.lesson_number - b.lesson_number),
       });
       if (!course || course.lessons.length < 10) throw new Error("Incomplete course response");
       return { course };
