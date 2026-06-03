@@ -361,17 +361,30 @@ function ScoreCell({
   );
 }
 
-function ResultBadge({ ok }: { ok?: boolean }) {
+function ResultBadge({ ok, hint }: { ok?: boolean; hint?: boolean }) {
   if (ok === undefined) {
     return <span className="mx-auto block text-xs text-muted-foreground">—</span>;
   }
+  const cls = !ok
+    ? "bg-red-500/20 text-red-300"
+    : hint
+      ? "bg-amber-500/20 text-amber-300"
+      : "bg-emerald-500/20 text-emerald-300";
   return (
     <span
-      className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-full ${
-        ok ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
-      }`}
+      className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-full ${cls}`}
+      title={hint && ok ? "Correct with hint (0.5)" : undefined}
     >
-      {ok ? <Check size={14} /> : <X size={14} />}
+      {ok ? (hint ? <Lightbulb size={12} /> : <Check size={14} />) : <X size={14} />}
+    </span>
+  );
+}
+
+function LegendDot({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${className}`}>
+      <span className="h-2 w-2 rounded-full bg-current" />
+      {children}
     </span>
   );
 }
