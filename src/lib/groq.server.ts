@@ -70,10 +70,6 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   throw new Error(AI_BUSY_MESSAGE);
 }
 
-async function callGroq(body: GroqRequest): Promise<Response> {
-  return enqueueGroq(() => fetchGroq(body));
-}
-
 export async function callGroqJson<T = any>({
   prompt,
   system,
@@ -87,14 +83,16 @@ export async function callGroqJson<T = any>({
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
 
-  const res = await callGroq({
-    messages,
-    response_format: { type: "json_object" },
-    temperature,
+  return enqueueGroq(async () => {
+    const res = await fetchGroq({
+      messages,
+      response_format: { type: "json_object" },
+      temperature,
+    });
+    const payload = await res.json();
+    const content: string = payload?.choices?.[0]?.message?.content ?? "";
+    return JSON.parse(cleanContent(content)) as T;
   });
-  const payload = await res.json();
-  const content: string = payload?.choices?.[0]?.message?.content ?? "";
-  return JSON.parse(cleanContent(content)) as T;
 }
 
 export async function callGroqText({
@@ -110,9 +108,11 @@ export async function callGroqText({
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
 
-  const res = await callGroq({ messages, temperature });
-  const payload = await res.json();
-  return cleanContent(payload?.choices?.[0]?.message?.content ?? "");
+  return enqueueGroq(async () => {
+    const res = await fetchGroq({ messages, temperature });
+    const payload = await res.json();
+    return cleanContent(payload?.choices?.[0]?.message?.content ?? "");
+  });
 }
 
 export async function callGroqStreamText({
@@ -122,6 +122,8 @@ export async function callGroqStreamText({
   messages: GroqMessage[];
   temperature?: number;
 }): Promise<string> {
-  const res = await callGroq({ messages, temperature, stream: true });
-  return res.text();
+  return enqueueGroq(async () => {
+    const res = await fetchGroq({ messages, temperature, stream: true });
+    return res.text();
+  });
 }
