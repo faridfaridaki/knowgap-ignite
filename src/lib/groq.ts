@@ -55,9 +55,15 @@ async function wait(ms: number) {
 }
 
 function getProviders(): AiProvider[] {
-  const canUseLovableAi = Boolean(process.env.LOVABLE_API_KEY);
-  const groqIsCoolingDown = canUseLovableAi && Date.now() < groqCooldownUntil;
+  const hasFallback = Boolean(process.env.LOVABLE_API_KEY) || Boolean(process.env.DEEPSEEK_API_KEY);
+  const groqIsCoolingDown = hasFallback && Date.now() < groqCooldownUntil;
   const providers: AiProvider[] = [
+    {
+      name: "DeepSeek",
+      url: DEEPSEEK_URL,
+      model: DEEPSEEK_MODEL,
+      apiKey: process.env.DEEPSEEK_API_KEY,
+    },
     {
       name: "Lovable AI",
       url: LOVABLE_AI_URL,
