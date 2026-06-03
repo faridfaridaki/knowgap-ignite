@@ -77,6 +77,9 @@ function isDailyTokenLimit(errorText: string): boolean {
 
 async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<Response> {
   if (!provider.apiKey) throw new Error(`${provider.name} API key is not configured`);
+  const { lovableModelOverride, ...rest } = body;
+  const model =
+    provider.name === "Lovable AI" && lovableModelOverride ? lovableModelOverride : provider.model;
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     const controller = new AbortController();
@@ -90,8 +93,8 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
           Authorization: `Bearer ${provider.apiKey}`,
         },
         body: JSON.stringify({
-          model: provider.model,
-          ...body,
+          model,
+          ...rest,
         }),
         signal: controller.signal,
       });
