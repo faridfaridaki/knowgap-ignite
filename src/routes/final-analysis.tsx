@@ -202,7 +202,18 @@ function FinalAnalysisPage() {
 
         <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
           <h2 className="text-lg font-semibold text-foreground mb-1">{t("conceptByConcept")}</h2>
-          <p className="text-sm text-muted-foreground mb-5">{t("conceptByConceptSub")}</p>
+          <p className="text-sm text-muted-foreground mb-4">{t("conceptByConceptSub")}</p>
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
+            <LegendDot className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+              {t("legendCorrect")}
+            </LegendDot>
+            <LegendDot className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+              {t("legendHint")}
+            </LegendDot>
+            <LegendDot className="bg-red-500/20 text-red-300 border-red-500/30">
+              {t("legendWrong")}
+            </LegendDot>
+          </div>
           <div className="space-y-2">
             {Array.from({ length: Math.max(data.preRows.length, data.finalRows.length) }).map(
               (_, i) => {
@@ -225,8 +236,8 @@ function FinalAnalysisPage() {
                     <div className="text-sm text-foreground truncate" title={b?.label || a?.label || ""}>
                       {b?.label || a?.label || ""}
                     </div>
-                    <ResultBadge ok={a?.correct} />
-                    <ResultBadge ok={b?.correct} />
+                    <ResultBadge ok={a?.correct} hint={a?.hint} />
+                    <ResultBadge ok={b?.correct} hint={b?.hint} />
                   </div>
                 );
               },
