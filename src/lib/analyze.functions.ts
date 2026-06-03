@@ -94,6 +94,35 @@ export interface Takeaway {
   explanation: string;
 }
 
+export const generateSummaryExtras = createServerFn({ method: "POST" })
+  .inputValidator((input: { topic: string; subtopics: string[] }) => {
+    if (!input || typeof input.topic !== "string" || !input.topic.trim()) {
+      throw new Error("Topic is required");
+    }
+    return {
+      topic: input.topic.slice(0, 500),
+      subtopics: Array.isArray(input.subtopics)
+        ? input.subtopics
+            .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+            .slice(0, 10)
+        : [],
+    };
+  })
+  .handler(async ({ data }): Promise<{ topics: string[]; takeaways: Takeaway[] }> => {
+    const list = data.subtopics.map((s) => `"${s}"`).join(", ") || "none";
+    const prompt = `For a student who just studied '${data.topic}', return ONLY valid JSON with this exact shape: {"topics":["topic 1","topic 2","topic 3"],"takeaways":[{"subtopic":"name","explanation":"one sentence"}]}. Suggest exactly 3 related next topics. For these missing subtopics [${list}], include one concise correct explanation each. If there are no missing subtopics, return an empty takeaways array.`;
+    const parsed: any = await callGroqJson({ prompt, temperature: 0.6 });
+    const topics = Array.isArray(parsed?.topics)
+      ? parsed.topics.filter((t: any): t is string => typeof t === "string" && t.trim()).slice(0, 3)
+      : [];
+    const takeaways = Array.isArray(parsed?.takeaways)
+      ? parsed.takeaways
+          .filter((t: any) => t && typeof t.subtopic === "string" && typeof t.explanation === "string")
+          .map((t: any) => ({ subtopic: t.subtopic, explanation: t.explanation }))
+      : [];
+    return { topics, takeaways };
+  });
+
 export const generateTakeaways = createServerFn({ method: "POST" })
   .inputValidator((input: { topic: string; subtopics: string[] }) => {
     if (!input || typeof input.topic !== "string" || !input.topic.trim()) {
