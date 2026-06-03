@@ -76,7 +76,8 @@ function FlashcardsPage() {
   const card = cards[idx];
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-12">
+    <main className="min-h-screen w-full bg-background px-6 py-12 relative">
+      <AppHeader />
       <div className="mx-auto w-full max-w-[640px]">
         <div className="text-center mb-8">
           <span className="inline-flex items-center rounded-full border border-[#4FC4CF]/40 bg-[#4FC4CF]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4FC4CF]">
