@@ -136,10 +136,12 @@ function FinalAnalysisPage() {
     const preRows = state.preTestQuestions.map((q, i) => ({
       label: q.question,
       correct: isAnswerCorrect(q, state.preTestAnswers[i] ?? ""),
+      hint: state.preTestHints?.[i] ?? false,
     }));
     const finalRows = state.finalTestQuestions.map((q, i) => ({
       label: q.question,
       correct: isAnswerCorrect(q, state.finalTestAnswers[i] ?? ""),
+      hint: state.finalTestHints?.[i] ?? false,
     }));
     const gaps = state.finalTestQuestions
       .map((q, i) => ({ q, correct: isAnswerCorrect(q, state.finalTestAnswers[i] ?? "") }))
