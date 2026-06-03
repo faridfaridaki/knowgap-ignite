@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { setResponseStatus } from "@tanstack/react-start/server";
 import { callGroqJson, callGroqText } from "./groq.server";
 
 export type Status = "Likely Clear" | "Partially Clear" | "Likely Missing";
