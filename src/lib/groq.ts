@@ -206,6 +206,7 @@ export async function callGroqJson<T = any>({
   model,
   timeoutMs,
   retryCount,
+  queued = true,
 }: {
   prompt: string;
   system?: string;
@@ -214,12 +215,13 @@ export async function callGroqJson<T = any>({
   model?: string;
   timeoutMs?: number;
   retryCount?: number;
+  queued?: boolean;
 }): Promise<T> {
   const messages: GroqMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
 
-  return enqueueGroq(async () => {
+  const task = async () => {
     const payload = await fetchGroqPayload({
       messages,
       response_format: { type: "json_object" },
@@ -245,7 +247,9 @@ export async function callGroqJson<T = any>({
       console.error("callGroqJson parse failed; content length:", cleaned.length);
       throw err;
     }
-  });
+  };
+
+  return queued ? enqueueGroq(task) : task();
 }
 
 export async function callGroqText({
