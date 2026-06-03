@@ -86,7 +86,8 @@ function LearnPage() {
   const isLast = idx === total - 1;
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-12">
+    <main className="min-h-screen w-full bg-background px-6 py-12 relative">
+      <AppHeader />
       <div className="mx-auto w-full max-w-[720px]">
         <div className="flex items-center justify-between mb-8">
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
