@@ -18,6 +18,8 @@ type GroqRequest = {
   temperature?: number;
   response_format?: { type: "json_object" };
   stream?: boolean;
+  max_tokens?: number;
+  lovableModelOverride?: string;
 };
 
 type AiProvider = {
@@ -75,6 +77,9 @@ function isDailyTokenLimit(errorText: string): boolean {
 
 async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<Response> {
   if (!provider.apiKey) throw new Error(`${provider.name} API key is not configured`);
+  const { lovableModelOverride, ...rest } = body;
+  const model =
+    provider.name === "Lovable AI" && lovableModelOverride ? lovableModelOverride : provider.model;
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     const controller = new AbortController();
@@ -88,8 +93,8 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
           Authorization: `Bearer ${provider.apiKey}`,
         },
         body: JSON.stringify({
-          model: provider.model,
-          ...body,
+          model,
+          ...rest,
         }),
         signal: controller.signal,
       });
@@ -154,14 +159,27 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   throw lastError instanceof Error ? lastError : new Error(AI_BUSY_MESSAGE);
 }
 
+function tryRepairJson(text: string): string {
+  // Trim to the last balanced closing bracket and try to close remaining structures.
+  const lastObj = text.lastIndexOf("}");
+  const lastArr = text.lastIndexOf("]");
+  const cut = Math.max(lastObj, lastArr);
+  if (cut < 0) return text;
+  return text.slice(0, cut + 1);
+}
+
 export async function callGroqJson<T = any>({
   prompt,
   system,
   temperature = 0.7,
+  maxTokens,
+  model,
 }: {
   prompt: string;
   system?: string;
   temperature?: number;
+  maxTokens?: number;
+  model?: string;
 }): Promise<T> {
   const messages: GroqMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
@@ -172,10 +190,26 @@ export async function callGroqJson<T = any>({
       messages,
       response_format: { type: "json_object" },
       temperature,
+      max_tokens: maxTokens,
+      lovableModelOverride: model,
     });
     const payload = await res.json();
     const content: string = payload?.choices?.[0]?.message?.content ?? "";
-    return JSON.parse(cleanContent(content)) as T;
+    const cleaned = cleanContent(content);
+    try {
+      return JSON.parse(cleaned) as T;
+    } catch (err) {
+      const repaired = tryRepairJson(cleaned);
+      if (repaired !== cleaned) {
+        try {
+          return JSON.parse(repaired) as T;
+        } catch {
+          /* fall through */
+        }
+      }
+      console.error("callGroqJson parse failed; content length:", cleaned.length);
+      throw err;
+    }
   });
 }
 
@@ -183,21 +217,31 @@ export async function callGroqText({
   prompt,
   system,
   temperature = 0.7,
+  maxTokens,
+  model,
 }: {
   prompt: string;
   system?: string;
   temperature?: number;
+  maxTokens?: number;
+  model?: string;
 }): Promise<string> {
   const messages: GroqMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
 
   return enqueueGroq(async () => {
-    const res = await fetchGroq({ messages, temperature });
+    const res = await fetchGroq({
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      lovableModelOverride: model,
+    });
     const payload = await res.json();
     return cleanContent(payload?.choices?.[0]?.message?.content ?? "");
   });
 }
+
 
 export async function callGroqStreamText({
   messages,

@@ -1,34 +1,35 @@
-# Fix: Lovable AI primary, Groq fallback
+# Root Cause (from logs)
 
-## What the logs show
+Two distinct problems are causing the "Our AI is a bit busy" error:
 
-Groq has hit its daily token limit (TPD): `Limit 100000, Used 99959`. Every request now returns 429 and the user keeps seeing **"Our AI is a bit busy right now"**.
+1. **Groq daily token limit exhausted** — sandbox dev-server log shows:
+   `Rate limit reached ... tokens per day (TPD): Limit 100000, Used 99959`.
+   Groq is dead for the next ~9 minutes / day.
 
-There are **two bugs** in `src/lib/groq.ts` that prevent the existing fallback from working:
+2. **Lovable AI JSON output is being truncated** — the real current failure:
+   `generateCourse failed: SyntaxError: Unterminated string in JSON at position 1245 (line 7 column 1046)`.
+   `google/gemini-3-flash-preview` is cutting off the 10-lesson course JSON because no `max_tokens` is set on the request, so the response stops mid-string and `JSON.parse` throws → caught → returns the generic "AI busy" message to the UI.
 
-1. **Wrong provider order.** `getProviders()` returns Groq first, Lovable AI second. Even though we have `LOVABLE_API_KEY` available, every request burns ~10s retrying Groq before falling back.
-2. **Daily-limit short-circuit throws instead of falling back.** When Groq returns a 429 with "tokens per day", `fetchProvider` does `throw new Error(AI_BUSY_MESSAGE)`. In `fetchGroq`, the fallback loop only catches and continues if `provider.name === "Groq"` — which it does — but the chained 3-retry storm + repeated cooldowns mean most user requests time out before reaching Lovable AI. The visible log line `"Groq is rate-limited or unavailable; retrying with Lovable AI"` only appears once in logs, confirming the fallback is rarely reached.
+`LOVABLE_API_KEY` is confirmed present, so the provider fallback is working; the response itself is just incomplete.
 
-## Plan
+# Plan (edit `src/lib/groq.ts` and `src/lib/learning.functions.ts` only)
 
-Edit only `src/lib/groq.ts`:
+### 1. Allow callers to pass `max_tokens`
+- Add optional `maxTokens?: number` to `GroqRequest` and to the public `callGroqJson` / `callGroqText` signatures.
+- When set, include `max_tokens` in the request body sent to both providers.
 
-### A. Reorder providers — Lovable AI first
-`getProviders()` returns `[LovableAI, Groq]`. Groq is used only when `LOVABLE_API_KEY` is missing or Lovable AI itself fails.
+### 2. Use a bigger model + bigger output budget for `generateCourse`
+- In `generateCourse`, call `callGroqJson({ ..., maxTokens: 16000, model: "google/gemini-2.5-pro" })` so the full 10-lesson JSON fits.
+- Also add an optional `model` override to `callGroqJson` that, when provided, overrides only the Lovable AI provider's model (Groq stays on its current model). This keeps the course generation on a model with a much larger output window while leaving the cheaper Flash model for quizzes/lessons/flashcards.
 
-### B. Fail fast on Groq so fallback actually happens
-- When Groq returns a daily-limit 429, do NOT retry — immediately throw so `fetchGroq` falls back. (Today it throws but only after the retry loop on other 429s.)
-- Set `groqCooldownUntil = Date.now() + 10 * 60 * 1000` on **any** Groq 429 (not just daily-limit), so subsequent calls skip Groq entirely for 10 minutes when Lovable AI is configured.
+### 3. Defensive JSON parse
+- In `cleanContent`/`callGroqJson`, if `JSON.parse` fails, attempt to repair an obviously-truncated JSON object by trimming to the last balanced `}` / `]` and retrying once. If still invalid, throw the original error so the handler reports `AI_BUSY_MESSAGE` (unchanged UX).
 
-### C. Simplify fallback loop
-Iterate `providers` in order; on any error from a non-final provider, log a warning and try the next. Only throw `AI_BUSY_MESSAGE` if **all** providers fail.
+### 4. Keep the existing Lovable-first / Groq-fallback order
+No change to provider order — Lovable AI is already primary and the logs confirm it is being reached; only the response size needs fixing.
 
-### D. No client-side changes
-The existing client retry/error UI already handles `AI_BUSY_MESSAGE` correctly. No edits to routes, i18n, or learning.functions.ts.
+# Files Touched
+- `src/lib/groq.ts` — add `maxTokens` + optional `model` override, propagate into request body, add safe-JSON repair.
+- `src/lib/learning.functions.ts` — pass `maxTokens: 16000` and `model: "google/gemini-2.5-pro"` from `generateCourse` only.
 
-## Files touched
-- `src/lib/groq.ts`
-
-## Out of scope
-- Removing Groq entirely (kept as fallback as requested).
-- UI changes, learning flow changes, rate-limit messaging copy.
+No UI, route, schema, or auth changes. No new dependencies.
