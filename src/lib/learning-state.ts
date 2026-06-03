@@ -110,6 +110,9 @@ export function initState(topic: string): LearningState {
     finalTestQuestions: [],
     finalTestAnswers: [],
     finalTestScore: 0,
+    course: null,
+    completedLessons: [],
+    currentLesson: 1,
   };
   saveState(state);
   return state;
