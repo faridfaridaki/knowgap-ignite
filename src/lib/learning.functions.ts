@@ -41,32 +41,54 @@ async function callGroq(prompt: string, system?: string, temperature = 0.7) {
   const messages: Array<{ role: string; content: string }> = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      response_format: { type: "json_object" },
-      temperature,
-    }),
-  });
-  if (!res.ok) {
+
+  const maxAttempts = 4;
+  let lastErr: Error | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        response_format: { type: "json_object" },
+        temperature,
+      }),
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      const content: string = payload?.choices?.[0]?.message?.content ?? "";
+      const cleaned = content
+        .replace(/^\s*```json\s*/i, "")
+        .replace(/^\s*```\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
+      return JSON.parse(cleaned);
+    }
     const body = await res.text().catch(() => "");
-    console.error("Groq error:", res.status, body);
+    console.error(`Groq error (attempt ${attempt}/${maxAttempts}):`, res.status, body);
+    if (res.status === 429 || res.status >= 500) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : Math.min(8000, 1000 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 300);
+      lastErr =
+        res.status === 429
+          ? new Error("The AI service is busy (rate limited). Please wait a moment and try again.")
+          : new Error(`AI service error (${res.status}). Please try again.`);
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      break;
+    }
     throw new Error(`Groq API error: ${res.status}`);
   }
-  const payload = await res.json();
-  const content: string = payload?.choices?.[0]?.message?.content ?? "";
-  const cleaned = content
-    .replace(/^\s*```json\s*/i, "")
-    .replace(/^\s*```\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
-    .trim();
-  return JSON.parse(cleaned);
+  throw lastErr ?? new Error("Groq request failed");
 }
 
 function sanitizeQuestions(raw: any): QuizQuestion[] {
