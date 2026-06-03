@@ -71,16 +71,21 @@ export const generatePreTest = createServerFn({ method: "POST" })
     if (!input?.topic?.trim()) throw new Error("Topic required");
     return { topic: input.topic.slice(0, 2000), language: normLang(input.language) };
   })
-  .handler(async ({ data }): Promise<{ questions: QuizQuestion[] }> => {
+  .handler(async ({ data }): Promise<{ questions: QuizQuestion[]; error?: string }> => {
     const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
-    const parsed = await callGroqJson({
-      prompt: `Create a 5-question multiple-choice pre-test to gauge a student's current understanding of: "${data.topic}". Cover core sub-concepts. ${langInstruction(data.language)}`,
-      system: sys,
-      temperature: 0.6,
-    });
-    const questions = sanitizeQuestions(parsed);
-    if (questions.length < 3) throw new Error("Invalid quiz response");
-    return { questions };
+    try {
+      const parsed = await callGroqJson({
+        prompt: `Create a 5-question multiple-choice pre-test to gauge a student's current understanding of: "${data.topic}". Cover core sub-concepts. ${langInstruction(data.language)}`,
+        system: sys,
+        temperature: 0.6,
+      });
+      const questions = sanitizeQuestions(parsed);
+      if (questions.length < 3) throw new Error("Invalid quiz response");
+      return { questions };
+    } catch (error) {
+      console.error("generatePreTest failed:", error);
+      return { questions: [], error: AI_BUSY_MESSAGE };
+    }
   });
 
 export const generateFinalTest = createServerFn({ method: "POST" })
