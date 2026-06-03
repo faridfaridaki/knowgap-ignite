@@ -46,12 +46,15 @@ function FinalTestPage() {
     })
       .then((res) => {
         if (cancelled) return;
+        if (res.error || res.questions.length === 0) {
+          setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
+          return;
+        }
         patchState({ finalTestQuestions: res.questions });
         setQuestions(res.questions);
       })
       .catch((e) => {
         if (cancelled) return;
-        console.error(e);
         setError(friendlyAiError(e));
       });
     return () => {
