@@ -48,7 +48,7 @@ async function wait(ms: number) {
 }
 
 function getProviders(): AiProvider[] {
-  return [
+  const providers: AiProvider[] = [
     {
       name: "Groq",
       url: GROQ_URL,
@@ -61,7 +61,8 @@ function getProviders(): AiProvider[] {
       model: LOVABLE_MODEL,
       apiKey: process.env.LOVABLE_API_KEY,
     },
-  ].filter((provider) => Boolean(provider.apiKey));
+  ];
+  return providers.filter((provider) => Boolean(provider.apiKey));
 }
 
 function isDailyTokenLimit(errorText: string): boolean {
