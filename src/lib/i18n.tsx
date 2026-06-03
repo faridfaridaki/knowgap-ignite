@@ -304,11 +304,7 @@ function detectLang(): Lang {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("en");
-
-  useEffect(() => {
-    setLangState(detectLang());
-  }, []);
+  const [lang, setLangState] = useState<Lang>(() => detectLang());
 
   const setLang = (l: Lang) => {
     setLangState(l);
