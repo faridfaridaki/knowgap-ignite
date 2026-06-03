@@ -67,37 +67,72 @@ function PreTestResults() {
           </div>
         </div>
 
+        <div className="mb-5 flex flex-wrap items-center justify-center gap-2 text-[11px]">
+          <LegendDot className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+            {t("legendCorrect")}
+          </LegendDot>
+          <LegendDot className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+            {t("legendHint")}
+          </LegendDot>
+          <LegendDot className="bg-red-500/20 text-red-300 border-red-500/30">
+            {t("legendWrong")}
+          </LegendDot>
+        </div>
+
         <div className="space-y-4">
           {state.preTestQuestions.map((q, i) => {
             const given = state.preTestAnswers[i] ?? "";
             const correct = isAnswerCorrect(q, given);
+            const hintUsed = state.preTestHints?.[i] ?? false;
+            const tone = !correct
+              ? "wrong"
+              : hintUsed
+                ? "hint"
+                : "ok";
+            const wrapCls =
+              tone === "ok"
+                ? "border-emerald-500/30 bg-emerald-500/[0.04]"
+                : tone === "hint"
+                  ? "border-amber-500/30 bg-amber-500/[0.05]"
+                  : "border-red-500/30 bg-red-500/[0.04]";
+            const iconCls =
+              tone === "ok"
+                ? "bg-emerald-500/20 text-emerald-300"
+                : tone === "hint"
+                  ? "bg-amber-500/20 text-amber-300"
+                  : "bg-red-500/20 text-red-300";
+            const answerCls =
+              tone === "ok"
+                ? "text-emerald-300"
+                : tone === "hint"
+                  ? "text-amber-300"
+                  : "text-red-300";
             return (
-              <div
-                key={q.id}
-                className={`rounded-2xl border p-5 ${
-                  correct
-                    ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-                    : "border-red-500/30 bg-red-500/[0.04]"
-                }`}
-              >
+              <div key={q.id} className={`rounded-2xl border p-5 ${wrapCls}`}>
                 <div className="flex items-start gap-3">
                   <span
-                    className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                      correct ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
-                    }`}
+                    className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${iconCls}`}
                   >
                     {correct ? <Check size={16} /> : <X size={16} />}
                   </span>
                   <div className="flex-1">
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {t("question")} {i + 1}
+                    <div className="text-xs text-muted-foreground mb-1 flex items-center gap-2">
+                      <span>
+                        {t("question")} {i + 1}
+                      </span>
+                      {hintUsed && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                          <Lightbulb size={10} />
+                          {t("hintUsedShort")}
+                        </span>
+                      )}
                     </div>
                     <p className="text-base font-medium text-foreground">{q.question}</p>
 
                     <div className="mt-3 space-y-1.5 text-sm">
                       <div>
                         <span className="text-muted-foreground">{t("yourAnswer")} </span>
-                        <span className={correct ? "text-emerald-300" : "text-red-300"}>
+                        <span className={answerCls}>
                           {given || <em className="opacity-60">—</em>}
                         </span>
                       </div>
