@@ -18,6 +18,8 @@ type GroqRequest = {
   temperature?: number;
   response_format?: { type: "json_object" };
   stream?: boolean;
+  max_tokens?: number;
+  lovableModelOverride?: string;
 };
 
 type AiProvider = {
