@@ -1,10 +1,12 @@
 import { AI_BUSY_MESSAGE } from "./ai-error";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
+const LOVABLE_MODEL = "google/gemini-3-flash-preview";
 const RETRY_DELAYS_MS = [1500, 3500];
 const MAX_RETRY_AFTER_MS = 4000;
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 12000;
 
 type GroqMessage = {
   role: "system" | "user" | "assistant";
@@ -18,7 +20,15 @@ type GroqRequest = {
   stream?: boolean;
 };
 
+type AiProvider = {
+  name: "Groq" | "Lovable AI";
+  url: string;
+  model: string;
+  apiKey?: string;
+};
+
 let groqQueue: Promise<unknown> = Promise.resolve();
+let groqCooldownUntil = 0;
 
 function enqueueGroq<T>(task: () => Promise<T>): Promise<T> {
   const run = groqQueue.then(task, task);
@@ -38,30 +48,54 @@ async function wait(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchGroq(body: GroqRequest): Promise<Response> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+function getProviders(): AiProvider[] {
+  const canUseLovableAi = Boolean(process.env.LOVABLE_API_KEY);
+  const groqIsCoolingDown = canUseLovableAi && Date.now() < groqCooldownUntil;
+  const providers: AiProvider[] = [
+    {
+      name: "Groq",
+      url: GROQ_URL,
+      model: MODEL,
+      apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
+    },
+    {
+      name: "Lovable AI",
+      url: LOVABLE_AI_URL,
+      model: LOVABLE_MODEL,
+      apiKey: process.env.LOVABLE_API_KEY,
+    },
+  ];
+  return providers.filter((provider) => Boolean(provider.apiKey));
+}
+
+function isDailyTokenLimit(errorText: string): boolean {
+  const lower = errorText.toLowerCase();
+  return lower.includes("tokens per day") || lower.includes("tpd") || lower.includes("try again in");
+}
+
+async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<Response> {
+  if (!provider.apiKey) throw new Error(`${provider.name} API key is not configured`);
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     let res: Response;
     try {
-      res = await fetch(GROQ_URL, {
+      res = await fetch(provider.url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${provider.apiKey}`,
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: provider.model,
           ...body,
         }),
         signal: controller.signal,
       });
     } catch (err) {
       clearTimeout(timeoutId);
-      console.error(`Groq fetch failed (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, err);
+      console.error(`${provider.name} fetch failed (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, err);
       if (attempt < RETRY_DELAYS_MS.length) {
         await wait(RETRY_DELAYS_MS[attempt]);
         continue;
@@ -73,9 +107,12 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
     if (res.ok) return res;
 
     const errorText = await res.text().catch(() => "");
-    console.error(`Groq error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, res.status, errorText);
+    console.error(`${provider.name} error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, res.status, errorText);
 
     const isRetryable = res.status === 429 || res.status >= 500;
+    if (provider.name === "Groq" && res.status === 429 && isDailyTokenLimit(errorText)) {
+      throw new Error(AI_BUSY_MESSAGE);
+    }
     if (isRetryable && attempt < RETRY_DELAYS_MS.length) {
       const retryAfter = Number(res.headers.get("retry-after"));
       const headerMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, MAX_RETRY_AFTER_MS) : 0;
@@ -89,6 +126,27 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   }
 
   throw new Error(AI_BUSY_MESSAGE);
+}
+
+async function fetchGroq(body: GroqRequest): Promise<Response> {
+  const providers = getProviders();
+  if (providers.length === 0) throw new Error("No AI provider is configured");
+
+  let lastError: unknown;
+  for (const provider of providers) {
+    try {
+      return await fetchProvider(provider, body);
+    } catch (error) {
+      lastError = error;
+      if (provider.name === "Groq" && providers.some((p) => p.name === "Lovable AI")) {
+        groqCooldownUntil = Date.now() + 10 * 60 * 1000;
+        console.warn("Groq is rate-limited or unavailable; retrying with Lovable AI.");
+        continue;
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(AI_BUSY_MESSAGE);
 }
 
 export async function callGroqJson<T = any>({
