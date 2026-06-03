@@ -76,7 +76,6 @@ function CoursePage() {
       .catch((e) => {
         if (cancelled) return;
         clearTimeout(timeoutId);
-        console.error(e);
         setError(friendlyAiError(e));
       });
     return () => {
