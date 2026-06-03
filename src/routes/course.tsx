@@ -175,6 +175,7 @@ function CoursePage() {
     if (!isUnlocked(n)) return;
     setCurrentLesson(n);
     patchState({ currentLesson: n });
+    loadLesson(n);
   };
 
   const markComplete = () => {
@@ -187,8 +188,13 @@ function CoursePage() {
     patchState({ completedLessons: next, currentLesson: nextLesson });
     if (lesson.lesson_number < lessons.length) {
       setCurrentLesson(nextLesson);
+      loadLesson(nextLesson);
     }
   };
+
+  const lessonReady = !!lesson && lesson.explanation.trim().length > 0;
+  const isLessonLoading = !!lesson && !lessonReady && lessonLoading === lesson.lesson_number;
+
 
   if (error) {
     return <AiErrorState message={error} onRetry={loadCourse} />;
