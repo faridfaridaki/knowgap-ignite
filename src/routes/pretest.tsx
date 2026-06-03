@@ -2,9 +2,12 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { QuizPlayer } from "@/components/QuizPlayer";
+import { FullScreenLoader } from "@/components/FullScreenLoader";
+import { AppHeader } from "@/components/AppHeader";
 import { generatePreTest } from "@/lib/learning.functions";
 import { initState, loadState, patchState } from "@/lib/learning-state";
 import type { QuizQuestion } from "@/lib/learning-state";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/pretest")({
   component: PreTestPage,
@@ -12,6 +15,7 @@ export const Route = createFileRoute("/pretest")({
 
 function PreTestPage() {
   const navigate = useNavigate();
+  const { t, lang } = useT();
   const generate = useServerFn(generatePreTest);
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +38,7 @@ function PreTestPage() {
       return;
     }
     let cancelled = false;
-    generate({ data: { topic: topicNow } })
+    generate({ data: { topic: topicNow, language: lang } })
       .then((res) => {
         if (cancelled) return;
         patchState({ preTestQuestions: res.questions });
@@ -48,39 +52,41 @@ function PreTestPage() {
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate]);
+  }, [generate, navigate, lang]);
 
-  const handleSubmit = (answers: string[]) => {
-    patchState({ preTestAnswers: answers });
+  const handleSubmit = (answers: string[], hints: boolean[]) => {
+    patchState({ preTestAnswers: answers, preTestHints: hints });
     navigate({ to: "/pretest-results" });
   };
 
+  if (error) {
+    return (
+      <main className="min-h-screen w-full bg-background px-6 py-14">
+        <div className="mx-auto max-w-[680px] rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
+          {error}
+        </div>
+      </main>
+    );
+  }
+
+  if (!questions) {
+    return <FullScreenLoader title={t("generatingPreTest")} subtitle={t("generatingPreTestSub")} />;
+  }
+
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-14">
+    <main className="min-h-screen w-full bg-background px-6 py-14 relative animate-fade-in">
+      <AppHeader />
       <div className="mx-auto w-full max-w-[680px] mb-8 text-center">
         <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
-          Stage 1 · Pre-Test
+          {t("stage1")}
         </span>
         <h1 className="mt-4 text-2xl sm:text-3xl font-bold text-foreground">
-          Let's see what you already know
+          {t("preTestTitle")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{topic}</p>
       </div>
 
-      {error && (
-        <div className="mx-auto max-w-[680px] rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-
-      {!questions && !error && (
-        <div className="mx-auto max-w-[680px] rounded-2xl border border-surface-border bg-surface p-10 text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#7C6AF7] border-t-transparent" />
-          <p className="mt-4 text-sm text-muted-foreground">Generating your pre-test…</p>
-        </div>
-      )}
-
-      {questions && <QuizPlayer questions={questions} onSubmit={handleSubmit} />}
+      <QuizPlayer questions={questions} onSubmit={handleSubmit} />
     </main>
   );
 }

@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { I18nProvider } from "@/lib/i18n";
 
 function NotFoundComponent() {
   return (
@@ -77,18 +78,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
+      { title: "KnowGap" },
       { name: "description", content: "KnowGap is an AI-powered learning app that identifies knowledge gaps and teaches through interactive questions." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
+      { property: "og:title", content: "KnowGap" },
       { property: "og:description", content: "KnowGap is an AI-powered learning app that identifies knowledge gaps and teaches through interactive questions." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:title", content: "KnowGap" },
       { name: "twitter:description", content: "KnowGap is an AI-powered learning app that identifies knowledge gaps and teaches through interactive questions." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f43bdf97-2dd0-4335-9817-14d187df038e/id-preview-83787929--d261aca6-f688-4a42-a662-50571d145655.lovable.app-1780307182229.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f43bdf97-2dd0-4335-9817-14d187df038e/id-preview-83787929--d261aca6-f688-4a42-a662-50571d145655.lovable.app-1780307182229.png" },
     ],
     links: [
       {
@@ -122,8 +121,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <I18nProvider>
+        <Outlet />
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
