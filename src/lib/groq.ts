@@ -159,14 +159,27 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   throw lastError instanceof Error ? lastError : new Error(AI_BUSY_MESSAGE);
 }
 
+function tryRepairJson(text: string): string {
+  // Trim to the last balanced closing bracket and try to close remaining structures.
+  const lastObj = text.lastIndexOf("}");
+  const lastArr = text.lastIndexOf("]");
+  const cut = Math.max(lastObj, lastArr);
+  if (cut < 0) return text;
+  return text.slice(0, cut + 1);
+}
+
 export async function callGroqJson<T = any>({
   prompt,
   system,
   temperature = 0.7,
+  maxTokens,
+  model,
 }: {
   prompt: string;
   system?: string;
   temperature?: number;
+  maxTokens?: number;
+  model?: string;
 }): Promise<T> {
   const messages: GroqMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
@@ -177,10 +190,26 @@ export async function callGroqJson<T = any>({
       messages,
       response_format: { type: "json_object" },
       temperature,
+      max_tokens: maxTokens,
+      lovableModelOverride: model,
     });
     const payload = await res.json();
     const content: string = payload?.choices?.[0]?.message?.content ?? "";
-    return JSON.parse(cleanContent(content)) as T;
+    const cleaned = cleanContent(content);
+    try {
+      return JSON.parse(cleaned) as T;
+    } catch (err) {
+      const repaired = tryRepairJson(cleaned);
+      if (repaired !== cleaned) {
+        try {
+          return JSON.parse(repaired) as T;
+        } catch {
+          /* fall through */
+        }
+      }
+      console.error("callGroqJson parse failed; content length:", cleaned.length);
+      throw err;
+    }
   });
 }
 
@@ -188,21 +217,31 @@ export async function callGroqText({
   prompt,
   system,
   temperature = 0.7,
+  maxTokens,
+  model,
 }: {
   prompt: string;
   system?: string;
   temperature?: number;
+  maxTokens?: number;
+  model?: string;
 }): Promise<string> {
   const messages: GroqMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
 
   return enqueueGroq(async () => {
-    const res = await fetchGroq({ messages, temperature });
+    const res = await fetchGroq({
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      lovableModelOverride: model,
+    });
     const payload = await res.json();
     return cleanContent(payload?.choices?.[0]?.message?.content ?? "");
   });
 }
+
 
 export async function callGroqStreamText({
   messages,
