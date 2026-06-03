@@ -286,6 +286,19 @@ function sanitizeCourse(raw: any): Course | null {
   return { course_title: title || "Your Course", lessons: lessons.slice(0, 10) };
 }
 
+function emptyLesson(n: number, title: string): CourseLesson {
+  return {
+    lesson_number: n,
+    title,
+    explanation: "",
+    terms: [],
+    formulas: [],
+    real_life_examples: [],
+    practice_problems: [],
+    has_problems: false,
+  };
+}
+
 export const generateCourse = createServerFn({ method: "POST" })
   .inputValidator((input: { topic: string; wrongQuestions: string[]; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
@@ -299,68 +312,129 @@ export const generateCourse = createServerFn({ method: "POST" })
     const wrong = data.wrongQuestions.length
       ? data.wrongQuestions.map((q) => `- ${q}`).join("\n")
       : "(none — student got everything right, still teach the topic from scratch)";
-    const makePrompt = (start: number, end: number) => `Create lessons ${start}-${end} of a complete 10-lesson course on the topic: "${data.topic}". The student got these questions wrong in the pre-test and needs special focus on them:
+    const prompt = `Design a 10-lesson course outline on the topic: "${data.topic}". The student got these pre-test questions wrong and needs special focus on them:
 ${wrong}
 
 Return ONLY valid JSON with this exact schema:
 {
   "course_title": "...",
   "lessons": [
-    {
-      "lesson_number": ${start},
-      "title": "...",
-      "explanation": "Detailed but compact: 2 short paragraphs separated by \\n\\n. Use simple language, one analogy, and build understanding step by step.",
-      "terms": [{ "term": "...", "definition": "..." }],
-      "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
-      "real_life_examples": ["example 1", "example 2"],
-      "practice_problems": [{ "problem": "...", "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."], "final_answer": "..." }],
-      "has_problems": true
-    }
+    { "lesson_number": 1, "title": "..." },
+    { "lesson_number": 2, "title": "..." }
   ]
 }
 
-CRITICAL Rules:
-- Return EXACTLY ${end - start + 1} lessons, numbered ${start}-${end}. Do not include other lesson numbers.
-- These lessons are part of a 10-lesson progression from basics to advanced.
-- Keep each explanation to exactly 2 compact paragraphs so the JSON finishes reliably.
-- Include at most 3 terms, at most 2 formulas, 2 real_life_examples, and 1 practice_problem per lesson.
-- For each formula, include variables and worked_example. For conceptual topics, formulas can be [].
-- For each practice_problem, provide steps as an array and final_answer as a separate string.
+Rules:
+- Return EXACTLY 10 lessons, numbered 1-10, progressing from basics to advanced.
+- Each title is short (under 80 chars), specific, and descriptive.
+- Do NOT include explanations, terms, formulas, or problems — TITLES ONLY.
 - ${langInstruction(data.language)}`;
     try {
-      // Split into 5 parallel batches of 2 lessons each — maximizes parallelism
-      // and keeps each JSON response small enough to never truncate.
-      const batches: Array<[number, number]> = [
-        [1, 2],
-        [3, 4],
-        [5, 6],
-        [7, 8],
-        [9, 10],
-      ];
-      const results = await Promise.all(
-        batches.map(([s, e]) =>
-          callGroqJson<{ course_title?: string; lessons?: any[] }>({
-            prompt: makePrompt(s, e),
-            temperature: 0.7,
-            maxTokens: 4000,
-            timeoutMs: 30000,
-            retryCount: 1,
-            queued: false,
-          }),
-        ),
-      );
-      const sanitized = results.map((r) => sanitizeCourse(r));
-      if (sanitized.some((c) => !c)) throw new Error("Invalid course response");
-      const course = sanitizeCourse({
-        course_title: sanitized.find((c) => c?.course_title)?.course_title ?? `Course on ${data.topic}`,
-        lessons: sanitized
-          .flatMap((c) => c!.lessons)
-          .sort((a, b) => a.lesson_number - b.lesson_number),
+      const raw: any = await callGroqJson({
+        prompt,
+        temperature: 0.7,
+        maxTokens: 1200,
+        timeoutMs: 20000,
+        retryCount: 1,
+        queued: false,
       });
-      if (!course || course.lessons.length < 10) throw new Error("Incomplete course response");
-      return { course };
+      const title =
+        typeof raw?.course_title === "string" && raw.course_title.trim()
+          ? raw.course_title
+          : `Course on ${data.topic}`;
+      const lessonsRaw = Array.isArray(raw?.lessons) ? raw.lessons : [];
+      const lessons: CourseLesson[] = [];
+      for (let i = 1; i <= 10; i += 1) {
+        const found = lessonsRaw.find((l: any) => Number(l?.lesson_number) === i);
+        const lessonTitle =
+          (found && typeof found.title === "string" && found.title.trim()) ||
+          `Lesson ${i}`;
+        lessons.push(emptyLesson(i, lessonTitle));
+      }
+      return { course: { course_title: title, lessons } };
     } catch (error) {
-      console.error("generateCourse failed:", error);
+      console.error("generateCourse (outline) failed:", error);
       return { course: null, error: AI_BUSY_MESSAGE };
     }
   });
+
+export const generateLesson = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      topic: string;
+      lessonNumber: number;
+      lessonTitle: string;
+      allTitles: string[];
+      wrongQuestions: string[];
+      language?: string;
+    }) => {
+      if (!input?.topic?.trim()) throw new Error("Topic required");
+      const n = Number(input.lessonNumber);
+      if (!Number.isFinite(n) || n < 1 || n > 10) throw new Error("Invalid lesson number");
+      return {
+        topic: input.topic.slice(0, 2000),
+        lessonNumber: Math.floor(n),
+        lessonTitle: String(input.lessonTitle || "").slice(0, 200),
+        allTitles: (input.allTitles || []).slice(0, 10).map((t) => String(t).slice(0, 200)),
+        wrongQuestions: (input.wrongQuestions || []).slice(0, 10),
+        language: normLang(input.language),
+      };
+    },
+  )
+  .handler(async ({ data }): Promise<{ lesson: CourseLesson | null; error?: string }> => {
+    const wrong = data.wrongQuestions.length
+      ? data.wrongQuestions.map((q) => `- ${q}`).join("\n")
+      : "(none — student got everything right, still teach thoroughly)";
+    const outline = data.allTitles
+      .map((t, i) => `${i + 1}. ${t}`)
+      .join("\n");
+    const prompt = `You are writing lesson ${data.lessonNumber} of a 10-lesson course on "${data.topic}".
+
+Course outline:
+${outline}
+
+This lesson's title: "${data.lessonTitle}"
+
+Student's wrong pre-test questions to address where relevant:
+${wrong}
+
+Return ONLY valid JSON with this exact schema:
+{
+  "lesson_number": ${data.lessonNumber},
+  "title": "${data.lessonTitle}",
+  "explanation": "2-3 paragraphs separated by \\n\\n. Simple language, one analogy, build step by step.",
+  "terms": [{ "term": "...", "definition": "..." }],
+  "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
+  "real_life_examples": ["example 1", "example 2"],
+  "practice_problems": [{ "problem": "...", "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."], "final_answer": "..." }],
+  "has_problems": true
+}
+
+Rules:
+- Stay focused on THIS lesson's scope; do not duplicate other lessons.
+- Include 2-4 key terms, 0-3 formulas (empty for conceptual topics), 2 real-life examples, 1-2 practice problems.
+- For each formula, include variables and a worked_example.
+- For each practice_problem, provide steps as an array and final_answer as a separate string.
+- ${langInstruction(data.language)}`;
+    try {
+      const raw: any = await callGroqJson({
+        prompt,
+        temperature: 0.7,
+        maxTokens: 3500,
+        timeoutMs: 30000,
+        retryCount: 1,
+        queued: false,
+      });
+      const wrapped = sanitizeCourse({
+        course_title: "x",
+        lessons: [{ ...raw, lesson_number: data.lessonNumber, title: data.lessonTitle }],
+      });
+      const lesson = wrapped?.lessons?.[0];
+      if (!lesson) throw new Error("Invalid lesson response");
+      return { lesson };
+    } catch (error) {
+      console.error(`generateLesson(${data.lessonNumber}) failed:`, error);
+      return { lesson: null, error: AI_BUSY_MESSAGE };
+    }
+  });
+
