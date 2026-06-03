@@ -2,9 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useT } from "@/lib/i18n";
 
 export function UserMenu() {
   const { user, loading } = useAuth();
+  const { t } = useT();
 
   if (loading) return null;
 
@@ -14,7 +16,7 @@ export function UserMenu() {
         to="/auth"
         className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
       >
-        Sign in
+        {t("signIn")}
       </Link>
     );
   }
@@ -26,19 +28,16 @@ export function UserMenu() {
       <span
         className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white"
         style={{
-          backgroundImage:
-            "linear-gradient(135deg, #7C6AF7 0%, #5B4FD4 100%)",
+          backgroundImage: "linear-gradient(135deg, #7C6AF7 0%, #5B4FD4 100%)",
         }}
       >
         {initial}
       </span>
-      <span className="max-w-[140px] truncate text-xs text-foreground">
-        {user.email}
-      </span>
+      <span className="max-w-[140px] truncate text-xs text-foreground">{user.email}</span>
       <button
         type="button"
         onClick={() => supabase.auth.signOut()}
-        title="Sign out"
+        title={t("signOut")}
         className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-surface"
       >
         <LogOut size={14} />

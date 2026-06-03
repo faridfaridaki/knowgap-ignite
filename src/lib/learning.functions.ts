@@ -3,6 +3,17 @@ import { createServerFn } from "@tanstack/react-start";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
 
+type Lang = "en" | "ru";
+
+function langInstruction(lang: Lang): string {
+  const name = lang === "ru" ? "Russian" : "English";
+  return `Respond entirely in ${name}. ALL questions, options, explanations, lesson text, examples, terms, problems, and answers must be in ${name}.`;
+}
+
+function normLang(input: unknown): Lang {
+  return input === "ru" ? "ru" : "en";
+}
+
 interface QuizQuestion {
   id: number;
   type: "multiple_choice" | "short_answer";
@@ -63,16 +74,15 @@ function sanitizeQuestions(raw: any): QuizQuestion[] {
   const out: QuizQuestion[] = [];
   arr.slice(0, 5).forEach((q: any, i: number) => {
     if (!q || typeof q.question !== "string" || typeof q.correct_answer !== "string") return;
-    const type: "multiple_choice" | "short_answer" =
-      q.type === "short_answer" ? "short_answer" : "multiple_choice";
-    const options =
-      type === "multiple_choice" && Array.isArray(q.options)
-        ? q.options.filter((o: any) => typeof o === "string").slice(0, 4)
-        : undefined;
-    if (type === "multiple_choice" && (!options || options.length < 2)) return;
+    const options = Array.isArray(q.options)
+      ? q.options.filter((o: any) => typeof o === "string").slice(0, 4)
+      : null;
+    if (!options || options.length !== 4) return;
+    // Ensure correct_answer is one of the options
+    if (!options.includes(q.correct_answer)) return;
     out.push({
       id: i + 1,
-      type,
+      type: "multiple_choice",
       question: q.question,
       options,
       correct_answer: q.correct_answer,
@@ -82,23 +92,25 @@ function sanitizeQuestions(raw: any): QuizQuestion[] {
   return out;
 }
 
-const QUIZ_SYSTEM = `You generate quiz questions for students. Return ONLY valid JSON. Schema:
-{"questions":[{"id":1,"type":"multiple_choice"|"short_answer","question":"...","options":["A","B","C","D"],"correct_answer":"...","explanation":"..."}]}
+const QUIZ_SYSTEM_BASE = `You generate multiple-choice quiz questions for students. Return ONLY valid JSON. Schema:
+{"questions":[{"id":1,"type":"multiple_choice","question":"...","options":["A","B","C","D"],"correct_answer":"...","explanation":"..."}]}
 Rules:
-- Exactly 5 questions, mix of multiple_choice and short_answer (at least 3 multiple_choice).
-- For multiple_choice: exactly 4 options. correct_answer MUST exactly match one of the options.
-- For short_answer: omit "options". correct_answer is a short phrase (1-5 words).
-- explanation is one clear sentence explaining the correct answer.`;
+- Exactly 5 questions, ALL multiple_choice. Never use short_answer.
+- Each question MUST have exactly 4 options.
+- correct_answer MUST exactly match one of the four options (string equality).
+- The 3 wrong options must be PLAUSIBLE distractors based on common misconceptions — never silly or obviously wrong.
+- explanation is one clear sentence explaining why the correct answer is right.`;
 
 export const generatePreTest = createServerFn({ method: "POST" })
-  .inputValidator((input: { topic: string }) => {
+  .inputValidator((input: { topic: string; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
-    return { topic: input.topic.slice(0, 2000) };
+    return { topic: input.topic.slice(0, 2000), language: normLang(input.language) };
   })
   .handler(async ({ data }): Promise<{ questions: QuizQuestion[] }> => {
+    const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
     const parsed = await callGroq(
-      `Create a 5-question pre-test to gauge a student's current understanding of: "${data.topic}". Cover core sub-concepts.`,
-      QUIZ_SYSTEM,
+      `Create a 5-question multiple-choice pre-test to gauge a student's current understanding of: "${data.topic}". Cover core sub-concepts. ${langInstruction(data.language)}`,
+      sys,
       0.6,
     );
     const questions = sanitizeQuestions(parsed);
@@ -107,18 +119,22 @@ export const generatePreTest = createServerFn({ method: "POST" })
   });
 
 export const generateFinalTest = createServerFn({ method: "POST" })
-  .inputValidator((input: { topic: string; previousQuestions: string[] }) => {
-    if (!input?.topic?.trim()) throw new Error("Topic required");
-    return {
-      topic: input.topic.slice(0, 2000),
-      previousQuestions: (input.previousQuestions || []).slice(0, 10),
-    };
-  })
+  .inputValidator(
+    (input: { topic: string; previousQuestions: string[]; language?: string }) => {
+      if (!input?.topic?.trim()) throw new Error("Topic required");
+      return {
+        topic: input.topic.slice(0, 2000),
+        previousQuestions: (input.previousQuestions || []).slice(0, 10),
+        language: normLang(input.language),
+      };
+    },
+  )
   .handler(async ({ data }): Promise<{ questions: QuizQuestion[] }> => {
     const avoid = data.previousQuestions.map((q) => `- ${q}`).join("\n");
+    const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
     const parsed = await callGroq(
-      `Create a 5-question FINAL test on: "${data.topic}". These questions must be DIFFERENT from the pre-test questions below but cover the same core concepts:\n${avoid}`,
-      QUIZ_SYSTEM,
+      `Create a 5-question multiple-choice FINAL test on: "${data.topic}". These questions must be DIFFERENT from the pre-test questions below but cover the same core concepts:\n${avoid}\n${langInstruction(data.language)}`,
+      sys,
       0.8,
     );
     const questions = sanitizeQuestions(parsed);
@@ -128,11 +144,12 @@ export const generateFinalTest = createServerFn({ method: "POST" })
 
 export const generateLesson = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { topic: string; missedConcepts: string[] }) => {
+    (input: { topic: string; missedConcepts: string[]; language?: string }) => {
       if (!input?.topic?.trim()) throw new Error("Topic required");
       return {
         topic: input.topic.slice(0, 2000),
         missedConcepts: (input.missedConcepts || []).slice(0, 10),
+        language: normLang(input.language),
       };
     },
   )
@@ -140,7 +157,7 @@ export const generateLesson = createServerFn({ method: "POST" })
     const list = data.missedConcepts.length
       ? data.missedConcepts.map((c) => `- ${c}`).join("\n")
       : `- Core concepts of ${data.topic}`;
-    const prompt = `The student is learning about "${data.topic}". They got these questions/concepts WRONG and need a refresher:\n${list}\n\nCreate a lesson with one section per missed concept. Use VERY simple language (like explaining to a curious 10-year-old). Include a real-life example or analogy. Return JSON: {"lesson":[{"concept":"...","simple_explanation":"2-3 sentences","real_life_example":"a short concrete story or analogy","key_takeaway":"one sentence"}]}`;
+    const prompt = `The student is learning about "${data.topic}". They got these questions/concepts WRONG and need a refresher:\n${list}\n\nCreate a lesson with one section per missed concept. Use VERY simple language. Include a real-life example or analogy. Return JSON: {"lesson":[{"concept":"...","simple_explanation":"2-3 sentences","real_life_example":"a short concrete story or analogy","key_takeaway":"one sentence"}]}\n${langInstruction(data.language)}`;
     const parsed = await callGroq(prompt, undefined, 0.7);
     const arr = Array.isArray(parsed?.lesson) ? parsed.lesson : [];
     const lesson: LessonConcept[] = arr
@@ -158,12 +175,12 @@ export const generateLesson = createServerFn({ method: "POST" })
   });
 
 export const generateFlashcards = createServerFn({ method: "POST" })
-  .inputValidator((input: { topic: string }) => {
+  .inputValidator((input: { topic: string; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
-    return { topic: input.topic.slice(0, 2000) };
+    return { topic: input.topic.slice(0, 2000), language: normLang(input.language) };
   })
   .handler(async ({ data }): Promise<{ flashcards: Flashcard[] }> => {
-    const prompt = `Generate 6-8 flashcards for the topic "${data.topic}". Each flashcard has a key term and a 1-2 sentence definition. Return JSON: {"flashcards":[{"term":"...","definition":"..."}]}`;
+    const prompt = `Generate 6-8 flashcards for the topic "${data.topic}". Each flashcard has a key term and a 1-2 sentence definition. Return JSON: {"flashcards":[{"term":"...","definition":"..."}]}\n${langInstruction(data.language)}`;
     const parsed = await callGroq(prompt, undefined, 0.6);
     const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
     const flashcards: Flashcard[] = arr
@@ -175,14 +192,25 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     return { flashcards };
   });
 
+interface CourseFormula {
+  formula: string;
+  variables?: { symbol: string; meaning: string }[];
+  worked_example?: string;
+  explanation: string;
+}
+interface CoursePracticeProblem {
+  problem: string;
+  steps: string[];
+  final_answer: string;
+}
 interface CourseLesson {
   lesson_number: number;
   title: string;
   explanation: string;
   terms: { term: string; definition: string }[];
-  formulas: { formula: string; explanation: string }[];
+  formulas: CourseFormula[];
   real_life_examples: string[];
-  practice_problems: { problem: string; answer: string; solution_steps: string }[];
+  practice_problems: CoursePracticeProblem[];
   has_problems: boolean;
 }
 interface Course {
@@ -202,30 +230,51 @@ function sanitizeCourse(raw: any): Course | null {
             .filter((t: any) => t && typeof t.term === "string" && typeof t.definition === "string")
             .map((t: any) => ({ term: t.term, definition: t.definition }))
         : [];
-      const formulas = Array.isArray(l.formulas)
+      const formulas: CourseFormula[] = Array.isArray(l.formulas)
         ? l.formulas
             .filter(
               (f: any) => f && typeof f.formula === "string" && typeof f.explanation === "string",
             )
-            .map((f: any) => ({ formula: f.formula, explanation: f.explanation }))
+            .map((f: any) => ({
+              formula: f.formula,
+              explanation: f.explanation,
+              variables: Array.isArray(f.variables)
+                ? f.variables
+                    .filter(
+                      (v: any) =>
+                        v && typeof v.symbol === "string" && typeof v.meaning === "string",
+                    )
+                    .map((v: any) => ({ symbol: v.symbol, meaning: v.meaning }))
+                : [],
+              worked_example:
+                typeof f.worked_example === "string" ? f.worked_example : undefined,
+            }))
         : [];
       const examples = Array.isArray(l.real_life_examples)
         ? l.real_life_examples.filter((e: any) => typeof e === "string")
         : [];
-      const problems = Array.isArray(l.practice_problems)
+      const problems: CoursePracticeProblem[] = Array.isArray(l.practice_problems)
         ? l.practice_problems
-            .filter(
-              (p: any) =>
-                p &&
-                typeof p.problem === "string" &&
-                typeof p.answer === "string" &&
-                typeof p.solution_steps === "string",
-            )
-            .map((p: any) => ({
-              problem: p.problem,
-              answer: p.answer,
-              solution_steps: p.solution_steps,
-            }))
+            .filter((p: any) => p && typeof p.problem === "string")
+            .map((p: any) => {
+              // accept either {steps:[], final_answer} or legacy {solution_steps, answer}
+              let steps: string[] = [];
+              if (Array.isArray(p.steps)) {
+                steps = p.steps.filter((s: any) => typeof s === "string");
+              } else if (typeof p.solution_steps === "string") {
+                steps = p.solution_steps
+                  .split(/\n+/)
+                  .map((s: string) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
+                  .filter(Boolean);
+              }
+              const final_answer =
+                typeof p.final_answer === "string"
+                  ? p.final_answer
+                  : typeof p.answer === "string"
+                    ? p.answer
+                    : "";
+              return { problem: p.problem, steps, final_answer };
+            })
         : [];
       return {
         lesson_number: typeof l.lesson_number === "number" ? l.lesson_number : i + 1,
@@ -244,11 +293,12 @@ function sanitizeCourse(raw: any): Course | null {
 }
 
 export const generateCourse = createServerFn({ method: "POST" })
-  .inputValidator((input: { topic: string; wrongQuestions: string[] }) => {
+  .inputValidator((input: { topic: string; wrongQuestions: string[]; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
     return {
       topic: input.topic.slice(0, 2000),
       wrongQuestions: (input.wrongQuestions || []).slice(0, 10),
+      language: normLang(input.language),
     };
   })
   .handler(async ({ data }): Promise<{ course: Course }> => {
@@ -265,21 +315,42 @@ Return ONLY valid JSON with this exact schema:
     {
       "lesson_number": 1,
       "title": "...",
-      "explanation": "Full clear explanation in simple language, like explaining to a 5-year-old. Use analogies. 3-5 paragraphs separated by \\n\\n.",
+      "explanation": "EXTREMELY DETAILED, AT LEAST 5-7 paragraphs separated by \\n\\n. Use simple language. Include analogies, comparisons to everyday objects, and build understanding step by step.",
       "terms": [{ "term": "...", "definition": "..." }],
-      "formulas": [{ "formula": "...", "explanation": "..." }],
+      "formulas": [
+        {
+          "formula": "the formula itself, e.g. E = mc^2",
+          "variables": [{ "symbol": "E", "meaning": "energy in joules" }],
+          "worked_example": "A concrete worked numeric example showing how to plug values in and arrive at a final number.",
+          "explanation": "1-2 sentences on when and why to use this formula."
+        }
+      ],
       "real_life_examples": ["example 1", "example 2"],
-      "practice_problems": [{ "problem": "...", "answer": "...", "solution_steps": "..." }],
+      "practice_problems": [
+        {
+          "problem": "The problem statement.",
+          "steps": [
+            "Step 1: identify what is given and what is asked.",
+            "Step 2: write down the relevant formula.",
+            "Step 3: substitute the numbers.",
+            "Step 4: compute the result."
+          ],
+          "final_answer": "The final answer, clearly stated, with units if relevant."
+        }
+      ],
       "has_problems": true
     }
   ]
 }
 
-Rules:
+CRITICAL Rules:
 - EXACTLY 10 lessons, numbered 1-10, progressing from basics to advanced.
-- "formulas" and "practice_problems" can be empty arrays [] if the topic doesn't require them.
-- "has_problems" must be false for purely conceptual topics with no practice problems.
-- Make explanations rich and educational. Use simple words.`;
+- "explanation" MUST be at least 5 paragraphs of rich educational content.
+- For each formula, ALWAYS include the "variables" array (what each symbol means) and a "worked_example" plugging in real numbers.
+- For each practice_problem, ALWAYS provide "steps" as an array of numbered solution steps and a separate "final_answer".
+- For purely conceptual non-math topics: "formulas" can be []. For practice_problems, "steps" should be the numbered reasoning that arrives at the correct conclusion, and "final_answer" is that conclusion.
+- "has_problems" must be false ONLY if practice_problems is empty.
+- ${langInstruction(data.language)}`;
     const parsed = await callGroq(prompt, undefined, 0.7);
     const course = sanitizeCourse(parsed);
     if (!course) throw new Error("Invalid course response");
