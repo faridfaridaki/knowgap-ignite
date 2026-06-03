@@ -63,8 +63,17 @@ function FinalTestPage() {
   if (error) {
     return (
       <main className="min-h-screen w-full bg-background px-6 py-14">
-        <div className="mx-auto max-w-[680px] rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
-          {error}
+        <div className="mx-auto max-w-[680px] rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200 space-y-4">
+          <p>{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              window.location.reload();
+            }}
+            className="rounded-lg bg-[#7C6AF7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6a58e8]"
+          >
+            Try again
+          </button>
         </div>
       </main>
     );
