@@ -358,7 +358,7 @@ Rules:
     }
   });
 
-export const generateLesson = createServerFn({ method: "POST" })
+export const generateCourseLesson = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       topic: string;
