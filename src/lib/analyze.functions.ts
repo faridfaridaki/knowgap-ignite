@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseStatus } from "@tanstack/react-start/server";
+import { callGroqJson, callGroqText } from "./groq.server";
 
 export type Status = "Likely Clear" | "Partially Clear" | "Likely Missing";
 
@@ -31,50 +32,11 @@ export const analyzeTopic = createServerFn({ method: "POST" })
     return { topic: input.topic.slice(0, 5000) };
   })
   .handler(async ({ data }): Promise<{ subtopics: Subtopic[] }> => {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
-
-    const res = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: data.topic },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.7,
-        }),
-      },
-    );
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("Groq API error:", res.status, res.statusText, body);
-      throw new Error(`Groq API error: ${res.status} - ${body}`);
-    }
-
-    const payload = await res.json();
-    const content = payload?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") throw new Error("Empty response");
-
-    const cleaned = content
-      .replace(/^\s*```json\s*/i, "")
-      .replace(/^\s*```\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
-
     let parsed: any;
     try {
-      parsed = JSON.parse(cleaned);
+      parsed = await callGroqJson({ prompt: data.topic, system: SYSTEM_PROMPT, temperature: 0.7 });
     } catch (err) {
-      console.error("Failed to parse AI response:", err, "raw:", content);
+      console.error("Failed to parse AI response:", err);
       setResponseStatus(500);
       return { error: "Failed to parse AI response" } as any;
     }
@@ -109,40 +71,8 @@ export const suggestRelatedTopics = createServerFn({ method: "POST" })
     return { topic: input.topic.slice(0, 500) };
   })
   .handler(async ({ data }): Promise<{ topics: string[] }> => {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
-
     const prompt = `Given that a student just studied '${data.topic}', suggest exactly 3 related topics they should explore next. Return ONLY a JSON array: ['topic 1', 'topic 2', 'topic 3']`;
-
-    const res = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.7,
-        }),
-      },
-    );
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("Groq suggest error:", res.status, body);
-      throw new Error(`Groq API error: ${res.status}`);
-    }
-
-    const payload = await res.json();
-    const content: string = payload?.choices?.[0]?.message?.content ?? "";
-    const cleaned = content
-      .replace(/^\s*```json\s*/i, "")
-      .replace(/^\s*```\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
+    const cleaned = await callGroqText({ prompt, temperature: 0.7 });
 
     // Find first JSON array in the response
     const match = cleaned.match(/\[[\s\S]*\]/);
@@ -152,7 +82,7 @@ export const suggestRelatedTopics = createServerFn({ method: "POST" })
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
-      console.error("Failed to parse suggestions:", err, "raw:", content);
+      console.error("Failed to parse suggestions:", err, "raw:", cleaned);
       throw new Error("Failed to parse AI response");
     }
     if (!Array.isArray(parsed)) throw new Error("Invalid response shape");
@@ -185,41 +115,9 @@ export const generateTakeaways = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<{ takeaways: Takeaway[] }> => {
     if (data.subtopics.length === 0) return { takeaways: [] };
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
-
     const list = data.subtopics.map((s) => `"${s}"`).join(", ");
     const prompt = `For the topic '${data.topic}', give a 1-sentence correct explanation for each of these subtopics: [${list}]. Return ONLY JSON: [{"subtopic": "name", "explanation": "one sentence"}]`;
-
-    const res = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.5,
-        }),
-      },
-    );
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.error("Groq takeaways error:", res.status, body);
-      throw new Error(`Groq API error: ${res.status}`);
-    }
-
-    const payload = await res.json();
-    const content: string = payload?.choices?.[0]?.message?.content ?? "";
-    const cleaned = content
-      .replace(/^\s*```json\s*/i, "")
-      .replace(/^\s*```\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
+    const cleaned = await callGroqText({ prompt, temperature: 0.5 });
     const match = cleaned.match(/\[[\s\S]*\]/);
     const raw = match ? match[0] : cleaned;
 
@@ -227,7 +125,7 @@ export const generateTakeaways = createServerFn({ method: "POST" })
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
-      console.error("Failed to parse takeaways:", err, "raw:", content);
+      console.error("Failed to parse takeaways:", err, "raw:", cleaned);
       throw new Error("Failed to parse AI response");
     }
     if (!Array.isArray(parsed)) throw new Error("Invalid response shape");
