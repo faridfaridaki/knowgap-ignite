@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AI_BUSY_MESSAGE } from "@/lib/ai-error";
-import { callGroqStreamText } from "@/lib/groq.server";
+import { callGroqStreamText } from "@/lib/groq";
 
 interface ChatMessage {
   role: "user" | "assistant";

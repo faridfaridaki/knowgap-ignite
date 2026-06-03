@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { callGroqJson } from "./groq.server";
+import { callGroqJson } from "./groq";
 
 type Lang = "en" | "ru";
 
