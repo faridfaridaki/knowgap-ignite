@@ -1,0 +1,1 @@
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS course_content jsonb NOT NULL DEFAULT '{}'::jsonb;
