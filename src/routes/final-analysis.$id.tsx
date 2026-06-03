@@ -125,14 +125,14 @@ function SavedFinalAnalysis() {
 
   if (session === undefined) {
     return (
-      <main className="min-h-screen w-full bg-background px-6 py-10">
+      <main className="min-h-screen w-full bg-background px-6 py-10 relative"><AppHeader />
         <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
   }
   if (session === null) {
     return (
-      <main className="min-h-screen w-full bg-background px-6 py-10">
+      <main className="min-h-screen w-full bg-background px-6 py-10 relative"><AppHeader />
         <div className="mx-auto w-full max-w-[820px]">
           <Link
             to="/dashboard"
@@ -187,7 +187,7 @@ function SavedFinalAnalysis() {
           : "Be honest with yourself — this topic needs more work.";
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-10">
+    <main className="min-h-screen w-full bg-background px-6 py-10 relative"><AppHeader />
       <div className="mx-auto w-full max-w-[820px]">
         <Link
           to="/dashboard"
