@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
 import { AiErrorState } from "@/components/AiErrorState";
+import { AppHeader } from "@/components/AppHeader";
 import { generateFlashcards } from "@/lib/learning.functions";
 import { loadState, patchState } from "@/lib/learning-state";
 import type { Flashcard } from "@/lib/learning-state";
