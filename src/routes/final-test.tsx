@@ -1,13 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { QuizPlayer } from "@/components/QuizPlayer";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
+import { AiErrorState } from "@/components/AiErrorState";
 import { AppHeader } from "@/components/AppHeader";
 import { generateFinalTest } from "@/lib/learning.functions";
 import { loadState, patchState } from "@/lib/learning-state";
 import type { QuizQuestion } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
+import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/final-test")({
   component: FinalTestPage,
@@ -21,7 +23,9 @@ function FinalTestPage() {
   const [error, setError] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
 
-  useEffect(() => {
+  const loadQuestions = useCallback(() => {
+    setError(null);
+    setQuestions(null);
     const s = loadState();
     if (!s) {
       navigate({ to: "/" });
@@ -48,12 +52,14 @@ function FinalTestPage() {
       .catch((e) => {
         if (cancelled) return;
         console.error(e);
-        setError(e?.message ?? "Failed to generate final test");
+        setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
   }, [generate, navigate, lang]);
+
+  useEffect(() => loadQuestions(), [loadQuestions]);
 
   const handleSubmit = (answers: string[], hints: boolean[]) => {
     patchState({ finalTestAnswers: answers, finalTestHints: hints });
@@ -61,22 +67,7 @@ function FinalTestPage() {
   };
 
   if (error) {
-    return (
-      <main className="min-h-screen w-full bg-background px-6 py-14">
-        <div className="mx-auto max-w-[680px] rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200 space-y-4">
-          <p>{error}</p>
-          <button
-            onClick={() => {
-              setError(null);
-              window.location.reload();
-            }}
-            className="rounded-lg bg-[#7C6AF7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6a58e8]"
-          >
-            Try again
-          </button>
-        </div>
-      </main>
-    );
+    return <AiErrorState message={error} onRetry={loadQuestions} />;
   }
 
   if (!questions) {
