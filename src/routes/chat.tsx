@@ -318,6 +318,22 @@ function ChatScreen() {
                     }}
                   >
                     {msg.content}
+                    {msg.error && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                          void streamAssistant(
+                            msg.retryHistory ?? messages.filter((m) => !m.error),
+                            msg.retryTopic ?? topic,
+                            msg.retryGaps ?? gaps,
+                          );
+                        }}
+                        className="mt-3 block rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/90"
+                      >
+                        Try Again
+                      </button>
+                    )}
                   </div>
                 </div>
               );
