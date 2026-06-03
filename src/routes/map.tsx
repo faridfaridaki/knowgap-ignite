@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { analyzeTopic } from "@/lib/analyze.functions";
 import { AuthGuard } from "@/components/AuthGuard";
+import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/map")({
   head: () => ({
@@ -94,7 +95,7 @@ function MapScreen() {
         })
         .catch((e) => {
           console.error("analyzeTopic failed:", e);
-          setError("Couldn't analyze this topic. Please try again.");
+          setError(friendlyAiError(e));
         })
         .finally(() => setLoading(false));
     },
