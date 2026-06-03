@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, X, TrendingUp, AlertTriangle, ArrowRight, Lightbulb } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
