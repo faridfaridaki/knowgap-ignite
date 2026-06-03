@@ -68,7 +68,7 @@ function PreTestPage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [generate, navigate, lang, hydrated]);
+  }, [navigate, lang, hydrated]);
 
   useEffect(() => loadQuestions(), [loadQuestions]);
 

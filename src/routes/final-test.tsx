@@ -61,7 +61,7 @@ function FinalTestPage() {
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate, lang, hydrated]);
+  }, [navigate, lang, hydrated]);
 
   useEffect(() => loadQuestions(), [loadQuestions]);
 
