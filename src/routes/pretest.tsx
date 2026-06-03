@@ -17,13 +17,14 @@ export const Route = createFileRoute("/pretest")({
 
 function PreTestPage() {
   const navigate = useNavigate();
-  const { t, lang } = useT();
+  const { t, lang, hydrated } = useT();
   const generate = useServerFn(generatePreTest);
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
 
   const loadQuestions = useCallback(() => {
+    if (!hydrated) return;
     setError(null);
     setQuestions(null);
     let topicNow = "";
@@ -67,7 +68,7 @@ function PreTestPage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [generate, navigate, lang]);
+  }, [generate, navigate, lang, hydrated]);
 
   useEffect(() => loadQuestions(), [loadQuestions]);
 
