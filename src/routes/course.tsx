@@ -56,19 +56,31 @@ function CoursePage() {
       .filter((q, i) => !isAnswerCorrect(q, s.preTestAnswers[i] ?? ""))
       .map((q) => q.question);
     let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setError(friendlyAiError(new Error("AI service is busy")));
+    }, 30000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
         if (cancelled) return;
+        clearTimeout(timeoutId);
+        if (res.error || !res.course) {
+          setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
+          return;
+        }
         patchState({ course: res.course });
         setCourse(res.course);
       })
       .catch((e) => {
         if (cancelled) return;
+        clearTimeout(timeoutId);
         console.error(e);
         setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [generate, navigate, lang]);
 
