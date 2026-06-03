@@ -1,13 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { QuizPlayer } from "@/components/QuizPlayer";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
+import { AiErrorState } from "@/components/AiErrorState";
 import { AppHeader } from "@/components/AppHeader";
 import { generatePreTest } from "@/lib/learning.functions";
 import { initState, loadState, patchState } from "@/lib/learning-state";
 import type { QuizQuestion } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
+import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/pretest")({
   component: PreTestPage,
@@ -21,7 +23,9 @@ function PreTestPage() {
   const [error, setError] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
 
-  useEffect(() => {
+  const loadQuestions = useCallback(() => {
+    setError(null);
+    setQuestions(null);
     let topicNow = "";
     try {
       topicNow = sessionStorage.getItem("knowgap:topic") ?? "";
@@ -47,12 +51,14 @@ function PreTestPage() {
       .catch((e) => {
         if (cancelled) return;
         console.error(e);
-        setError(e?.message ?? "Failed to generate quiz");
+        setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
   }, [generate, navigate, lang]);
+
+  useEffect(() => loadQuestions(), [loadQuestions]);
 
   const handleSubmit = (answers: string[], hints: boolean[]) => {
     patchState({ preTestAnswers: answers, preTestHints: hints });
@@ -60,13 +66,7 @@ function PreTestPage() {
   };
 
   if (error) {
-    return (
-      <main className="min-h-screen w-full bg-background px-6 py-14">
-        <div className="mx-auto max-w-[680px] rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200">
-          {error}
-        </div>
-      </main>
-    );
+    return <AiErrorState message={error} onRetry={loadQuestions} />;
   }
 
   if (!questions) {

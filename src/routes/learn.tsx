@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Lightbulb } from "lucide-react";
+import { AiErrorState } from "@/components/AiErrorState";
 import { generateLesson } from "@/lib/learning.functions";
 import {
   loadState,
@@ -9,6 +10,7 @@ import {
   isAnswerCorrect,
 } from "@/lib/learning-state";
 import type { LearningState, LessonConcept } from "@/lib/learning-state";
+import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/learn")({
   component: LearnPage,
@@ -22,7 +24,9 @@ function LearnPage() {
   const [idx, setIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadLesson = useCallback(() => {
+    setError(null);
+    setLesson(null);
     const s = loadState();
     if (!s || s.preTestQuestions.length === 0) {
       navigate({ to: "/" });
@@ -47,23 +51,19 @@ function LearnPage() {
       .catch((e) => {
         if (cancelled) return;
         console.error(e);
-        setError(e?.message ?? "Failed to generate lesson");
+        setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
   }, [generate, navigate]);
 
+  useEffect(() => loadLesson(), [loadLesson]);
+
   if (!state) return null;
 
   if (error) {
-    return (
-      <main className="min-h-screen w-full bg-background flex items-center justify-center px-6">
-        <div className="max-w-md text-center rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
-          {error}
-        </div>
-      </main>
-    );
+    return <AiErrorState message={error} onRetry={loadLesson} />;
   }
 
   if (!lesson) {

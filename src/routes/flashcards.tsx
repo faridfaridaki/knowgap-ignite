@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
+import { AiErrorState } from "@/components/AiErrorState";
 import { generateFlashcards } from "@/lib/learning.functions";
 import { loadState, patchState } from "@/lib/learning-state";
 import type { Flashcard } from "@/lib/learning-state";
+import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/flashcards")({
   component: FlashcardsPage,
@@ -18,7 +20,9 @@ function FlashcardsPage() {
   const [flipped, setFlipped] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadFlashcards = useCallback(() => {
+    setError(null);
+    setCards(null);
     const s = loadState();
     if (!s) {
       navigate({ to: "/" });
@@ -38,25 +42,21 @@ function FlashcardsPage() {
       .catch((e) => {
         if (cancelled) return;
         console.error(e);
-        setError(e?.message ?? "Failed to generate flashcards");
+        setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
   }, [generate, navigate]);
 
+  useEffect(() => loadFlashcards(), [loadFlashcards]);
+
   useEffect(() => {
     setFlipped(false);
   }, [idx]);
 
   if (error) {
-    return (
-      <main className="min-h-screen w-full bg-background flex items-center justify-center px-6">
-        <div className="max-w-md text-center rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
-          {error}
-        </div>
-      </main>
-    );
+    return <AiErrorState message={error} onRetry={loadFlashcards} />;
   }
 
   if (!cards) {

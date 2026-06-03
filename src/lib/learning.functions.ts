@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama-3.3-70b-versatile";
+import { callGroqJson } from "./groq";
 
 type Lang = "en" | "ru";
 
@@ -33,62 +31,6 @@ interface LessonConcept {
 interface Flashcard {
   term: string;
   definition: string;
-}
-
-async function callGroq(prompt: string, system?: string, temperature = 0.7) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("GROQ_API_KEY not configured");
-  const messages: Array<{ role: string; content: string }> = [];
-  if (system) messages.push({ role: "system", content: system });
-  messages.push({ role: "user", content: prompt });
-
-  const maxAttempts = 4;
-  let lastErr: Error | null = null;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        response_format: { type: "json_object" },
-        temperature,
-      }),
-    });
-    if (res.ok) {
-      const payload = await res.json();
-      const content: string = payload?.choices?.[0]?.message?.content ?? "";
-      const cleaned = content
-        .replace(/^\s*```json\s*/i, "")
-        .replace(/^\s*```\s*/i, "")
-        .replace(/\s*```\s*$/i, "")
-        .trim();
-      return JSON.parse(cleaned);
-    }
-    const body = await res.text().catch(() => "");
-    console.error(`Groq error (attempt ${attempt}/${maxAttempts}):`, res.status, body);
-    if (res.status === 429 || res.status >= 500) {
-      const retryAfter = Number(res.headers.get("retry-after"));
-      const waitMs =
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : Math.min(8000, 1000 * 2 ** (attempt - 1)) + Math.floor(Math.random() * 300);
-      lastErr =
-        res.status === 429
-          ? new Error("The AI service is busy (rate limited). Please wait a moment and try again.")
-          : new Error(`AI service error (${res.status}). Please try again.`);
-      if (attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, waitMs));
-        continue;
-      }
-      break;
-    }
-    throw new Error(`Groq API error: ${res.status}`);
-  }
-  throw lastErr ?? new Error("Groq request failed");
 }
 
 function sanitizeQuestions(raw: any): QuizQuestion[] {
@@ -130,11 +72,11 @@ export const generatePreTest = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<{ questions: QuizQuestion[] }> => {
     const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
-    const parsed = await callGroq(
-      `Create a 5-question multiple-choice pre-test to gauge a student's current understanding of: "${data.topic}". Cover core sub-concepts. ${langInstruction(data.language)}`,
-      sys,
-      0.6,
-    );
+    const parsed = await callGroqJson({
+      prompt: `Create a 5-question multiple-choice pre-test to gauge a student's current understanding of: "${data.topic}". Cover core sub-concepts. ${langInstruction(data.language)}`,
+      system: sys,
+      temperature: 0.6,
+    });
     const questions = sanitizeQuestions(parsed);
     if (questions.length < 3) throw new Error("Invalid quiz response");
     return { questions };
@@ -154,11 +96,11 @@ export const generateFinalTest = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ questions: QuizQuestion[] }> => {
     const avoid = data.previousQuestions.map((q) => `- ${q}`).join("\n");
     const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
-    const parsed = await callGroq(
-      `Create a 5-question multiple-choice FINAL test on: "${data.topic}". These questions must be DIFFERENT from the pre-test questions below but cover the same core concepts:\n${avoid}\n${langInstruction(data.language)}`,
-      sys,
-      0.8,
-    );
+    const parsed = await callGroqJson({
+      prompt: `Create a 5-question multiple-choice FINAL test on: "${data.topic}". These questions must be DIFFERENT from the pre-test questions below but cover the same core concepts:\n${avoid}\n${langInstruction(data.language)}`,
+      system: sys,
+      temperature: 0.8,
+    });
     const questions = sanitizeQuestions(parsed);
     if (questions.length < 3) throw new Error("Invalid quiz response");
     return { questions };
@@ -180,7 +122,7 @@ export const generateLesson = createServerFn({ method: "POST" })
       ? data.missedConcepts.map((c) => `- ${c}`).join("\n")
       : `- Core concepts of ${data.topic}`;
     const prompt = `The student is learning about "${data.topic}". They got these questions/concepts WRONG and need a refresher:\n${list}\n\nCreate a lesson with one section per missed concept. Use VERY simple language. Include a real-life example or analogy. Return JSON: {"lesson":[{"concept":"...","simple_explanation":"2-3 sentences","real_life_example":"a short concrete story or analogy","key_takeaway":"one sentence"}]}\n${langInstruction(data.language)}`;
-    const parsed = await callGroq(prompt, undefined, 0.7);
+    const parsed = await callGroqJson({ prompt, temperature: 0.7 });
     const arr = Array.isArray(parsed?.lesson) ? parsed.lesson : [];
     const lesson: LessonConcept[] = arr
       .filter(
@@ -203,7 +145,7 @@ export const generateFlashcards = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<{ flashcards: Flashcard[] }> => {
     const prompt = `Generate 6-8 flashcards for the topic "${data.topic}". Each flashcard has a key term and a 1-2 sentence definition. Return JSON: {"flashcards":[{"term":"...","definition":"..."}]}\n${langInstruction(data.language)}`;
-    const parsed = await callGroq(prompt, undefined, 0.6);
+    const parsed = await callGroqJson({ prompt, temperature: 0.6 });
     const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
     const flashcards: Flashcard[] = arr
       .filter(
@@ -373,7 +315,7 @@ CRITICAL Rules:
 - For purely conceptual non-math topics: "formulas" can be []. For practice_problems, "steps" should be the numbered reasoning that arrives at the correct conclusion, and "final_answer" is that conclusion.
 - "has_problems" must be false ONLY if practice_problems is empty.
 - ${langInstruction(data.language)}`;
-    const parsed = await callGroq(prompt, undefined, 0.7);
+    const parsed = await callGroqJson({ prompt, temperature: 0.7 });
     const course = sanitizeCourse(parsed);
     if (!course) throw new Error("Invalid course response");
     return { course };
