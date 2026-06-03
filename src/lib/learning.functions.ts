@@ -155,12 +155,21 @@ export const generateLesson = createServerFn({ method: "POST" })
   });
 
 export const generateFlashcards = createServerFn({ method: "POST" })
-  .inputValidator((input: { topic: string; language?: string }) => {
+  .inputValidator((input: { topic: string; lessonTitles?: string[]; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
-    return { topic: input.topic.slice(0, 2000), language: normLang(input.language) };
+    return {
+      topic: input.topic.slice(0, 2000),
+      lessonTitles: Array.isArray(input.lessonTitles)
+        ? input.lessonTitles.filter((t) => typeof t === "string").slice(0, 12)
+        : [],
+      language: normLang(input.language),
+    };
   })
   .handler(async ({ data }): Promise<{ flashcards: Flashcard[]; error?: string }> => {
-    const prompt = `Generate 6-8 flashcards for the topic "${data.topic}". Each flashcard has a key term and a 1-2 sentence definition. Return JSON: {"flashcards":[{"term":"...","definition":"..."}]}\n${langInstruction(data.language)}`;
+    const lessonsBlock = data.lessonTitles.length
+      ? data.lessonTitles.map((t) => `- ${t}`).join("\n")
+      : "(use core concepts of the topic)";
+    const prompt = `Generate 8-10 flashcards for the topic "${data.topic}". Use the key terms and concepts from these lessons:\n${lessonsBlock}\n\nReturn ONLY JSON: {"flashcards":[{"term":"...","definition":"..."}]} where definition is 1-2 clear sentences.\n${langInstruction(data.language)}`;
     try {
       const parsed = await callGroqJson({ prompt, temperature: 0.6 });
       const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
@@ -168,7 +177,7 @@ export const generateFlashcards = createServerFn({ method: "POST" })
         .filter(
           (c: any) => c && typeof c.term === "string" && typeof c.definition === "string",
         )
-        .slice(0, 8);
+        .slice(0, 10);
       if (flashcards.length === 0) throw new Error("Invalid flashcards response");
       return { flashcards };
     } catch (error) {
