@@ -2,8 +2,9 @@ import { AI_BUSY_MESSAGE } from "./ai-error";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
-const RETRY_DELAYS_MS = [3000, 6000, 12000];
-const MAX_RETRY_AFTER_MS = 12000;
+const RETRY_DELAYS_MS = [1500, 3500];
+const MAX_RETRY_AFTER_MS = 4000;
+const FETCH_TIMEOUT_MS = 8000;
 
 type GroqMessage = {
   role: "system" | "user" | "assistant";
