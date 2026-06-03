@@ -346,7 +346,12 @@ CRITICAL Rules:
 - "has_problems" must be false ONLY if practice_problems is empty.
 - ${langInstruction(data.language)}`;
     try {
-      const parsed = await callGroqJson({ prompt, temperature: 0.7 });
+      const parsed = await callGroqJson({
+        prompt,
+        temperature: 0.7,
+        maxTokens: 16000,
+        model: "google/gemini-2.5-pro",
+      });
       const course = sanitizeCourse(parsed);
       if (!course) throw new Error("Invalid course response");
       return { course };
