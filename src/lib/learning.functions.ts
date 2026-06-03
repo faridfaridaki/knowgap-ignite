@@ -276,7 +276,7 @@ export const generateCourse = createServerFn({ method: "POST" })
       language: normLang(input.language),
     };
   })
-  .handler(async ({ data }): Promise<{ course: Course }> => {
+  .handler(async ({ data }): Promise<{ course: Course | null; error?: string }> => {
     const wrong = data.wrongQuestions.length
       ? data.wrongQuestions.map((q) => `- ${q}`).join("\n")
       : "(none — student got everything right, still teach the topic from scratch)";
@@ -326,8 +326,13 @@ CRITICAL Rules:
 - For purely conceptual non-math topics: "formulas" can be []. For practice_problems, "steps" should be the numbered reasoning that arrives at the correct conclusion, and "final_answer" is that conclusion.
 - "has_problems" must be false ONLY if practice_problems is empty.
 - ${langInstruction(data.language)}`;
-    const parsed = await callGroqJson({ prompt, temperature: 0.7 });
-    const course = sanitizeCourse(parsed);
-    if (!course) throw new Error("Invalid course response");
-    return { course };
+    try {
+      const parsed = await callGroqJson({ prompt, temperature: 0.7 });
+      const course = sanitizeCourse(parsed);
+      if (!course) throw new Error("Invalid course response");
+      return { course };
+    } catch (error) {
+      console.error("generateCourse failed:", error);
+      return { course: null, error: AI_BUSY_MESSAGE };
+    }
   });
