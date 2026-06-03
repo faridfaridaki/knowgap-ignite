@@ -42,24 +42,40 @@ function CoursePage() {
   const generationInFlight = useRef(false);
   const lessonRequests = useRef<Set<number>>(new Set());
 
-  const wrongQuestions = useMemo(() => {
-    if (!state) return [];
-    return state.preTestQuestions
-      .filter((q, i) => !isAnswerCorrect(q, state.preTestAnswers[i] ?? ""))
-      .map((q) => q.question);
-  }, [state]);
+  // Refs mirror latest values so callbacks stay stable and don't recreate
+  // (which previously caused an infinite useEffect loop).
+  const courseRef = useRef<Course | null>(null);
+  const stateRef = useRef<LearningState | null>(null);
+  const langRef = useRef(lang);
+  const wrongQuestionsRef = useRef<string[]>([]);
 
+  useEffect(() => {
+    courseRef.current = course;
+  }, [course]);
+  useEffect(() => {
+    stateRef.current = state;
+    wrongQuestionsRef.current = state
+      ? state.preTestQuestions
+          .filter((q, i) => !isAnswerCorrect(q, state.preTestAnswers[i] ?? ""))
+          .map((q) => q.question)
+      : [];
+  }, [state]);
+  useEffect(() => {
+    langRef.current = lang;
+  }, [lang]);
+
+  // Stable: reads everything from refs.
   const loadLesson = useCallback(
-    (n: number, courseSnapshot?: Course, topicOverride?: string) => {
-      const activeCourse = courseSnapshot ?? course;
-      const topic = topicOverride ?? state?.topic;
+    (n: number, courseOverride?: Course, topicOverride?: string) => {
+      const activeCourse = courseOverride ?? courseRef.current;
+      const topic = topicOverride ?? stateRef.current?.topic;
       if (!activeCourse || !topic) return;
       const target = activeCourse.lessons.find((l) => l.lesson_number === n);
       if (!target) return;
       if (target.explanation && target.explanation.trim().length > 0) return;
       if (lessonRequests.current.has(n)) return;
       lessonRequests.current.add(n);
-      setLessonLoading(n);
+      setLessonLoading((cur) => cur ?? n);
       setLessonError(null);
       const titles = activeCourse.lessons.map((l) => l.title);
       generateOneLesson({
@@ -68,8 +84,8 @@ function CoursePage() {
           lessonNumber: n,
           lessonTitle: target.title,
           allTitles: titles,
-          wrongQuestions,
-          language: lang,
+          wrongQuestions: wrongQuestionsRef.current,
+          language: langRef.current,
         },
       })
         .then((res) => {
@@ -95,13 +111,12 @@ function CoursePage() {
           setLessonLoading((cur) => (cur === n ? null : cur));
         });
     },
-    [course, state, wrongQuestions, lang, generateOneLesson],
+    [generateOneLesson],
   );
 
   const loadCourse = useCallback(() => {
     if (!hydrated) return;
     setError(null);
-    setCourse(null);
     const s = loadState();
     if (!s || s.preTestQuestions.length === 0) {
       navigate({ to: "/" });
@@ -113,52 +128,48 @@ function CoursePage() {
     setCurrentLesson(startAt);
     if (s.course && s.course.lessons?.length) {
       setCourse(s.course);
-      // Kick off lazy load for the currently-open lesson if missing.
       const target = s.course.lessons.find((l) => l.lesson_number === startAt);
       if (target && (!target.explanation || target.explanation.trim().length === 0)) {
         loadLesson(startAt, s.course, s.topic);
       }
+      const nextN = Math.min(startAt + 1, s.course.lessons.length);
+      if (nextN !== startAt) loadLesson(nextN, s.course, s.topic);
       return;
     }
     if (generationInFlight.current) return;
     generationInFlight.current = true;
+    setCourse(null);
     const wrong = s.preTestQuestions
       .filter((q, i) => !isAnswerCorrect(q, s.preTestAnswers[i] ?? ""))
       .map((q) => q.question);
-    let cancelled = false;
-    const timeoutId = setTimeout(() => {
-      if (cancelled) return;
-      cancelled = true;
-      setError(friendlyAiError(new Error("AI service is busy")));
-    }, 30000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
-        if (cancelled) return;
-        clearTimeout(timeoutId);
         if (res.error || !res.course) {
           setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
           return;
         }
         patchState({ course: res.course });
         setCourse(res.course);
-        // Immediately fetch the first lesson so the user sees content fast.
+        // Fetch lesson 1 and prefetch lesson 2 in parallel.
         loadLesson(startAt, res.course, s.topic);
+        const nextN = Math.min(startAt + 1, res.course.lessons.length);
+        if (nextN !== startAt) loadLesson(nextN, s.course, s.topic);
       })
       .catch((e) => {
-        if (cancelled) return;
-        clearTimeout(timeoutId);
         setError(friendlyAiError(e));
       })
       .finally(() => {
         generationInFlight.current = false;
       });
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-    };
   }, [navigate, lang, hydrated, generate, loadLesson]);
 
-  useEffect(() => loadCourse(), [loadCourse]);
+  // Run once on hydration. Do NOT depend on loadCourse — that caused the
+  // previous "Maximum update depth exceeded" loop.
+  useEffect(() => {
+    if (!hydrated) return;
+    loadCourse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
 
   const lessons = course?.lessons ?? [];
