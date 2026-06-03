@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Lock,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
+import { AiErrorState } from "@/components/AiErrorState";
 import { generateCourse } from "@/lib/learning.functions";
 import { loadState, patchState, isAnswerCorrect } from "@/lib/learning-state";
 import type {
@@ -20,6 +21,7 @@ import type {
   LearningState,
 } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
+import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/course")({
   component: CoursePage,
@@ -35,7 +37,9 @@ function CoursePage() {
   const [completed, setCompleted] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadCourse = useCallback(() => {
+    setError(null);
+    setCourse(null);
     const s = loadState();
     if (!s || s.preTestQuestions.length === 0) {
       navigate({ to: "/" });
@@ -61,12 +65,14 @@ function CoursePage() {
       .catch((e) => {
         if (cancelled) return;
         console.error(e);
-        setError(e?.message ?? "Failed to generate course");
+        setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
   }, [generate, navigate, lang]);
+
+  useEffect(() => loadCourse(), [loadCourse]);
 
   const lessons = course?.lessons ?? [];
   const lesson: CourseLesson | undefined = useMemo(
@@ -98,13 +104,7 @@ function CoursePage() {
   };
 
   if (error) {
-    return (
-      <main className="min-h-screen w-full bg-background flex items-center justify-center px-6">
-        <div className="max-w-md text-center rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-sm text-red-200">
-          {error}
-        </div>
-      </main>
-    );
+    return <AiErrorState message={error} onRetry={loadCourse} />;
   }
 
   if (!state || !course) {
