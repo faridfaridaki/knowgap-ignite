@@ -191,7 +191,7 @@ const dict = {
 
     stage3: "Этап 3 · Курс",
     buildingCourse: "Создаём курс из 10 уроков...",
-    buildingCourseSub: "Это займёт 15-30 секунд.",
+    buildingCourseSub: "Обычно занимает 5-10 секунд.",
     lessons: "Уроки",
     lesson: "Урок",
     of: "из",
