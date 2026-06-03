@@ -1,36 +1,34 @@
-# Fix infinite loader on Pre-Test
+# Fix: Lovable AI primary, Groq fallback
 
-## What's happening
+## What the logs show
 
-When the user submits a topic, `/pretest` shows "Generating your personalized test…" and never resolves. There are two root causes that compound:
+Groq has hit its daily token limit (TPD): `Limit 100000, Used 99959`. Every request now returns 429 and the user keeps seeing **"Our AI is a bit busy right now"**.
 
-### 1. The serverFn can hang for ~30s+ with no surfaced error
-`src/lib/groq.ts` retries Groq on `429` / `5xx` with delays of `3s + 6s + 12s` (≈21s of waits), then up to 3 fetch round-trips on top. All Groq calls also pass through a **server-side serialized queue** (`enqueueGroq`). If the previous request is still mid-retry, the new request waits behind it. Result: the SSR worker exceeds its request budget and the response never reaches the client, so the loader never flips to the error state.
+There are **two bugs** in `src/lib/groq.ts` that prevent the existing fallback from working:
 
-### 2. The pre-test request is fired twice (canceling itself)
-`I18nProvider` initializes `lang = "en"` then calls `setLangState(detectLang())` in a mount `useEffect`. On routes where the saved language is `ru` (the user just typed Russian), `lang` flips after first render. In `pretest.tsx`, `loadQuestions` is `useCallback([..., lang])`, so the effect re-runs: the first request is "cancelled" client-side, a second is enqueued behind it on the server. This doubles the wait and almost guarantees a worker timeout.
+1. **Wrong provider order.** `getProviders()` returns Groq first, Lovable AI second. Even though we have `LOVABLE_API_KEY` available, every request burns ~10s retrying Groq before falling back.
+2. **Daily-limit short-circuit throws instead of falling back.** When Groq returns a 429 with "tokens per day", `fetchProvider` does `throw new Error(AI_BUSY_MESSAGE)`. In `fetchGroq`, the fallback loop only catches and continues if `provider.name === "Groq"` — which it does — but the chained 3-retry storm + repeated cooldowns mean most user requests time out before reaching Lovable AI. The visible log line `"Groq is rate-limited or unavailable; retrying with Lovable AI"` only appears once in logs, confirming the fallback is rarely reached.
 
 ## Plan
 
-### A. Stop the duplicate request (`src/lib/i18n.tsx`)
-Initialize `lang` with `detectLang()` via `useState(() => detectLang())` so the value is correct on first render and `loadQuestions` does not re-create. Keep SSR-safe by guarding `localStorage` access inside the initializer.
+Edit only `src/lib/groq.ts`:
 
-### B. Make the AI call fail fast and visibly (`src/lib/groq.ts`)
-- Reduce retry budget so we never exceed the worker timeout: `RETRY_DELAYS_MS = [1500, 3500]` (≈5s of waits, 3 attempts total) and `MAX_RETRY_AFTER_MS = 4000`.
-- Add a per-fetch `AbortController` with an 8s timeout so a stuck Groq socket cannot hang the request indefinitely.
-- On final failure, always throw `AI_BUSY_MESSAGE` (already done) — confirmed it bubbles to the `AiErrorState` retry screen.
+### A. Reorder providers — Lovable AI first
+`getProviders()` returns `[LovableAI, Groq]`. Groq is used only when `LOVABLE_API_KEY` is missing or Lovable AI itself fails.
 
-### C. Make `generatePreTest` symmetric with `generateFinalTest` (`src/lib/learning.functions.ts`)
-Wrap the handler in `try/catch` and return `{ questions: [], error: AI_BUSY_MESSAGE }` instead of throwing. Update `pretest.tsx` to check `res.error || res.questions.length === 0` and set the error state — same pattern already used in `final-test.tsx`. This guarantees the client always gets a response and the loader always resolves.
+### B. Fail fast on Groq so fallback actually happens
+- When Groq returns a daily-limit 429, do NOT retry — immediately throw so `fetchGroq` falls back. (Today it throws but only after the retry loop on other 429s.)
+- Set `groqCooldownUntil = Date.now() + 10 * 60 * 1000` on **any** Groq 429 (not just daily-limit), so subsequent calls skip Groq entirely for 10 minutes when Lovable AI is configured.
 
-### D. Client-side safety net (`src/routes/pretest.tsx`)
-Add a 25s client-side timeout on the `generate(...)` promise. If it doesn't resolve, set the friendly error state so the user sees the "Try Again" UI instead of an infinite spinner.
+### C. Simplify fallback loop
+Iterate `providers` in order; on any error from a non-final provider, log a warning and try the next. Only throw `AI_BUSY_MESSAGE` if **all** providers fail.
+
+### D. No client-side changes
+The existing client retry/error UI already handles `AI_BUSY_MESSAGE` correctly. No edits to routes, i18n, or learning.functions.ts.
 
 ## Files touched
-- `src/lib/i18n.tsx` — lazy initial state for `lang`
-- `src/lib/groq.ts` — shorter retry budget + fetch abort timeout
-- `src/lib/learning.functions.ts` — `generatePreTest` returns `{questions, error?}`
-- `src/routes/pretest.tsx` — handle `res.error`, add client timeout
+- `src/lib/groq.ts`
 
 ## Out of scope
-No UI/visual changes. No changes to other AI features (course, lesson, flashcards) beyond what they inherit from the shared `groq.ts` retry settings.
+- Removing Groq entirely (kept as fallback as requested).
+- UI changes, learning flow changes, rate-limit messaging copy.
