@@ -85,6 +85,7 @@ function FinalAnalysisPage() {
       final_test_score: state.finalTestScore,
       final_test_total: finalTotal,
       lesson_content: state.lesson,
+      course_content: state.course ?? {},
       flashcards: state.flashcards,
       duration_minutes: duration,
       questions_count: preTotal + finalTotal,
