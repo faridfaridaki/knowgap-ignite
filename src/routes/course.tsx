@@ -197,11 +197,11 @@ function CoursePage() {
             {allDone && (
               <button
                 type="button"
-                onClick={() => navigate({ to: "/final-test" })}
+                onClick={() => navigate({ to: "/flashcards" })}
                 className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
                 style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
               >
-                {t("takeFinalTest")}
+                Practice Flashcards →
               </button>
             )}
           </aside>
