@@ -216,7 +216,7 @@ function CoursePage() {
                 onComplete={markComplete}
                 isCompleted={isDone(lesson.lesson_number)}
                 allDone={allDone}
-                onFinalTest={() => navigate({ to: "/final-test" })}
+                onFinalTest={() => navigate({ to: "/flashcards" })}
               />
             ) : null}
           </section>
