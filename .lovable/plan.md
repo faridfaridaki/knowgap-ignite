@@ -1,59 +1,36 @@
+# Fix infinite loader on Pre-Test
 
-## Scope
+## What's happening
 
-Seven independent features. I'll ship them in one pass.
+When the user submits a topic, `/pretest` shows "Generating your personalized test…" and never resolves. There are two root causes that compound:
 
-### 1. i18n (EN/RU)
-- New `src/lib/i18n.tsx` — React context + `useT()` hook + translations dict for every UI string.
-- Persist choice in `localStorage('knowgap:lang')`, default = `navigator.language.startsWith('ru') ? 'ru' : 'en'`.
-- `<LanguageToggle/>` (EN / RU pills) added to a shared header on landing, dashboard, pretest, course, final-test, analysis pages.
-- Pass `language` into every Groq server fn; prompts get `Respond entirely in [Russian|English]. All questions, options, explanations, lesson text, and analysis must be in that language.`
+### 1. The serverFn can hang for ~30s+ with no surfaced error
+`src/lib/groq.ts` retries Groq on `429` / `5xx` with delays of `3s + 6s + 12s` (≈21s of waits), then up to 3 fetch round-trips on top. All Groq calls also pass through a **server-side serialized queue** (`enqueueGroq`). If the previous request is still mid-retry, the new request waits behind it. Result: the SSR worker exceeds its request budget and the response never reaches the client, so the loader never flips to the error state.
 
-### 2. Dashboard (replaces /history)
-- New route `/dashboard`. Old `/history` and `/history/$id` redirect to dashboard / final-analysis.
-- Sections: welcome header (profile display_name), stats row (sessions completed, lessons done = sum of completedLessons, avg improvement), My Courses grid (cards with topic + date + pre→final + progress bar + "View Full Analysis" + "Retake Course"), Recent Activity timeline (derived from session timestamps + completedLessons), Knowledge Gaps tracker (aggregated `knowledge_gaps` across sessions, sorted by frequency), Suggested Topics (last 3-4 from saved `suggested_topics`).
-- "Retake Course" sets the topic in sessionStorage, clears learning state, navigates to `/pretest`.
-- Update `UserMenu` link "History" → "Dashboard".
+### 2. The pre-test request is fired twice (canceling itself)
+`I18nProvider` initializes `lang = "en"` then calls `setLangState(detectLang())` in a mount `useEffect`. On routes where the saved language is `ru` (the user just typed Russian), `lang` flips after first render. In `pretest.tsx`, `loadQuestions` is `useCallback([..., lang])`, so the effect re-runs: the first request is "cancelled" client-side, a second is enqueued behind it on the server. This doubles the wait and almost guarantees a worker timeout.
 
-### 3. Google OAuth
-- Call `supabase--configure_social_auth({providers:["google"]})`.
-- Add "Continue with Google" button at top of `/auth` page using `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`.
-- Existing trigger `handle_new_user` already inserts profile row from `raw_user_meta_data.display_name || email`, so Google users get a profile automatically.
+## Plan
 
-### 4. Loading screens
-- New `<FullScreenLoader title subtitle/>` component with animated logo pulse.
-- Wire into pretest generation, course generation, final-test generation. Replace existing minimal spinners.
-- Route transitions: add fade-in via `animate-fade-in` on each route's root div (TanStack doesn't expose easy global transitions; per-page fade is sufficient).
+### A. Stop the duplicate request (`src/lib/i18n.tsx`)
+Initialize `lang` with `detectLang()` via `useState(() => detectLang())` so the value is correct on first render and `loadQuestions` does not re-create. Keep SSR-safe by guarding `localStorage` access inside the initializer.
 
-### 5. Detailed lesson content
-- Update `generateCourse` prompt: longer explanations (5-7 paragraphs), per-formula variable definitions + worked example, per-problem numbered step-by-step solution with final answer box.
-- Extend `CoursePracticeProblem` to support structured `steps: string[]` + `final_answer: string` (keep `solution_steps` fallback for backward compat).
-- Course UI "Show Answer" renders numbered steps + highlighted final-answer box.
+### B. Make the AI call fail fast and visibly (`src/lib/groq.ts`)
+- Reduce retry budget so we never exceed the worker timeout: `RETRY_DELAYS_MS = [1500, 3500]` (≈5s of waits, 3 attempts total) and `MAX_RETRY_AFTER_MS = 4000`.
+- Add a per-fetch `AbortController` with an 8s timeout so a stuck Groq socket cannot hang the request indefinitely.
+- On final failure, always throw `AI_BUSY_MESSAGE` (already done) — confirmed it bubbles to the `AiErrorState` retry screen.
 
-### 6. Multiple-choice only
-- Strip `short_answer` from `QUIZ_SYSTEM` prompt + `sanitizeQuestions` (reject non-MC).
-- Remove short-answer input branch from `QuizPlayer`.
-- Note: existing sessions in DB with short-answer questions still render fine (MC code path handles them).
+### C. Make `generatePreTest` symmetric with `generateFinalTest` (`src/lib/learning.functions.ts`)
+Wrap the handler in `try/catch` and return `{ questions: [], error: AI_BUSY_MESSAGE }` instead of throwing. Update `pretest.tsx` to check `res.error || res.questions.length === 0` and set the error state — same pattern already used in `final-test.tsx`. This guarantees the client always gets a response and the loader always resolves.
 
-### 7. Hints + navigation lock
-- `QuizPlayer` rewrite:
-  - Per-question state: `selected`, `hintUsed`, `hiddenOptions` (2 random wrongs).
-  - "Use Hint" button (visible until used) → strike-through + disable 2 wrong options; show "Hint used — correct answer worth 0.5 points".
-  - "Next Question" disabled until `selected` is set.
-  - Scoring: change return type from `string[]` to `{ answer: string; hintUsed: boolean }[]`.
-- Update `scoreTest` in `learning-state.ts` to return a number that may be `.5` increments (correct=1, correct+hint=0.5, else 0).
-- Update `LearningState.preTestAnswers` / `finalTestAnswers` to the richer shape; migrate readers (`pretest-results`, `final-analysis`).
-- Score displays: show `score.toFixed(1)` when non-integer, else integer.
-- DB columns `pre_test_score` / `final_test_score` are `integer` — I'll round half-points UP for storage (`Math.ceil(score*2)/2` won't fit integer; use `Math.round`). Acceptable given the UI shows the precise score during the session; saved analysis re-derives from saved answers. I'll keep `pre_test_score` as `Math.round(score)` and additionally save the raw decimal in a new JSON field? Simpler: change columns to numeric.
-  - **Migration**: alter `pre_test_score`, `final_test_score` to `numeric(4,1)`.
+### D. Client-side safety net (`src/routes/pretest.tsx`)
+Add a 25s client-side timeout on the `generate(...)` promise. If it doesn't resolve, set the friendly error state so the user sees the "Try Again" UI instead of an infinite spinner.
 
-## Out of scope / assumptions
-- Translations cover the UI strings I see in the current routes; AI-generated content is translated by the model itself.
-- "Retake Course" creates a fresh session row (no link back to original).
-- Recent Activity is derived from saved session metadata — no separate activity log table.
+## Files touched
+- `src/lib/i18n.tsx` — lazy initial state for `lang`
+- `src/lib/groq.ts` — shorter retry budget + fetch abort timeout
+- `src/lib/learning.functions.ts` — `generatePreTest` returns `{questions, error?}`
+- `src/routes/pretest.tsx` — handle `res.error`, add client timeout
 
-## Files touched (rough)
-- new: `src/lib/i18n.tsx`, `src/components/LanguageToggle.tsx`, `src/components/FullScreenLoader.tsx`, `src/routes/dashboard.tsx`, migration for numeric scores
-- edited: `QuizPlayer.tsx`, `learning-state.ts`, `learning.functions.ts`, `routes/auth.tsx`, `routes/index.tsx`, `routes/pretest.tsx`, `routes/pretest-results.tsx`, `routes/course.tsx`, `routes/final-test.tsx`, `routes/final-analysis.tsx`, `routes/final-analysis.$id.tsx`, `routes/history.tsx` → redirect, `components/UserMenu.tsx`
-
-Approve and I'll build it.
+## Out of scope
+No UI/visual changes. No changes to other AI features (course, lesson, flashcards) beyond what they inherit from the shared `groq.ts` retry settings.

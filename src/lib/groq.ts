@@ -2,8 +2,9 @@ import { AI_BUSY_MESSAGE } from "./ai-error";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
-const RETRY_DELAYS_MS = [3000, 6000, 12000];
-const MAX_RETRY_AFTER_MS = 12000;
+const RETRY_DELAYS_MS = [1500, 3500];
+const MAX_RETRY_AFTER_MS = 4000;
+const FETCH_TIMEOUT_MS = 8000;
 
 type GroqMessage = {
   role: "system" | "user" | "assistant";
@@ -42,17 +43,32 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
 
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
-    const res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        ...body,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          ...body,
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.error(`Groq fetch failed (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, err);
+      if (attempt < RETRY_DELAYS_MS.length) {
+        await wait(RETRY_DELAYS_MS[attempt]);
+        continue;
+      }
+      throw new Error(AI_BUSY_MESSAGE);
+    }
+    clearTimeout(timeoutId);
 
     if (res.ok) return res;
 
