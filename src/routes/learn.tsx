@@ -69,7 +69,8 @@ function LearnPage() {
 
   if (!lesson) {
     return (
-      <main className="min-h-screen w-full bg-background flex items-center justify-center px-6">
+      <main className="min-h-screen w-full bg-background flex items-center justify-center px-6 relative">
+        <AppHeader />
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#7C6AF7] border-t-transparent" />
           <p className="mt-4 text-sm text-muted-foreground">
