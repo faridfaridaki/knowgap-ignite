@@ -32,14 +32,11 @@ export const analyzeTopic = createServerFn({ method: "POST" })
     return { topic: input.topic.slice(0, 5000) };
   })
   .handler(async ({ data }): Promise<{ subtopics: Subtopic[] }> => {
-    let parsed: any;
-    try {
-      parsed = await callGroqJson({ prompt: data.topic, system: SYSTEM_PROMPT, temperature: 0.7 });
-    } catch (err) {
-      console.error("Failed to parse AI response:", err);
-      setResponseStatus(500);
-      return { error: "Failed to parse AI response" } as any;
-    }
+    const parsed: any = await callGroqJson({
+      prompt: data.topic,
+      system: SYSTEM_PROMPT,
+      temperature: 0.7,
+    });
     const subtopics = parsed?.subtopics;
     if (!Array.isArray(subtopics) || subtopics.length === 0) {
       throw new Error("Invalid response shape");
