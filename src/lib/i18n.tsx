@@ -10,8 +10,17 @@ const dict = {
     signIn: "Sign In",
     signOut: "Sign out",
     dashboard: "Dashboard",
+    home: "Home",
     back: "Back",
     backToDashboard: "← Back to Dashboard",
+    homeConfirmTitle: "Go to home?",
+    homeConfirmBody: "Are you sure you want to go home? Your current progress will be saved.",
+    yesGoHome: "Yes, go home",
+    cancel: "Cancel",
+    legendCorrect: "Correct (1 pt)",
+    legendHint: "Correct with hint (0.5 pt)",
+    legendWrong: "Wrong (0 pt)",
+    hintUsedShort: "Hint used",
 
     // Landing
     badge: "AI-Powered Learning",
