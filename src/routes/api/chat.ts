@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AI_BUSY_MESSAGE } from "@/lib/ai-error";
+import { callGroqStreamText } from "@/lib/groq.server";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -75,44 +77,32 @@ export const Route = createFileRoute("/api/chat")({
           .slice(-30)
           .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
 
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey) {
-          return new Response(
-            JSON.stringify({ error: "GROQ_API_KEY is not configured" }),
-            { status: 500, headers: { "Content-Type": "application/json" } },
-          );
-        }
+        try {
+          const streamText = await callGroqStreamText({
+            messages: [
+              { role: "system", content: buildSystemPrompt(topic, gaps) },
+              ...cleanMessages,
+            ],
+            temperature: 0.8,
+          });
 
-        const upstream = await fetch(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            method: "POST",
+          return new Response(streamText, {
+            status: 200,
             headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
             },
-            body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
-              messages: [
-                { role: "system", content: buildSystemPrompt(topic, gaps) },
-                ...cleanMessages,
-              ],
-              temperature: 0.8,
-              stream: true,
-            }),
-          },
-        );
-
-        if (!upstream.ok || !upstream.body) {
-          const text = await upstream.text().catch(() => "");
-          console.error("Groq chat error:", upstream.status, text);
-          return new Response(
-            JSON.stringify({ error: `Groq error ${upstream.status}` }),
-            { status: 500, headers: { "Content-Type": "application/json" } },
-          );
+          });
+        } catch (error) {
+          console.error("Groq chat error:", error);
+          return new Response(JSON.stringify({ error: AI_BUSY_MESSAGE }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
-        return new Response(upstream.body, {
+        return new Response(null, {
           status: 200,
           headers: {
             "Content-Type": "text/event-stream",
