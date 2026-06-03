@@ -336,6 +336,7 @@ CRITICAL Rules:
           model: "google/gemini-2.5-flash",
           timeoutMs: 25000,
           retryCount: 0,
+          queued: false,
         }),
         callGroqJson({
           prompt: makePrompt(6, 10),
@@ -344,6 +345,7 @@ CRITICAL Rules:
           model: "google/gemini-2.5-flash",
           timeoutMs: 25000,
           retryCount: 0,
+          queued: false,
         }),
       ]);
       const firstCourse = sanitizeCourse(firstHalf);
