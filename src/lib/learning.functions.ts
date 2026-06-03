@@ -328,22 +328,24 @@ CRITICAL Rules:
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
 - ${langInstruction(data.language)}`;
     try {
-      const firstHalf = await callGroqJson({
-        prompt: makePrompt(1, 5),
-        temperature: 0.7,
-        maxTokens: 6000,
-        model: "google/gemini-2.5-flash",
-        timeoutMs: 25000,
-        retryCount: 0,
-      });
-      const secondHalf = await callGroqJson({
-        prompt: makePrompt(6, 10),
-        temperature: 0.7,
-        maxTokens: 6000,
-        model: "google/gemini-2.5-flash",
-        timeoutMs: 25000,
-        retryCount: 0,
-      });
+      const [firstHalf, secondHalf] = await Promise.all([
+        callGroqJson({
+          prompt: makePrompt(1, 5),
+          temperature: 0.7,
+          maxTokens: 6000,
+          model: "google/gemini-2.5-flash",
+          timeoutMs: 25000,
+          retryCount: 0,
+        }),
+        callGroqJson({
+          prompt: makePrompt(6, 10),
+          temperature: 0.7,
+          maxTokens: 6000,
+          model: "google/gemini-2.5-flash",
+          timeoutMs: 25000,
+          retryCount: 0,
+        }),
+      ]);
       const firstCourse = sanitizeCourse(firstHalf);
       const secondCourse = sanitizeCourse(secondHalf);
       if (!firstCourse || !secondCourse) throw new Error("Invalid course response");
