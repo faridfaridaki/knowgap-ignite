@@ -113,7 +113,9 @@ export const generateSummaryExtras = createServerFn({ method: "POST" })
     const prompt = `For a student who just studied '${data.topic}', return ONLY valid JSON with this exact shape: {"topics":["topic 1","topic 2","topic 3"],"takeaways":[{"subtopic":"name","explanation":"one sentence"}]}. Suggest exactly 3 related next topics. For these missing subtopics [${list}], include one concise correct explanation each. If there are no missing subtopics, return an empty takeaways array.`;
     const parsed: any = await callGroqJson({ prompt, temperature: 0.6 });
     const topics = Array.isArray(parsed?.topics)
-      ? parsed.topics.filter((t: any): t is string => typeof t === "string" && t.trim()).slice(0, 3)
+      ? parsed.topics
+          .filter((t: any): t is string => typeof t === "string" && t.trim().length > 0)
+          .slice(0, 3)
       : [];
     const takeaways = Array.isArray(parsed?.takeaways)
       ? parsed.takeaways
