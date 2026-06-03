@@ -51,7 +51,7 @@ function FlashcardsPage() {
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate]);
+  }, [navigate]);
 
   useEffect(() => loadFlashcards(), [loadFlashcards]);
 

@@ -60,7 +60,7 @@ function LearnPage() {
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate]);
+  }, [navigate]);
 
   useEffect(() => loadLesson(), [loadLesson]);
 
