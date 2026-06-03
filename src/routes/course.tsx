@@ -29,7 +29,7 @@ export const Route = createFileRoute("/course")({
 
 function CoursePage() {
   const navigate = useNavigate();
-  const { t, lang } = useT();
+  const { t, lang, hydrated } = useT();
   const generate = useServerFn(generateCourse);
   const [state, setState] = useState<LearningState | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
@@ -38,6 +38,7 @@ function CoursePage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadCourse = useCallback(() => {
+    if (!hydrated) return;
     setError(null);
     setCourse(null);
     const s = loadState();
@@ -82,7 +83,7 @@ function CoursePage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [generate, navigate, lang]);
+  }, [generate, navigate, lang, hydrated]);
 
   useEffect(() => loadCourse(), [loadCourse]);
 

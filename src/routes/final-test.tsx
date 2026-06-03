@@ -17,13 +17,14 @@ export const Route = createFileRoute("/final-test")({
 
 function FinalTestPage() {
   const navigate = useNavigate();
-  const { t, lang } = useT();
+  const { t, lang, hydrated } = useT();
   const generate = useServerFn(generateFinalTest);
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
 
   const loadQuestions = useCallback(() => {
+    if (!hydrated) return;
     setError(null);
     setQuestions(null);
     const s = loadState();
@@ -60,7 +61,7 @@ function FinalTestPage() {
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate, lang]);
+  }, [generate, navigate, lang, hydrated]);
 
   useEffect(() => loadQuestions(), [loadQuestions]);
 
