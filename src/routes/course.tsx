@@ -289,21 +289,48 @@ function CoursePage() {
 
           <section>
             {lesson ? (
-              <LessonView
-                lesson={lesson}
-                total={lessons.length}
-                onPrev={() => openLesson(lesson.lesson_number - 1)}
-                onNext={() => openLesson(lesson.lesson_number + 1)}
-                onComplete={markComplete}
-                isCompleted={isDone(lesson.lesson_number)}
-                allDone={allDone}
-                onFinalTest={() => navigate({ to: "/flashcards" })}
-              />
+              lessonReady ? (
+                <LessonView
+                  lesson={lesson}
+                  total={lessons.length}
+                  onPrev={() => openLesson(lesson.lesson_number - 1)}
+                  onNext={() => openLesson(lesson.lesson_number + 1)}
+                  onComplete={markComplete}
+                  isCompleted={isDone(lesson.lesson_number)}
+                  allDone={allDone}
+                  onFinalTest={() => navigate({ to: "/flashcards" })}
+                />
+              ) : lessonError ? (
+                <div className="rounded-2xl border border-surface-border bg-surface p-6 text-center">
+                  <p className="text-sm text-foreground">{lessonError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLessonError(null);
+                      loadLesson(lesson.lesson_number);
+                    }}
+                    className="mt-4 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent/90"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-surface-border bg-surface p-10 text-center animate-pulse">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("lesson")} {lesson.lesson_number}
+                  </div>
+                  <h2 className="mt-2 text-2xl font-bold text-foreground">{lesson.title}</h2>
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    {isLessonLoading ? t("buildingCourse") : "Preparing lesson…"}
+                  </p>
+                </div>
+              )
             ) : null}
           </section>
         </div>
       </div>
     </main>
+
   );
 }
 
