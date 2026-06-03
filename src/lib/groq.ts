@@ -2,7 +2,8 @@ import { AI_BUSY_MESSAGE } from "./ai-error";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
-const RETRY_DELAYS_MS = [3000, 6000, 12000];
+const RETRY_DELAYS_MS = [3000, 6000, 12000, 20000, 30000];
+const MAX_RETRY_AFTER_MS = 45000;
 
 type GroqMessage = {
   role: "system" | "user" | "assistant";
@@ -56,10 +57,14 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
     if (res.ok) return res;
 
     const errorText = await res.text().catch(() => "");
-    console.error(`Groq error (attempt ${attempt + 1}/4):`, res.status, errorText);
+    console.error(`Groq error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, res.status, errorText);
 
-    if (res.status === 429 && attempt < RETRY_DELAYS_MS.length) {
-      await wait(RETRY_DELAYS_MS[attempt]);
+    const isRetryable = res.status === 429 || res.status >= 500;
+    if (isRetryable && attempt < RETRY_DELAYS_MS.length) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const headerMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, MAX_RETRY_AFTER_MS) : 0;
+      const delay = Math.max(RETRY_DELAYS_MS[attempt], headerMs);
+      await wait(delay);
       continue;
     }
 
