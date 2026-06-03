@@ -53,16 +53,16 @@ function getProviders(): AiProvider[] {
   const groqIsCoolingDown = canUseLovableAi && Date.now() < groqCooldownUntil;
   const providers: AiProvider[] = [
     {
-      name: "Groq",
-      url: GROQ_URL,
-      model: MODEL,
-      apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
-    },
-    {
       name: "Lovable AI",
       url: LOVABLE_AI_URL,
       model: LOVABLE_MODEL,
       apiKey: process.env.LOVABLE_API_KEY,
+    },
+    {
+      name: "Groq",
+      url: GROQ_URL,
+      model: MODEL,
+      apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
     },
   ];
   return providers.filter((provider) => Boolean(provider.apiKey));
