@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       conversations: {
         Row: {
+          course_content: Json
           created_at: string
           duration_minutes: number
           final_test_answers: Json
@@ -41,6 +42,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          course_content?: Json
           created_at?: string
           duration_minutes?: number
           final_test_answers?: Json
@@ -66,6 +68,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          course_content?: Json
           created_at?: string
           duration_minutes?: number
           final_test_answers?: Json

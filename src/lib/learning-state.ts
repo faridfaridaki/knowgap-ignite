@@ -19,6 +19,34 @@ export interface Flashcard {
   definition: string;
 }
 
+export interface CourseTerm {
+  term: string;
+  definition: string;
+}
+export interface CourseFormula {
+  formula: string;
+  explanation: string;
+}
+export interface CoursePracticeProblem {
+  problem: string;
+  answer: string;
+  solution_steps: string;
+}
+export interface CourseLesson {
+  lesson_number: number;
+  title: string;
+  explanation: string;
+  terms: CourseTerm[];
+  formulas: CourseFormula[];
+  real_life_examples: string[];
+  practice_problems: CoursePracticeProblem[];
+  has_problems: boolean;
+}
+export interface Course {
+  course_title: string;
+  lessons: CourseLesson[];
+}
+
 export interface LearningState {
   topic: string;
   startedAt: string;
@@ -30,6 +58,9 @@ export interface LearningState {
   finalTestQuestions: QuizQuestion[];
   finalTestAnswers: string[];
   finalTestScore: number;
+  course: Course | null;
+  completedLessons: number[];
+  currentLesson: number;
 }
 
 const KEY = "knowgap:state";
@@ -79,6 +110,9 @@ export function initState(topic: string): LearningState {
     finalTestQuestions: [],
     finalTestAnswers: [],
     finalTestScore: 0,
+    course: null,
+    completedLessons: [],
+    currentLesson: 1,
   };
   saveState(state);
   return state;

@@ -120,7 +120,7 @@ function PreTestResults() {
         <div className="mt-10 flex justify-center">
           <button
             type="button"
-            onClick={() => navigate({ to: "/learn" })}
+            onClick={() => navigate({ to: "/course" })}
             className="rounded-xl px-7 py-3.5 text-base font-semibold text-white shadow-[0_8px_24px_-8px_rgba(124,106,247,0.6)] transition-transform hover:scale-[1.02]"
             style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
           >
