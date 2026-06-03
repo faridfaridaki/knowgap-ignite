@@ -174,3 +174,114 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     if (flashcards.length === 0) throw new Error("Invalid flashcards response");
     return { flashcards };
   });
+
+interface CourseLesson {
+  lesson_number: number;
+  title: string;
+  explanation: string;
+  terms: { term: string; definition: string }[];
+  formulas: { formula: string; explanation: string }[];
+  real_life_examples: string[];
+  practice_problems: { problem: string; answer: string; solution_steps: string }[];
+  has_problems: boolean;
+}
+interface Course {
+  course_title: string;
+  lessons: CourseLesson[];
+}
+
+function sanitizeCourse(raw: any): Course | null {
+  if (!raw || typeof raw !== "object") return null;
+  const title = typeof raw.course_title === "string" ? raw.course_title : "";
+  const lessonsRaw = Array.isArray(raw.lessons) ? raw.lessons : [];
+  const lessons: CourseLesson[] = lessonsRaw
+    .map((l: any, i: number): CourseLesson | null => {
+      if (!l || typeof l.title !== "string" || typeof l.explanation !== "string") return null;
+      const terms = Array.isArray(l.terms)
+        ? l.terms
+            .filter((t: any) => t && typeof t.term === "string" && typeof t.definition === "string")
+            .map((t: any) => ({ term: t.term, definition: t.definition }))
+        : [];
+      const formulas = Array.isArray(l.formulas)
+        ? l.formulas
+            .filter(
+              (f: any) => f && typeof f.formula === "string" && typeof f.explanation === "string",
+            )
+            .map((f: any) => ({ formula: f.formula, explanation: f.explanation }))
+        : [];
+      const examples = Array.isArray(l.real_life_examples)
+        ? l.real_life_examples.filter((e: any) => typeof e === "string")
+        : [];
+      const problems = Array.isArray(l.practice_problems)
+        ? l.practice_problems
+            .filter(
+              (p: any) =>
+                p &&
+                typeof p.problem === "string" &&
+                typeof p.answer === "string" &&
+                typeof p.solution_steps === "string",
+            )
+            .map((p: any) => ({
+              problem: p.problem,
+              answer: p.answer,
+              solution_steps: p.solution_steps,
+            }))
+        : [];
+      return {
+        lesson_number: typeof l.lesson_number === "number" ? l.lesson_number : i + 1,
+        title: l.title,
+        explanation: l.explanation,
+        terms,
+        formulas,
+        real_life_examples: examples,
+        practice_problems: problems,
+        has_problems: typeof l.has_problems === "boolean" ? l.has_problems : problems.length > 0,
+      };
+    })
+    .filter(Boolean) as CourseLesson[];
+  if (lessons.length === 0) return null;
+  return { course_title: title || "Your Course", lessons: lessons.slice(0, 10) };
+}
+
+export const generateCourse = createServerFn({ method: "POST" })
+  .inputValidator((input: { topic: string; wrongQuestions: string[] }) => {
+    if (!input?.topic?.trim()) throw new Error("Topic required");
+    return {
+      topic: input.topic.slice(0, 2000),
+      wrongQuestions: (input.wrongQuestions || []).slice(0, 10),
+    };
+  })
+  .handler(async ({ data }): Promise<{ course: Course }> => {
+    const wrong = data.wrongQuestions.length
+      ? data.wrongQuestions.map((q) => `- ${q}`).join("\n")
+      : "(none — student got everything right, still teach the topic from scratch)";
+    const prompt = `Create a complete 10-lesson course on the topic: "${data.topic}". The student got these questions wrong in the pre-test and needs special focus on them:
+${wrong}
+
+Return ONLY valid JSON with this exact schema:
+{
+  "course_title": "...",
+  "lessons": [
+    {
+      "lesson_number": 1,
+      "title": "...",
+      "explanation": "Full clear explanation in simple language, like explaining to a 5-year-old. Use analogies. 3-5 paragraphs separated by \\n\\n.",
+      "terms": [{ "term": "...", "definition": "..." }],
+      "formulas": [{ "formula": "...", "explanation": "..." }],
+      "real_life_examples": ["example 1", "example 2"],
+      "practice_problems": [{ "problem": "...", "answer": "...", "solution_steps": "..." }],
+      "has_problems": true
+    }
+  ]
+}
+
+Rules:
+- EXACTLY 10 lessons, numbered 1-10, progressing from basics to advanced.
+- "formulas" and "practice_problems" can be empty arrays [] if the topic doesn't require them.
+- "has_problems" must be false for purely conceptual topics with no practice problems.
+- Make explanations rich and educational. Use simple words.`;
+    const parsed = await callGroq(prompt, undefined, 0.7);
+    const course = sanitizeCourse(parsed);
+    if (!course) throw new Error("Invalid course response");
+    return { course };
+  });
