@@ -2,8 +2,10 @@ import { AI_BUSY_MESSAGE } from "./ai-error";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = "llama-3.3-70b-versatile";
 const LOVABLE_MODEL = "google/gemini-3-flash-preview";
+const DEEPSEEK_MODEL = "deepseek-chat";
 const RETRY_DELAYS_MS = [1500, 3500];
 const MAX_RETRY_AFTER_MS = 4000;
 const FETCH_TIMEOUT_MS = 12000;
