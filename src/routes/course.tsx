@@ -12,7 +12,7 @@ import {
 import { AppHeader } from "@/components/AppHeader";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
-import { generateCourse } from "@/lib/learning.functions";
+import { generateCourse, generateCourseLesson } from "@/lib/learning.functions";
 import { loadState, patchState, isAnswerCorrect } from "@/lib/learning-state";
 import type {
   Course,
