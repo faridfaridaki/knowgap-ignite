@@ -12,7 +12,7 @@ import {
 import { AppHeader } from "@/components/AppHeader";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
-import { generateCourse } from "@/lib/learning.functions";
+import { generateCourse, generateCourseLesson } from "@/lib/learning.functions";
 import { loadState, patchState, isAnswerCorrect } from "@/lib/learning-state";
 import type {
   Course,
@@ -31,12 +31,72 @@ function CoursePage() {
   const navigate = useNavigate();
   const { t, lang, hydrated } = useT();
   const generate = useServerFn(generateCourse);
+  const generateOneLesson = useServerFn(generateCourseLesson);
   const [state, setState] = useState<LearningState | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLesson, setCurrentLesson] = useState(1);
   const [completed, setCompleted] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [lessonLoading, setLessonLoading] = useState<number | null>(null);
+  const [lessonError, setLessonError] = useState<string | null>(null);
   const generationInFlight = useRef(false);
+  const lessonRequests = useRef<Set<number>>(new Set());
+
+  const wrongQuestions = useMemo(() => {
+    if (!state) return [];
+    return state.preTestQuestions
+      .filter((q, i) => !isAnswerCorrect(q, state.preTestAnswers[i] ?? ""))
+      .map((q) => q.question);
+  }, [state]);
+
+  const loadLesson = useCallback(
+    (n: number, courseSnapshot?: Course, topicOverride?: string) => {
+      const activeCourse = courseSnapshot ?? course;
+      const topic = topicOverride ?? state?.topic;
+      if (!activeCourse || !topic) return;
+      const target = activeCourse.lessons.find((l) => l.lesson_number === n);
+      if (!target) return;
+      if (target.explanation && target.explanation.trim().length > 0) return;
+      if (lessonRequests.current.has(n)) return;
+      lessonRequests.current.add(n);
+      setLessonLoading(n);
+      setLessonError(null);
+      const titles = activeCourse.lessons.map((l) => l.title);
+      generateOneLesson({
+        data: {
+          topic,
+          lessonNumber: n,
+          lessonTitle: target.title,
+          allTitles: titles,
+          wrongQuestions,
+          language: lang,
+        },
+      })
+        .then((res) => {
+          if (res.error || !res.lesson) {
+            setLessonError(res.error ?? friendlyAiError(new Error("Lesson failed")));
+            return;
+          }
+          setCourse((prev) => {
+            if (!prev) return prev;
+            const lessons = prev.lessons.map((l) =>
+              l.lesson_number === n ? res.lesson! : l,
+            );
+            const next = { ...prev, lessons };
+            patchState({ course: next });
+            return next;
+          });
+        })
+        .catch((e) => {
+          setLessonError(friendlyAiError(e));
+        })
+        .finally(() => {
+          lessonRequests.current.delete(n);
+          setLessonLoading((cur) => (cur === n ? null : cur));
+        });
+    },
+    [course, state, wrongQuestions, lang, generateOneLesson],
+  );
 
   const loadCourse = useCallback(() => {
     if (!hydrated) return;
@@ -49,9 +109,15 @@ function CoursePage() {
     }
     setState(s);
     setCompleted(s.completedLessons ?? []);
-    setCurrentLesson(s.currentLesson || 1);
+    const startAt = s.currentLesson || 1;
+    setCurrentLesson(startAt);
     if (s.course && s.course.lessons?.length) {
       setCourse(s.course);
+      // Kick off lazy load for the currently-open lesson if missing.
+      const target = s.course.lessons.find((l) => l.lesson_number === startAt);
+      if (target && (!target.explanation || target.explanation.trim().length === 0)) {
+        loadLesson(startAt, s.course, s.topic);
+      }
       return;
     }
     if (generationInFlight.current) return;
@@ -64,7 +130,7 @@ function CoursePage() {
       if (cancelled) return;
       cancelled = true;
       setError(friendlyAiError(new Error("AI service is busy")));
-    }, 70000);
+    }, 30000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
         if (cancelled) return;
@@ -75,6 +141,8 @@ function CoursePage() {
         }
         patchState({ course: res.course });
         setCourse(res.course);
+        // Immediately fetch the first lesson so the user sees content fast.
+        loadLesson(startAt, res.course, s.topic);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -88,9 +156,10 @@ function CoursePage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [navigate, lang, hydrated]);
+  }, [navigate, lang, hydrated, generate, loadLesson]);
 
   useEffect(() => loadCourse(), [loadCourse]);
+
 
   const lessons = course?.lessons ?? [];
   const lesson: CourseLesson | undefined = useMemo(
@@ -106,6 +175,7 @@ function CoursePage() {
     if (!isUnlocked(n)) return;
     setCurrentLesson(n);
     patchState({ currentLesson: n });
+    loadLesson(n);
   };
 
   const markComplete = () => {
@@ -118,8 +188,13 @@ function CoursePage() {
     patchState({ completedLessons: next, currentLesson: nextLesson });
     if (lesson.lesson_number < lessons.length) {
       setCurrentLesson(nextLesson);
+      loadLesson(nextLesson);
     }
   };
+
+  const lessonReady = !!lesson && lesson.explanation.trim().length > 0;
+  const isLessonLoading = !!lesson && !lessonReady && lessonLoading === lesson.lesson_number;
+
 
   if (error) {
     return <AiErrorState message={error} onRetry={loadCourse} />;
@@ -214,21 +289,48 @@ function CoursePage() {
 
           <section>
             {lesson ? (
-              <LessonView
-                lesson={lesson}
-                total={lessons.length}
-                onPrev={() => openLesson(lesson.lesson_number - 1)}
-                onNext={() => openLesson(lesson.lesson_number + 1)}
-                onComplete={markComplete}
-                isCompleted={isDone(lesson.lesson_number)}
-                allDone={allDone}
-                onFinalTest={() => navigate({ to: "/flashcards" })}
-              />
+              lessonReady ? (
+                <LessonView
+                  lesson={lesson}
+                  total={lessons.length}
+                  onPrev={() => openLesson(lesson.lesson_number - 1)}
+                  onNext={() => openLesson(lesson.lesson_number + 1)}
+                  onComplete={markComplete}
+                  isCompleted={isDone(lesson.lesson_number)}
+                  allDone={allDone}
+                  onFinalTest={() => navigate({ to: "/flashcards" })}
+                />
+              ) : lessonError ? (
+                <div className="rounded-2xl border border-surface-border bg-surface p-6 text-center">
+                  <p className="text-sm text-foreground">{lessonError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLessonError(null);
+                      loadLesson(lesson.lesson_number);
+                    }}
+                    className="mt-4 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-foreground hover:bg-accent/90"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-surface-border bg-surface p-10 text-center animate-pulse">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("lesson")} {lesson.lesson_number}
+                  </div>
+                  <h2 className="mt-2 text-2xl font-bold text-foreground">{lesson.title}</h2>
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    {isLessonLoading ? t("buildingCourse") : "Preparing lesson…"}
+                  </p>
+                </div>
+              )
             ) : null}
           </section>
         </div>
       </div>
     </main>
+
   );
 }
 
