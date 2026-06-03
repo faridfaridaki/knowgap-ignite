@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, X, TrendingUp, AlertTriangle, ArrowRight } from "lucide-react";
+import { Check, X, TrendingUp, AlertTriangle, ArrowRight, Lightbulb } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import {
   loadState,
@@ -136,10 +136,12 @@ function FinalAnalysisPage() {
     const preRows = state.preTestQuestions.map((q, i) => ({
       label: q.question,
       correct: isAnswerCorrect(q, state.preTestAnswers[i] ?? ""),
+      hint: state.preTestHints?.[i] ?? false,
     }));
     const finalRows = state.finalTestQuestions.map((q, i) => ({
       label: q.question,
       correct: isAnswerCorrect(q, state.finalTestAnswers[i] ?? ""),
+      hint: state.finalTestHints?.[i] ?? false,
     }));
     const gaps = state.finalTestQuestions
       .map((q, i) => ({ q, correct: isAnswerCorrect(q, state.finalTestAnswers[i] ?? "") }))
@@ -200,7 +202,18 @@ function FinalAnalysisPage() {
 
         <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
           <h2 className="text-lg font-semibold text-foreground mb-1">{t("conceptByConcept")}</h2>
-          <p className="text-sm text-muted-foreground mb-5">{t("conceptByConceptSub")}</p>
+          <p className="text-sm text-muted-foreground mb-4">{t("conceptByConceptSub")}</p>
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
+            <LegendDot className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+              {t("legendCorrect")}
+            </LegendDot>
+            <LegendDot className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+              {t("legendHint")}
+            </LegendDot>
+            <LegendDot className="bg-red-500/20 text-red-300 border-red-500/30">
+              {t("legendWrong")}
+            </LegendDot>
+          </div>
           <div className="space-y-2">
             {Array.from({ length: Math.max(data.preRows.length, data.finalRows.length) }).map(
               (_, i) => {
@@ -223,8 +236,8 @@ function FinalAnalysisPage() {
                     <div className="text-sm text-foreground truncate" title={b?.label || a?.label || ""}>
                       {b?.label || a?.label || ""}
                     </div>
-                    <ResultBadge ok={a?.correct} />
-                    <ResultBadge ok={b?.correct} />
+                    <ResultBadge ok={a?.correct} hint={a?.hint} />
+                    <ResultBadge ok={b?.correct} hint={b?.hint} />
                   </div>
                 );
               },
@@ -348,17 +361,30 @@ function ScoreCell({
   );
 }
 
-function ResultBadge({ ok }: { ok?: boolean }) {
+function ResultBadge({ ok, hint }: { ok?: boolean; hint?: boolean }) {
   if (ok === undefined) {
     return <span className="mx-auto block text-xs text-muted-foreground">—</span>;
   }
+  const cls = !ok
+    ? "bg-red-500/20 text-red-300"
+    : hint
+      ? "bg-amber-500/20 text-amber-300"
+      : "bg-emerald-500/20 text-emerald-300";
   return (
     <span
-      className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-full ${
-        ok ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
-      }`}
+      className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-full ${cls}`}
+      title={hint && ok ? "Correct with hint (0.5)" : undefined}
     >
-      {ok ? <Check size={14} /> : <X size={14} />}
+      {ok ? (hint ? <Lightbulb size={12} /> : <Check size={14} />) : <X size={14} />}
+    </span>
+  );
+}
+
+function LegendDot({ className, children }: { className: string; children: ReactNode }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${className}`}>
+      <span className="h-2 w-2 rounded-full bg-current" />
+      {children}
     </span>
   );
 }
