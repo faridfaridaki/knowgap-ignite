@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, X, Lightbulb } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import {
   loadState,
