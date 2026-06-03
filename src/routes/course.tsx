@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Lock,
@@ -36,6 +36,7 @@ function CoursePage() {
   const [currentLesson, setCurrentLesson] = useState(1);
   const [completed, setCompleted] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const generationInFlight = useRef(false);
 
   const loadCourse = useCallback(() => {
     if (!hydrated) return;
@@ -53,6 +54,8 @@ function CoursePage() {
       setCourse(s.course);
       return;
     }
+    if (generationInFlight.current) return;
+    generationInFlight.current = true;
     const wrong = s.preTestQuestions
       .filter((q, i) => !isAnswerCorrect(q, s.preTestAnswers[i] ?? ""))
       .map((q) => q.question);
@@ -61,7 +64,7 @@ function CoursePage() {
       if (cancelled) return;
       cancelled = true;
       setError(friendlyAiError(new Error("AI service is busy")));
-    }, 30000);
+    }, 70000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
         if (cancelled) return;
@@ -77,6 +80,9 @@ function CoursePage() {
         if (cancelled) return;
         clearTimeout(timeoutId);
         setError(friendlyAiError(e));
+      })
+      .finally(() => {
+        generationInFlight.current = false;
       });
     return () => {
       cancelled = true;
