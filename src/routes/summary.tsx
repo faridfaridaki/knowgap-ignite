@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, BookOpen, Clock, ArrowRight, CheckCircle2, Lightbulb } from "lucide-react";
-import { suggestRelatedTopics, generateTakeaways, type Takeaway } from "@/lib/analyze.functions";
+import { generateSummaryExtras, type Takeaway } from "@/lib/analyze.functions";
 
 import { AuthGuard } from "@/components/AuthGuard";
 
@@ -110,10 +110,8 @@ function SummaryScreen() {
   const [takeaways, setTakeaways] = useState<Takeaway[]>([]);
   const [savedTo, setSavedTo] = useState<"db" | "local" | null>(null);
   const reviewRef = useRef<HTMLDivElement>(null);
-  const suggest = useServerFn(suggestRelatedTopics);
-  const takeawaysFn = useServerFn(generateTakeaways);
-  const suggestRef = useRef(false);
-  const takeawaysRef = useRef(false);
+  const summaryExtras = useServerFn(generateSummaryExtras);
+  const extrasRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -141,37 +139,21 @@ function SummaryScreen() {
 
   useEffect(() => {
     if (!topic || topic === "your topic") return;
-    if (suggestRef.current) return;
-    suggestRef.current = true;
-    suggest({ data: { topic } })
-      .then((res) => {
-        if (res?.topics && res.topics.length > 0) {
-          setSuggestions(res.topics);
-        } else {
-          setSuggestions(fallbackSuggestions(topic));
-        }
-      })
-      .catch((e) => {
-        console.error("suggestRelatedTopics failed:", e);
-        setSuggestions(fallbackSuggestions(topic));
-      });
-  }, [topic, suggest]);
-
-  useEffect(() => {
-    if (!topic || topic === "your topic") return;
-    if (subtopics.length === 0) return;
-    if (takeawaysRef.current) return;
+    if (extrasRef.current) return;
+    extrasRef.current = true;
     const missing = subtopics
       .filter((s) => s.status === "Likely Missing")
       .map((s) => s.name);
-    if (missing.length === 0) return;
-    takeawaysRef.current = true;
-    takeawaysFn({ data: { topic, subtopics: missing } })
+    summaryExtras({ data: { topic, subtopics: missing } })
       .then((res) => {
+        setSuggestions(res?.topics?.length ? res.topics : fallbackSuggestions(topic));
         if (res?.takeaways) setTakeaways(res.takeaways);
       })
-      .catch((e) => console.error("generateTakeaways failed:", e));
-  }, [topic, subtopics, takeawaysFn]);
+      .catch((e) => {
+        console.error("generateSummaryExtras failed:", e);
+        setSuggestions(fallbackSuggestions(topic));
+      });
+  }, [topic, subtopics, summaryExtras]);
 
   const questionsAnswered = useMemo(
     () => messages.filter((m) => m.role === "user").length,
