@@ -101,15 +101,6 @@ export const Route = createFileRoute("/api/chat")({
             headers: { "Content-Type": "application/json" },
           });
         }
-
-        return new Response(null, {
-          status: 200,
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-          },
-        });
       },
     },
   },
