@@ -61,7 +61,7 @@ function CoursePage() {
       if (cancelled) return;
       cancelled = true;
       setError(friendlyAiError(new Error("AI service is busy")));
-    }, 30000);
+    }, 70000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
         if (cancelled) return;

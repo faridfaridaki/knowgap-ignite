@@ -20,6 +20,8 @@ type GroqRequest = {
   stream?: boolean;
   max_tokens?: number;
   lovableModelOverride?: string;
+  timeoutMs?: number;
+  retryCount?: number;
 };
 
 type AiProvider = {
@@ -77,15 +79,17 @@ function isDailyTokenLimit(errorText: string): boolean {
 
 async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<Response> {
   if (!provider.apiKey) throw new Error(`${provider.name} API key is not configured`);
-  const { lovableModelOverride, ...rest } = body;
+  const { lovableModelOverride, timeoutMs = FETCH_TIMEOUT_MS, retryCount = RETRY_DELAYS_MS.length, ...rest } = body;
   const model =
     provider.name === "Lovable AI" && lovableModelOverride ? lovableModelOverride : provider.model;
+  const maxAttempts = Math.max(1, Math.min(RETRY_DELAYS_MS.length + 1, retryCount + 1));
 
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     let res: Response;
     try {
+      console.info(`${provider.name} request`, { model, max_tokens: rest.max_tokens ?? "auto", attempt: attempt + 1, maxAttempts });
       res = await fetch(provider.url, {
         method: "POST",
         headers: {
@@ -100,8 +104,8 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
       });
     } catch (err) {
       clearTimeout(timeoutId);
-      console.error(`${provider.name} fetch failed (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, err);
-      if (attempt < RETRY_DELAYS_MS.length) {
+      console.error(`${provider.name} fetch failed (attempt ${attempt + 1}/${maxAttempts}):`, err);
+      if (attempt + 1 < maxAttempts) {
         await wait(RETRY_DELAYS_MS[attempt]);
         continue;
       }
@@ -112,14 +116,14 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
     if (res.ok) return res;
 
     const errorText = await res.text().catch(() => "");
-    console.error(`${provider.name} error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}):`, res.status, errorText);
+    console.error(`${provider.name} error (attempt ${attempt + 1}/${maxAttempts}):`, res.status, errorText);
 
     const isRetryable = res.status === 429 || res.status >= 500;
     if (provider.name === "Groq" && res.status === 429) {
       // Stop retrying Groq immediately so we fall back to Lovable AI fast.
       throw new Error(AI_BUSY_MESSAGE);
     }
-    if (isRetryable && attempt < RETRY_DELAYS_MS.length) {
+    if (isRetryable && attempt + 1 < maxAttempts) {
       const retryAfter = Number(res.headers.get("retry-after"));
       const headerMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, MAX_RETRY_AFTER_MS) : 0;
       const delay = Math.max(RETRY_DELAYS_MS[attempt], headerMs);
@@ -159,6 +163,32 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   throw lastError instanceof Error ? lastError : new Error(AI_BUSY_MESSAGE);
 }
 
+async function fetchGroqPayload(body: GroqRequest): Promise<any> {
+  const providers = getProviders();
+  if (providers.length === 0) throw new Error("No AI provider is configured");
+
+  let lastError: unknown;
+  for (let i = 0; i < providers.length; i += 1) {
+    const provider = providers[i];
+    const isLast = i === providers.length - 1;
+    try {
+      const res = await fetchProvider(provider, body);
+      return await res.json();
+    } catch (error) {
+      lastError = error;
+      if (provider.name === "Groq") {
+        groqCooldownUntil = Date.now() + 10 * 60 * 1000;
+      }
+      if (!isLast) {
+        console.warn(`${provider.name} failed or returned invalid JSON; falling back to next provider.`);
+        continue;
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(AI_BUSY_MESSAGE);
+}
+
 function tryRepairJson(text: string): string {
   // Trim to the last balanced closing bracket and try to close remaining structures.
   const lastObj = text.lastIndexOf("}");
@@ -174,26 +204,31 @@ export async function callGroqJson<T = any>({
   temperature = 0.7,
   maxTokens,
   model,
+  timeoutMs,
+  retryCount,
 }: {
   prompt: string;
   system?: string;
   temperature?: number;
   maxTokens?: number;
   model?: string;
+  timeoutMs?: number;
+  retryCount?: number;
 }): Promise<T> {
   const messages: GroqMessage[] = [];
   if (system) messages.push({ role: "system", content: system });
   messages.push({ role: "user", content: prompt });
 
   return enqueueGroq(async () => {
-    const res = await fetchGroq({
+    const payload = await fetchGroqPayload({
       messages,
       response_format: { type: "json_object" },
       temperature,
       max_tokens: maxTokens,
       lovableModelOverride: model,
+      timeoutMs,
+      retryCount,
     });
-    const payload = await res.json();
     const content: string = payload?.choices?.[0]?.message?.content ?? "";
     const cleaned = cleanContent(content);
     try {

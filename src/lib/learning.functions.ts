@@ -299,7 +299,7 @@ export const generateCourse = createServerFn({ method: "POST" })
     const wrong = data.wrongQuestions.length
       ? data.wrongQuestions.map((q) => `- ${q}`).join("\n")
       : "(none — student got everything right, still teach the topic from scratch)";
-    const prompt = `Create a complete 10-lesson course on the topic: "${data.topic}". The student got these questions wrong in the pre-test and needs special focus on them:
+    const makePrompt = (start: number, end: number) => `Create lessons ${start}-${end} of a complete 10-lesson course on the topic: "${data.topic}". The student got these questions wrong in the pre-test and needs special focus on them:
 ${wrong}
 
 Return ONLY valid JSON with this exact schema:
@@ -307,53 +307,53 @@ Return ONLY valid JSON with this exact schema:
   "course_title": "...",
   "lessons": [
     {
-      "lesson_number": 1,
+      "lesson_number": ${start},
       "title": "...",
-      "explanation": "EXTREMELY DETAILED, AT LEAST 5-7 paragraphs separated by \\n\\n. Use simple language. Include analogies, comparisons to everyday objects, and build understanding step by step.",
+      "explanation": "Detailed but compact: 2 short paragraphs separated by \\n\\n. Use simple language, one analogy, and build understanding step by step.",
       "terms": [{ "term": "...", "definition": "..." }],
-      "formulas": [
-        {
-          "formula": "the formula itself, e.g. E = mc^2",
-          "variables": [{ "symbol": "E", "meaning": "energy in joules" }],
-          "worked_example": "A concrete worked numeric example showing how to plug values in and arrive at a final number.",
-          "explanation": "1-2 sentences on when and why to use this formula."
-        }
-      ],
+      "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
       "real_life_examples": ["example 1", "example 2"],
-      "practice_problems": [
-        {
-          "problem": "The problem statement.",
-          "steps": [
-            "Step 1: identify what is given and what is asked.",
-            "Step 2: write down the relevant formula.",
-            "Step 3: substitute the numbers.",
-            "Step 4: compute the result."
-          ],
-          "final_answer": "The final answer, clearly stated, with units if relevant."
-        }
-      ],
+      "practice_problems": [{ "problem": "...", "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."], "final_answer": "..." }],
       "has_problems": true
     }
   ]
 }
 
 CRITICAL Rules:
-- EXACTLY 10 lessons, numbered 1-10, progressing from basics to advanced.
-- "explanation" MUST be at least 5 paragraphs of rich educational content.
-- For each formula, ALWAYS include the "variables" array (what each symbol means) and a "worked_example" plugging in real numbers.
-- For each practice_problem, ALWAYS provide "steps" as an array of numbered solution steps and a separate "final_answer".
-- For purely conceptual non-math topics: "formulas" can be []. For practice_problems, "steps" should be the numbered reasoning that arrives at the correct conclusion, and "final_answer" is that conclusion.
-- "has_problems" must be false ONLY if practice_problems is empty.
+- Return EXACTLY ${end - start + 1} lessons, numbered ${start}-${end}. Do not include other lesson numbers.
+- These lessons are part of a 10-lesson progression from basics to advanced.
+- Keep each explanation to exactly 2 compact paragraphs so the JSON finishes reliably.
+- Include at most 3 terms, at most 2 formulas, 2 real_life_examples, and 1 practice_problem per lesson.
+- For each formula, include variables and worked_example. For conceptual topics, formulas can be [].
+- For each practice_problem, provide steps as an array and final_answer as a separate string.
 - ${langInstruction(data.language)}`;
     try {
-      const parsed = await callGroqJson({
-        prompt,
+      const firstHalf = await callGroqJson({
+        prompt: makePrompt(1, 5),
         temperature: 0.7,
-        maxTokens: 16000,
+        maxTokens: 6000,
         model: "google/gemini-2.5-flash",
+        timeoutMs: 25000,
+        retryCount: 0,
       });
-      const course = sanitizeCourse(parsed);
-      if (!course) throw new Error("Invalid course response");
+      const secondHalf = await callGroqJson({
+        prompt: makePrompt(6, 10),
+        temperature: 0.7,
+        maxTokens: 6000,
+        model: "google/gemini-2.5-flash",
+        timeoutMs: 25000,
+        retryCount: 0,
+      });
+      const firstCourse = sanitizeCourse(firstHalf);
+      const secondCourse = sanitizeCourse(secondHalf);
+      if (!firstCourse || !secondCourse) throw new Error("Invalid course response");
+      const course = sanitizeCourse({
+        course_title: firstCourse.course_title || secondCourse.course_title,
+        lessons: [...firstCourse.lessons, ...secondCourse.lessons].sort(
+          (a, b) => a.lesson_number - b.lesson_number,
+        ),
+      });
+      if (!course || course.lessons.length < 10) throw new Error("Incomplete course response");
       return { course };
     } catch (error) {
       console.error("generateCourse failed:", error);
