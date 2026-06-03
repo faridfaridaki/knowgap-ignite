@@ -380,7 +380,7 @@ function ResultBadge({ ok, hint }: { ok?: boolean; hint?: boolean }) {
   );
 }
 
-function LegendDot({ className, children }: { className: string; children: React.ReactNode }) {
+function LegendDot({ className, children }: { className: string; children: ReactNode }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${className}`}>
       <span className="h-2 w-2 rounded-full bg-current" />
