@@ -128,25 +128,30 @@ export const generateLesson = createServerFn({ method: "POST" })
       };
     },
   )
-  .handler(async ({ data }): Promise<{ lesson: LessonConcept[] }> => {
+  .handler(async ({ data }): Promise<{ lesson: LessonConcept[]; error?: string }> => {
     const list = data.missedConcepts.length
       ? data.missedConcepts.map((c) => `- ${c}`).join("\n")
       : `- Core concepts of ${data.topic}`;
     const prompt = `The student is learning about "${data.topic}". They got these questions/concepts WRONG and need a refresher:\n${list}\n\nCreate a lesson with one section per missed concept. Use VERY simple language. Include a real-life example or analogy. Return JSON: {"lesson":[{"concept":"...","simple_explanation":"2-3 sentences","real_life_example":"a short concrete story or analogy","key_takeaway":"one sentence"}]}\n${langInstruction(data.language)}`;
-    const parsed = await callGroqJson({ prompt, temperature: 0.7 });
-    const arr = Array.isArray(parsed?.lesson) ? parsed.lesson : [];
-    const lesson: LessonConcept[] = arr
-      .filter(
-        (c: any) =>
-          c &&
-          typeof c.concept === "string" &&
-          typeof c.simple_explanation === "string" &&
-          typeof c.real_life_example === "string" &&
-          typeof c.key_takeaway === "string",
-      )
-      .slice(0, 8);
-    if (lesson.length === 0) throw new Error("Invalid lesson response");
-    return { lesson };
+    try {
+      const parsed = await callGroqJson({ prompt, temperature: 0.7 });
+      const arr = Array.isArray(parsed?.lesson) ? parsed.lesson : [];
+      const lesson: LessonConcept[] = arr
+        .filter(
+          (c: any) =>
+            c &&
+            typeof c.concept === "string" &&
+            typeof c.simple_explanation === "string" &&
+            typeof c.real_life_example === "string" &&
+            typeof c.key_takeaway === "string",
+        )
+        .slice(0, 8);
+      if (lesson.length === 0) throw new Error("Invalid lesson response");
+      return { lesson };
+    } catch (error) {
+      console.error("generateLesson failed:", error);
+      return { lesson: [], error: AI_BUSY_MESSAGE };
+    }
   });
 
 export const generateFlashcards = createServerFn({ method: "POST" })
@@ -154,17 +159,22 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     if (!input?.topic?.trim()) throw new Error("Topic required");
     return { topic: input.topic.slice(0, 2000), language: normLang(input.language) };
   })
-  .handler(async ({ data }): Promise<{ flashcards: Flashcard[] }> => {
+  .handler(async ({ data }): Promise<{ flashcards: Flashcard[]; error?: string }> => {
     const prompt = `Generate 6-8 flashcards for the topic "${data.topic}". Each flashcard has a key term and a 1-2 sentence definition. Return JSON: {"flashcards":[{"term":"...","definition":"..."}]}\n${langInstruction(data.language)}`;
-    const parsed = await callGroqJson({ prompt, temperature: 0.6 });
-    const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
-    const flashcards: Flashcard[] = arr
-      .filter(
-        (c: any) => c && typeof c.term === "string" && typeof c.definition === "string",
-      )
-      .slice(0, 8);
-    if (flashcards.length === 0) throw new Error("Invalid flashcards response");
-    return { flashcards };
+    try {
+      const parsed = await callGroqJson({ prompt, temperature: 0.6 });
+      const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
+      const flashcards: Flashcard[] = arr
+        .filter(
+          (c: any) => c && typeof c.term === "string" && typeof c.definition === "string",
+        )
+        .slice(0, 8);
+      if (flashcards.length === 0) throw new Error("Invalid flashcards response");
+      return { flashcards };
+    } catch (error) {
+      console.error("generateFlashcards failed:", error);
+      return { flashcards: [], error: AI_BUSY_MESSAGE };
+    }
   });
 
 interface CourseFormula {
