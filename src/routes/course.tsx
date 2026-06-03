@@ -29,7 +29,7 @@ export const Route = createFileRoute("/course")({
 
 function CoursePage() {
   const navigate = useNavigate();
-  const { t, lang } = useT();
+  const { t, lang, hydrated } = useT();
   const generate = useServerFn(generateCourse);
   const [state, setState] = useState<LearningState | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
@@ -38,6 +38,7 @@ function CoursePage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadCourse = useCallback(() => {
+    if (!hydrated) return;
     setError(null);
     setCourse(null);
     const s = loadState();
@@ -56,21 +57,32 @@ function CoursePage() {
       .filter((q, i) => !isAnswerCorrect(q, s.preTestAnswers[i] ?? ""))
       .map((q) => q.question);
     let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      cancelled = true;
+      setError(friendlyAiError(new Error("AI service is busy")));
+    }, 30000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
         if (cancelled) return;
+        clearTimeout(timeoutId);
+        if (res.error || !res.course) {
+          setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
+          return;
+        }
         patchState({ course: res.course });
         setCourse(res.course);
       })
       .catch((e) => {
         if (cancelled) return;
-        console.error(e);
+        clearTimeout(timeoutId);
         setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [generate, navigate, lang]);
+  }, [navigate, lang, hydrated]);
 
   useEffect(() => loadCourse(), [loadCourse]);
 

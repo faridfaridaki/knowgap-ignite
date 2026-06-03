@@ -37,18 +37,21 @@ function FlashcardsPage() {
     generate({ data: { topic: s.topic } })
       .then((res) => {
         if (cancelled) return;
+        if (res.error || res.flashcards.length === 0) {
+          setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
+          return;
+        }
         patchState({ flashcards: res.flashcards });
         setCards(res.flashcards);
       })
       .catch((e) => {
         if (cancelled) return;
-        console.error(e);
         setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate]);
+  }, [navigate]);
 
   useEffect(() => loadFlashcards(), [loadFlashcards]);
 

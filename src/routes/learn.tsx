@@ -46,18 +46,21 @@ function LearnPage() {
     generate({ data: { topic: s.topic, missedConcepts: target } })
       .then((res) => {
         if (cancelled) return;
+        if (res.error || res.lesson.length === 0) {
+          setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
+          return;
+        }
         patchState({ lesson: res.lesson });
         setLesson(res.lesson);
       })
       .catch((e) => {
         if (cancelled) return;
-        console.error(e);
         setError(friendlyAiError(e));
       });
     return () => {
       cancelled = true;
     };
-  }, [generate, navigate]);
+  }, [navigate]);
 
   useEffect(() => loadLesson(), [loadLesson]);
 

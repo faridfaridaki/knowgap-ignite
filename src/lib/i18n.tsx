@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type Lang = "en" | "ru";
 
@@ -286,9 +286,10 @@ export type TKey = keyof typeof dict.en;
 
 const I18nContext = createContext<{
   lang: Lang;
+  hydrated: boolean;
   setLang: (l: Lang) => void;
   t: (key: TKey, vars?: Record<string, string | number>) => string;
-}>({ lang: "en", setLang: () => {}, t: (k) => String(k) });
+}>({ lang: "en", hydrated: false, setLang: () => {}, t: (k) => String(k) });
 
 function detectLang(): Lang {
   if (typeof window === "undefined") return "en";
@@ -304,7 +305,13 @@ function detectLang(): Lang {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => detectLang());
+  const [lang, setLangState] = useState<Lang>("en");
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setLangState(detectLang());
+    setHydrated(true);
+  }, []);
 
   const setLang = (l: Lang) => {
     setLangState(l);
@@ -323,7 +330,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return out;
   };
 
-  return <I18nContext.Provider value={{ lang, setLang, t }}>{children}</I18nContext.Provider>;
+  return <I18nContext.Provider value={{ lang, hydrated, setLang, t }}>{children}</I18nContext.Provider>;
 }
 
 export function useT() {
