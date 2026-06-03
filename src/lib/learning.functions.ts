@@ -350,7 +350,7 @@ CRITICAL Rules:
         prompt,
         temperature: 0.7,
         maxTokens: 16000,
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-2.5-flash",
       });
       const course = sanitizeCourse(parsed);
       if (!course) throw new Error("Invalid course response");
