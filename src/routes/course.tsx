@@ -31,12 +31,72 @@ function CoursePage() {
   const navigate = useNavigate();
   const { t, lang, hydrated } = useT();
   const generate = useServerFn(generateCourse);
+  const generateOneLesson = useServerFn(generateCourseLesson);
   const [state, setState] = useState<LearningState | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLesson, setCurrentLesson] = useState(1);
   const [completed, setCompleted] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [lessonLoading, setLessonLoading] = useState<number | null>(null);
+  const [lessonError, setLessonError] = useState<string | null>(null);
   const generationInFlight = useRef(false);
+  const lessonRequests = useRef<Set<number>>(new Set());
+
+  const wrongQuestions = useMemo(() => {
+    if (!state) return [];
+    return state.preTestQuestions
+      .filter((q, i) => !isAnswerCorrect(q, state.preTestAnswers[i] ?? ""))
+      .map((q) => q.question);
+  }, [state]);
+
+  const loadLesson = useCallback(
+    (n: number, courseSnapshot?: Course, topicOverride?: string) => {
+      const activeCourse = courseSnapshot ?? course;
+      const topic = topicOverride ?? state?.topic;
+      if (!activeCourse || !topic) return;
+      const target = activeCourse.lessons.find((l) => l.lesson_number === n);
+      if (!target) return;
+      if (target.explanation && target.explanation.trim().length > 0) return;
+      if (lessonRequests.current.has(n)) return;
+      lessonRequests.current.add(n);
+      setLessonLoading(n);
+      setLessonError(null);
+      const titles = activeCourse.lessons.map((l) => l.title);
+      generateOneLesson({
+        data: {
+          topic,
+          lessonNumber: n,
+          lessonTitle: target.title,
+          allTitles: titles,
+          wrongQuestions,
+          language: lang,
+        },
+      })
+        .then((res) => {
+          if (res.error || !res.lesson) {
+            setLessonError(res.error ?? friendlyAiError(new Error("Lesson failed")));
+            return;
+          }
+          setCourse((prev) => {
+            if (!prev) return prev;
+            const lessons = prev.lessons.map((l) =>
+              l.lesson_number === n ? res.lesson! : l,
+            );
+            const next = { ...prev, lessons };
+            patchState({ course: next });
+            return next;
+          });
+        })
+        .catch((e) => {
+          setLessonError(friendlyAiError(e));
+        })
+        .finally(() => {
+          lessonRequests.current.delete(n);
+          setLessonLoading((cur) => (cur === n ? null : cur));
+        });
+    },
+    [course, state, wrongQuestions, lang, generateOneLesson],
+  );
 
   const loadCourse = useCallback(() => {
     if (!hydrated) return;
@@ -49,9 +109,15 @@ function CoursePage() {
     }
     setState(s);
     setCompleted(s.completedLessons ?? []);
-    setCurrentLesson(s.currentLesson || 1);
+    const startAt = s.currentLesson || 1;
+    setCurrentLesson(startAt);
     if (s.course && s.course.lessons?.length) {
       setCourse(s.course);
+      // Kick off lazy load for the currently-open lesson if missing.
+      const target = s.course.lessons.find((l) => l.lesson_number === startAt);
+      if (target && (!target.explanation || target.explanation.trim().length === 0)) {
+        loadLesson(startAt, s.course, s.topic);
+      }
       return;
     }
     if (generationInFlight.current) return;
@@ -64,7 +130,7 @@ function CoursePage() {
       if (cancelled) return;
       cancelled = true;
       setError(friendlyAiError(new Error("AI service is busy")));
-    }, 70000);
+    }, 30000);
     generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
       .then((res) => {
         if (cancelled) return;
@@ -75,6 +141,8 @@ function CoursePage() {
         }
         patchState({ course: res.course });
         setCourse(res.course);
+        // Immediately fetch the first lesson so the user sees content fast.
+        loadLesson(startAt, res.course, s.topic);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -88,9 +156,10 @@ function CoursePage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [navigate, lang, hydrated]);
+  }, [navigate, lang, hydrated, generate, loadLesson]);
 
   useEffect(() => loadCourse(), [loadCourse]);
+
 
   const lessons = course?.lessons ?? [];
   const lesson: CourseLesson | undefined = useMemo(
