@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Lightbulb } from "lucide-react";
 import { AiErrorState } from "@/components/AiErrorState";
+import { AppHeader } from "@/components/AppHeader";
 import { generateLesson } from "@/lib/learning.functions";
 import {
   loadState,
