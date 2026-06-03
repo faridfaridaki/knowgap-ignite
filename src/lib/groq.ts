@@ -28,6 +28,7 @@ type AiProvider = {
 };
 
 let groqQueue: Promise<unknown> = Promise.resolve();
+let groqCooldownUntil = 0;
 
 function enqueueGroq<T>(task: () => Promise<T>): Promise<T> {
   const run = groqQueue.then(task, task);
@@ -48,12 +49,14 @@ async function wait(ms: number) {
 }
 
 function getProviders(): AiProvider[] {
+  const canUseLovableAi = Boolean(process.env.LOVABLE_API_KEY);
+  const groqIsCoolingDown = canUseLovableAi && Date.now() < groqCooldownUntil;
   const providers: AiProvider[] = [
     {
       name: "Groq",
       url: GROQ_URL,
       model: MODEL,
-      apiKey: process.env.GROQ_API_KEY,
+      apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
     },
     {
       name: "Lovable AI",
@@ -136,6 +139,7 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
     } catch (error) {
       lastError = error;
       if (provider.name === "Groq" && providers.some((p) => p.name === "Lovable AI")) {
+        groqCooldownUntil = Date.now() + 10 * 60 * 1000;
         console.warn("Groq is rate-limited or unavailable; retrying with Lovable AI.");
         continue;
       }
