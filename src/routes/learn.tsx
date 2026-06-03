@@ -55,7 +55,6 @@ function LearnPage() {
       })
       .catch((e) => {
         if (cancelled) return;
-        console.error(e);
         setError(friendlyAiError(e));
       });
     return () => {
