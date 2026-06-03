@@ -153,7 +153,7 @@ function CoursePage() {
         // Fetch lesson 1 and prefetch lesson 2 in parallel.
         loadLesson(startAt, res.course, s.topic);
         const nextN = Math.min(startAt + 1, res.course.lessons.length);
-        if (nextN !== startAt) loadLesson(nextN, s.course, s.topic);
+        if (nextN !== startAt) loadLesson(nextN, res.course, s.topic);
       })
       .catch((e) => {
         setError(friendlyAiError(e));
