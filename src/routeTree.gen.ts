@@ -18,6 +18,7 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as FlashcardsRouteImport } from './routes/flashcards'
 import { Route as FinalTestRouteImport } from './routes/final-test'
 import { Route as FinalAnalysisRouteImport } from './routes/final-analysis'
+import { Route as CourseRouteImport } from './routes/course'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -70,6 +71,11 @@ const FinalAnalysisRoute = FinalAnalysisRouteImport.update({
   path: '/final-analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CourseRoute = CourseRouteImport.update({
+  id: '/course',
+  path: '/course',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
+  '/course': typeof CourseRoute
   '/final-analysis': typeof FinalAnalysisRouteWithChildren
   '/final-test': typeof FinalTestRoute
   '/flashcards': typeof FlashcardsRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
+  '/course': typeof CourseRoute
   '/final-analysis': typeof FinalAnalysisRouteWithChildren
   '/final-test': typeof FinalTestRoute
   '/flashcards': typeof FlashcardsRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRoute
+  '/course': typeof CourseRoute
   '/final-analysis': typeof FinalAnalysisRouteWithChildren
   '/final-test': typeof FinalTestRoute
   '/flashcards': typeof FlashcardsRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chat'
+    | '/course'
     | '/final-analysis'
     | '/final-test'
     | '/flashcards'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chat'
+    | '/course'
     | '/final-analysis'
     | '/final-test'
     | '/flashcards'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chat'
+    | '/course'
     | '/final-analysis'
     | '/final-test'
     | '/flashcards'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   ChatRoute: typeof ChatRoute
+  CourseRoute: typeof CourseRoute
   FinalAnalysisRoute: typeof FinalAnalysisRouteWithChildren
   FinalTestRoute: typeof FinalTestRoute
   FlashcardsRoute: typeof FlashcardsRoute
@@ -288,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinalAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/course': {
+      id: '/course'
+      path: '/course'
+      fullPath: '/course'
+      preLoaderRoute: typeof CourseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat': {
       id: '/chat'
       path: '/chat'
@@ -360,6 +380,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   ChatRoute: ChatRoute,
+  CourseRoute: CourseRoute,
   FinalAnalysisRoute: FinalAnalysisRouteWithChildren,
   FinalTestRoute: FinalTestRoute,
   FlashcardsRoute: FlashcardsRoute,
