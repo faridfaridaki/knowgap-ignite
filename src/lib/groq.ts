@@ -27,7 +27,7 @@ type GroqRequest = {
 };
 
 type AiProvider = {
-  name: "Groq" | "Lovable AI";
+  name: "DeepSeek" | "Groq" | "Lovable AI";
   url: string;
   model: string;
   apiKey?: string;
