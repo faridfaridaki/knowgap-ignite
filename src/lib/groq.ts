@@ -1,5 +1,7 @@
 import { AI_BUSY_MESSAGE } from "./ai-error";
 
+const GEMINI_MODEL = "gemini-flash-latest";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -27,7 +29,8 @@ type GroqRequest = {
 };
 
 type AiProvider = {
-  name: "DeepSeek" | "Groq" | "Lovable AI";
+  name: "Gemini" | "DeepSeek" | "Groq" | "Lovable AI";
+  kind: "gemini" | "openai";
   url: string;
   model: string;
   apiKey?: string;
@@ -63,23 +66,36 @@ async function wait(ms: number) {
 }
 
 function getProviders(): AiProvider[] {
-  const hasFallback = Boolean(process.env.LOVABLE_API_KEY) || Boolean(process.env.DEEPSEEK_API_KEY);
+  const hasFallback =
+    Boolean(process.env.GEMINI_API_KEY) ||
+    Boolean(process.env.LOVABLE_API_KEY) ||
+    Boolean(process.env.DEEPSEEK_API_KEY);
   const groqIsCoolingDown = hasFallback && Date.now() < groqCooldownUntil;
   const providers: AiProvider[] = [
     {
+      name: "Gemini",
+      kind: "gemini",
+      url: GEMINI_URL,
+      model: GEMINI_MODEL,
+      apiKey: process.env.GEMINI_API_KEY,
+    },
+    {
       name: "Groq",
+      kind: "openai",
       url: GROQ_URL,
       model: MODEL,
       apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
     },
     {
       name: "DeepSeek",
+      kind: "openai",
       url: DEEPSEEK_URL,
       model: DEEPSEEK_MODEL,
       apiKey: process.env.DEEPSEEK_API_KEY,
     },
     {
       name: "Lovable AI",
+      kind: "openai",
       url: LOVABLE_AI_URL,
       model: LOVABLE_MODEL,
       apiKey: process.env.LOVABLE_API_KEY,
@@ -93,6 +109,77 @@ function isDailyTokenLimit(errorText: string): boolean {
   return (
     lower.includes("tokens per day") || lower.includes("tpd") || lower.includes("try again in")
   );
+}
+
+function toGeminiRequest(
+  body: Omit<GroqRequest, "lovableModelOverride" | "timeoutMs" | "retryCount">,
+) {
+  const systemText = body.messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n")
+    .trim();
+  const chatMessages = body.messages.filter((message) => message.role !== "system");
+  const contents =
+    chatMessages.length > 0
+      ? chatMessages.map((message) => ({
+          role: message.role === "assistant" ? "model" : "user",
+          parts: [{ text: message.content }],
+        }))
+      : [
+          {
+            role: "user",
+            parts: [{ text: "Start the learning session with the first question." }],
+          },
+        ];
+
+  return {
+    ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
+    contents,
+    generationConfig: {
+      temperature: body.temperature,
+      maxOutputTokens: body.max_tokens,
+      ...(body.response_format?.type === "json_object"
+        ? { responseMimeType: "application/json" }
+        : {}),
+    },
+  };
+}
+
+async function parseGeminiText(res: Response): Promise<string> {
+  const payload = await res.json();
+  const parts = payload?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  return parts
+    .map((part) => (typeof part?.text === "string" ? part.text : ""))
+    .join("")
+    .trim();
+}
+
+function openAiJsonResponse(content: string): Response {
+  return new Response(
+    JSON.stringify({
+      choices: [
+        {
+          message: { content },
+        },
+      ],
+    }),
+    { headers: { "Content-Type": "application/json" } },
+  );
+}
+
+function openAiSseResponse(content: string): Response {
+  const chunk = JSON.stringify({
+    choices: [
+      {
+        delta: { content },
+      },
+    ],
+  });
+  return new Response(`data: ${chunk}\n\ndata: [DONE]\n\n`, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
 }
 
 async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<Response> {
@@ -118,18 +205,30 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
         attempt: attempt + 1,
         maxAttempts,
       });
-      res = await fetch(provider.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${provider.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          ...rest,
-        }),
-        signal: controller.signal,
-      });
+      if (provider.kind === "gemini") {
+        res = await fetch(provider.url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-goog-api-key": provider.apiKey,
+          },
+          body: JSON.stringify(toGeminiRequest(rest)),
+          signal: controller.signal,
+        });
+      } else {
+        res = await fetch(provider.url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${provider.apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            ...rest,
+          }),
+          signal: controller.signal,
+        });
+      }
     } catch (err) {
       clearTimeout(timeoutId);
       console.error(`${provider.name} fetch failed (attempt ${attempt + 1}/${maxAttempts}):`, err);
@@ -141,7 +240,13 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
     }
     clearTimeout(timeoutId);
 
-    if (res.ok) return res;
+    if (res.ok) {
+      if (provider.kind === "gemini") {
+        const content = await parseGeminiText(res);
+        return rest.stream ? openAiSseResponse(content) : openAiJsonResponse(content);
+      }
+      return res;
+    }
 
     const errorText = await res.text().catch(() => "");
     console.error(
