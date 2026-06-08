@@ -33,6 +33,14 @@ type AiProvider = {
   apiKey?: string;
 };
 
+type ChatCompletionPayload = {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+};
+
 let groqQueue: Promise<unknown> = Promise.resolve();
 let groqCooldownUntil = 0;
 
@@ -59,6 +67,12 @@ function getProviders(): AiProvider[] {
   const groqIsCoolingDown = hasFallback && Date.now() < groqCooldownUntil;
   const providers: AiProvider[] = [
     {
+      name: "Groq",
+      url: GROQ_URL,
+      model: MODEL,
+      apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
+    },
+    {
       name: "DeepSeek",
       url: DEEPSEEK_URL,
       model: DEEPSEEK_MODEL,
@@ -70,24 +84,25 @@ function getProviders(): AiProvider[] {
       model: LOVABLE_MODEL,
       apiKey: process.env.LOVABLE_API_KEY,
     },
-    {
-      name: "Groq",
-      url: GROQ_URL,
-      model: MODEL,
-      apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
-    },
   ];
   return providers.filter((provider) => Boolean(provider.apiKey));
 }
 
 function isDailyTokenLimit(errorText: string): boolean {
   const lower = errorText.toLowerCase();
-  return lower.includes("tokens per day") || lower.includes("tpd") || lower.includes("try again in");
+  return (
+    lower.includes("tokens per day") || lower.includes("tpd") || lower.includes("try again in")
+  );
 }
 
 async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<Response> {
   if (!provider.apiKey) throw new Error(`${provider.name} API key is not configured`);
-  const { lovableModelOverride, timeoutMs = FETCH_TIMEOUT_MS, retryCount = RETRY_DELAYS_MS.length, ...rest } = body;
+  const {
+    lovableModelOverride,
+    timeoutMs = FETCH_TIMEOUT_MS,
+    retryCount = RETRY_DELAYS_MS.length,
+    ...rest
+  } = body;
   const model =
     provider.name === "Lovable AI" && lovableModelOverride ? lovableModelOverride : provider.model;
   const maxAttempts = Math.max(1, Math.min(RETRY_DELAYS_MS.length + 1, retryCount + 1));
@@ -97,7 +112,12 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     let res: Response;
     try {
-      console.info(`${provider.name} request`, { model, max_tokens: rest.max_tokens ?? "auto", attempt: attempt + 1, maxAttempts });
+      console.info(`${provider.name} request`, {
+        model,
+        max_tokens: rest.max_tokens ?? "auto",
+        attempt: attempt + 1,
+        maxAttempts,
+      });
       res = await fetch(provider.url, {
         method: "POST",
         headers: {
@@ -124,7 +144,11 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
     if (res.ok) return res;
 
     const errorText = await res.text().catch(() => "");
-    console.error(`${provider.name} error (attempt ${attempt + 1}/${maxAttempts}):`, res.status, errorText);
+    console.error(
+      `${provider.name} error (attempt ${attempt + 1}/${maxAttempts}):`,
+      res.status,
+      errorText,
+    );
 
     const isRetryable = res.status === 429 || res.status >= 500;
     if (provider.name === "Groq" && res.status === 429) {
@@ -133,7 +157,10 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
     }
     if (isRetryable && attempt + 1 < maxAttempts) {
       const retryAfter = Number(res.headers.get("retry-after"));
-      const headerMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, MAX_RETRY_AFTER_MS) : 0;
+      const headerMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, MAX_RETRY_AFTER_MS)
+          : 0;
       const delay = Math.max(RETRY_DELAYS_MS[attempt], headerMs);
       await wait(delay);
       continue;
@@ -171,7 +198,7 @@ async function fetchGroq(body: GroqRequest): Promise<Response> {
   throw lastError instanceof Error ? lastError : new Error(AI_BUSY_MESSAGE);
 }
 
-async function fetchGroqPayload(body: GroqRequest): Promise<any> {
+async function fetchGroqPayload(body: GroqRequest): Promise<ChatCompletionPayload> {
   const providers = getProviders();
   if (providers.length === 0) throw new Error("No AI provider is configured");
 
@@ -188,7 +215,9 @@ async function fetchGroqPayload(body: GroqRequest): Promise<any> {
         groqCooldownUntil = Date.now() + 10 * 60 * 1000;
       }
       if (!isLast) {
-        console.warn(`${provider.name} failed or returned invalid JSON; falling back to next provider.`);
+        console.warn(
+          `${provider.name} failed or returned invalid JSON; falling back to next provider.`,
+        );
         continue;
       }
     }
@@ -206,7 +235,7 @@ function tryRepairJson(text: string): string {
   return text.slice(0, cut + 1);
 }
 
-export async function callGroqJson<T = any>({
+export async function callGroqJson<T = unknown>({
   prompt,
   system,
   temperature = 0.7,
@@ -288,7 +317,6 @@ export async function callGroqText({
     return cleanContent(payload?.choices?.[0]?.message?.content ?? "");
   });
 }
-
 
 export async function callGroqStreamText({
   messages,
