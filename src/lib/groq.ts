@@ -1,7 +1,6 @@
 import { AI_BUSY_MESSAGE } from "./ai-error";
 
-const GEMINI_MODEL = "gemini-flash-latest";
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -31,7 +30,6 @@ type GroqRequest = {
 type AiProvider = {
   name: "Gemini" | "DeepSeek" | "Groq" | "Lovable AI";
   kind: "gemini" | "openai";
-  url: string;
   model: string;
   apiKey?: string;
 };
@@ -71,32 +69,29 @@ function getProviders(): AiProvider[] {
     Boolean(process.env.LOVABLE_API_KEY) ||
     Boolean(process.env.DEEPSEEK_API_KEY);
   const groqIsCoolingDown = hasFallback && Date.now() < groqCooldownUntil;
+  const geminiProviders: AiProvider[] = GEMINI_MODELS.map((model) => ({
+    name: "Gemini",
+    kind: "gemini",
+    model,
+    apiKey: process.env.GEMINI_API_KEY,
+  }));
   const providers: AiProvider[] = [
-    {
-      name: "Gemini",
-      kind: "gemini",
-      url: GEMINI_URL,
-      model: GEMINI_MODEL,
-      apiKey: process.env.GEMINI_API_KEY,
-    },
+    ...geminiProviders,
     {
       name: "Groq",
       kind: "openai",
-      url: GROQ_URL,
       model: MODEL,
       apiKey: groqIsCoolingDown ? undefined : process.env.GROQ_API_KEY,
     },
     {
       name: "DeepSeek",
       kind: "openai",
-      url: DEEPSEEK_URL,
       model: DEEPSEEK_MODEL,
       apiKey: process.env.DEEPSEEK_API_KEY,
     },
     {
       name: "Lovable AI",
       kind: "openai",
-      url: LOVABLE_AI_URL,
       model: LOVABLE_MODEL,
       apiKey: process.env.LOVABLE_API_KEY,
     },
@@ -192,11 +187,15 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
   } = body;
   const model =
     provider.name === "Lovable AI" && lovableModelOverride ? lovableModelOverride : provider.model;
-  const maxAttempts = Math.max(1, Math.min(RETRY_DELAYS_MS.length + 1, retryCount + 1));
+  const maxAttempts =
+    provider.kind === "gemini"
+      ? 1
+      : Math.max(1, Math.min(RETRY_DELAYS_MS.length + 1, retryCount + 1));
+  const providerTimeoutMs = provider.kind === "gemini" ? Math.min(timeoutMs, 9000) : timeoutMs;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), providerTimeoutMs);
     let res: Response;
     try {
       console.info(`${provider.name} request`, {
@@ -206,17 +205,26 @@ async function fetchProvider(provider: AiProvider, body: GroqRequest): Promise<R
         maxAttempts,
       });
       if (provider.kind === "gemini") {
-        res = await fetch(provider.url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-goog-api-key": provider.apiKey,
+        res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-goog-api-key": provider.apiKey,
+            },
+            body: JSON.stringify(toGeminiRequest(rest)),
+            signal: controller.signal,
           },
-          body: JSON.stringify(toGeminiRequest(rest)),
-          signal: controller.signal,
-        });
+        );
       } else {
-        res = await fetch(provider.url, {
+        const url =
+          provider.name === "Groq"
+            ? GROQ_URL
+            : provider.name === "DeepSeek"
+              ? DEEPSEEK_URL
+              : LOVABLE_AI_URL;
+        res = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
