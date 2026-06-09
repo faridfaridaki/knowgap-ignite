@@ -34,6 +34,11 @@ interface Flashcard {
   definition: string;
 }
 
+interface FlashcardSource {
+  term: string;
+  definition: string;
+}
+
 function sanitizeQuestions(raw: any): QuizQuestion[] {
   const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.questions) ? raw.questions : [];
   const out: QuizQuestion[] = [];
@@ -203,8 +208,20 @@ function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): Qu
   }));
 }
 
-function fallbackFlashcards(topic: string, lessonTitles: string[], lang: Lang): Flashcard[] {
+function fallbackFlashcards(
+  topic: string,
+  sources: FlashcardSource[],
+  lessonTitles: string[],
+  lang: Lang,
+): Flashcard[] {
   const isRu = lang === "ru";
+  if (sources.length > 0) {
+    return sources.slice(0, 10).map((source) => ({
+      term: source.term,
+      definition: source.definition,
+    }));
+  }
+
   const baseTerms = lessonTitles.length
     ? lessonTitles
     : isRu
@@ -340,21 +357,47 @@ export const generateLesson = createServerFn({ method: "POST" })
   });
 
 export const generateFlashcards = createServerFn({ method: "POST" })
-  .inputValidator((input: { topic: string; lessonTitles?: string[]; language?: string }) => {
-    if (!input?.topic?.trim()) throw new Error("Topic required");
-    return {
-      topic: input.topic.slice(0, 2000),
-      lessonTitles: Array.isArray(input.lessonTitles)
-        ? input.lessonTitles.filter((t) => typeof t === "string").slice(0, 12)
-        : [],
-      language: normLang(input.language),
-    };
-  })
+  .inputValidator(
+    (input: {
+      topic: string;
+      lessonTitles?: string[];
+      sources?: FlashcardSource[];
+      language?: string;
+    }) => {
+      if (!input?.topic?.trim()) throw new Error("Topic required");
+      return {
+        topic: input.topic.slice(0, 2000),
+        lessonTitles: Array.isArray(input.lessonTitles)
+          ? input.lessonTitles.filter((t) => typeof t === "string").slice(0, 12)
+          : [],
+        sources: Array.isArray(input.sources)
+          ? input.sources
+              .filter(
+                (source) =>
+                  source &&
+                  typeof source.term === "string" &&
+                  typeof source.definition === "string" &&
+                  source.term.trim() &&
+                  source.definition.trim(),
+              )
+              .map((source) => ({
+                term: source.term.slice(0, 300),
+                definition: source.definition.slice(0, 1000),
+              }))
+              .slice(0, 24)
+          : [],
+        language: normLang(input.language),
+      };
+    },
+  )
   .handler(async ({ data }): Promise<{ flashcards: Flashcard[]; error?: string }> => {
     const lessonsBlock = data.lessonTitles.length
       ? data.lessonTitles.map((t) => `- ${t}`).join("\n")
       : "(use core concepts of the topic)";
-    const prompt = `Generate 8-10 flashcards for the topic "${data.topic}". Use the key terms and concepts from these lessons:\n${lessonsBlock}\n\nReturn ONLY JSON: {"flashcards":[{"term":"...","definition":"..."}]} where definition is 1-2 clear sentences.\n${langInstruction(data.language)}`;
+    const sourceBlock = data.sources.length
+      ? data.sources.map((source) => `- ${source.term}: ${source.definition}`).join("\n")
+      : "(infer terms and formulas from the lessons)";
+    const prompt = `Generate 8-10 flashcards for the topic "${data.topic}". Use ONLY important terms and formulas. The front must be only a term, concept name, or formula. The back must be its definition, meaning, or formula explanation. Do not create study-strategy cards.\n\nLessons:\n${lessonsBlock}\n\nAvailable terms and formulas:\n${sourceBlock}\n\nReturn ONLY JSON: {"flashcards":[{"term":"...","definition":"..."}]} where definition is 1-2 clear sentences.\n${langInstruction(data.language)}`;
     try {
       const parsed = await callGroqJson({ prompt, temperature: 0.6 });
       const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
@@ -366,7 +409,7 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("generateFlashcards failed:", error);
       return {
-        flashcards: fallbackFlashcards(data.topic, data.lessonTitles, data.language),
+        flashcards: fallbackFlashcards(data.topic, data.sources, data.lessonTitles, data.language),
       };
     }
   });

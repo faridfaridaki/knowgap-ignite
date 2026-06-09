@@ -47,13 +47,31 @@ function FlashcardsPage() {
       return;
     }
     const lessonTitles = s.course?.lessons?.map((l) => l.title) ?? [];
+    const sources =
+      s.course?.lessons?.flatMap((lesson) => [
+        ...(lesson.terms ?? []).map((term) => ({
+          term: term.term,
+          definition: term.definition,
+        })),
+        ...(lesson.formulas ?? []).map((formula) => ({
+          term: formula.formula,
+          definition: [
+            formula.explanation,
+            formula.variables?.length
+              ? `Variables: ${formula.variables.map((v) => `${v.symbol} = ${v.meaning}`).join(", ")}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+        })),
+      ]) ?? [];
     let cancelled = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
       cancelled = true;
       setError(friendlyAiError(new Error("AI service is busy")));
     }, 30000);
-    generate({ data: { topic: s.topic, lessonTitles, language: lang } })
+    generate({ data: { topic: s.topic, lessonTitles, sources, language: lang } })
       .then((res) => {
         if (cancelled) return;
         clearTimeout(timeoutId);
@@ -166,11 +184,20 @@ function FlashcardsPage() {
         </div>
 
         <div className="text-center mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Quick recall practice
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Quick recall practice</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Tap the card or press <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">Space</kbd> to flip · use <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">←</kbd> <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">→</kbd> to navigate
+            Tap the card or press{" "}
+            <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">
+              Space
+            </kbd>{" "}
+            to flip · use{" "}
+            <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">
+              ←
+            </kbd>{" "}
+            <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">
+              →
+            </kbd>{" "}
+            to navigate
           </p>
         </div>
 
@@ -187,10 +214,7 @@ function FlashcardsPage() {
           </button>
         </div>
 
-        <div
-          className="relative mx-auto"
-          style={{ perspective: "1200px", height: 360 }}
-        >
+        <div className="relative mx-auto" style={{ perspective: "1200px", height: 360 }}>
           <button
             type="button"
             onClick={flip}
@@ -212,9 +236,7 @@ function FlashcardsPage() {
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">
                     Term
                   </div>
-                  <div className="text-3xl sm:text-4xl font-bold text-foreground">
-                    {card.term}
-                  </div>
+                  <div className="text-3xl sm:text-4xl font-bold text-foreground">{card.term}</div>
                 </div>
               </div>
               <div
