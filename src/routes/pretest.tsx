@@ -86,9 +86,9 @@ function PreTestPage() {
   }
 
   return (
-    <main className="relative min-h-screen w-full bg-background px-4 pb-8 pt-28 animate-fade-in sm:px-6 sm:py-14">
+    <main className="relative min-h-screen w-full bg-background px-4 pb-8 pt-28 animate-fade-in sm:px-6 sm:py-14 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
       <AppHeader />
-      <div className="mx-auto mb-6 w-full max-w-[680px] text-center sm:mb-8">
+      <div className="mx-auto mb-6 w-full max-w-[680px] text-center sm:mb-8 lg:shrink-0">
         <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
           {t("stage1")}
         </span>
@@ -96,7 +96,9 @@ function PreTestPage() {
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{topic}</p>
       </div>
 
-      <QuizPlayer questions={questions} onSubmit={handleSubmit} />
+      <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+        <QuizPlayer questions={questions} onSubmit={handleSubmit} />
+      </div>
     </main>
   );
 }

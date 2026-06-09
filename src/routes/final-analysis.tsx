@@ -210,10 +210,10 @@ function FinalAnalysisPage() {
   if (!state || !data) return null;
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-12 relative animate-fade-in">
+    <main className="min-h-screen w-full bg-background px-6 py-12 relative animate-fade-in lg:h-screen lg:overflow-hidden">
       <AppHeader />
-      <div className="mx-auto w-full max-w-[820px]">
-        <div className="text-center mb-10">
+      <div className="mx-auto w-full max-w-[820px] lg:flex lg:h-full lg:flex-col">
+        <div className="text-center mb-10 lg:shrink-0">
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             {t("stage6")}
           </span>
@@ -221,169 +221,171 @@ function FinalAnalysisPage() {
           <p className="mt-2 text-sm text-muted-foreground">{state.topic}</p>
         </div>
 
-        <section className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-          <h2 className="text-lg font-semibold text-foreground mb-5">{t("scoreComparison")}</h2>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <ScoreCell
-              label={t("preTest")}
-              score={state.preTestScore}
-              total={data.preTotal}
-              pct={data.prePct}
-            />
-            <div className="flex flex-col items-center justify-center">
-              <ArrowRight size={22} className="text-muted-foreground" />
-              <div
-                className={`mt-2 text-sm font-semibold inline-flex items-center gap-1 ${
-                  data.delta > 0
-                    ? "text-emerald-300"
-                    : data.delta < 0
-                      ? "text-red-300"
-                      : "text-muted-foreground"
-                }`}
-              >
-                {data.delta > 0 && <TrendingUp size={14} />}
-                {data.delta > 0 ? `+${data.delta}%` : `${data.delta}%`}
-              </div>
-            </div>
-            <ScoreCell
-              label={t("finalTest")}
-              score={state.finalTestScore}
-              total={data.finalTotal}
-              pct={data.finalPct}
-              highlight
-            />
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-          <h2 className="text-lg font-semibold text-foreground mb-1">{t("conceptByConcept")}</h2>
-          <p className="text-sm text-muted-foreground mb-4">{t("conceptByConceptSub")}</p>
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
-            <LegendDot className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-              {t("legendCorrect")}
-            </LegendDot>
-            <LegendDot className="bg-amber-500/20 text-amber-300 border-amber-500/30">
-              {t("legendHint")}
-            </LegendDot>
-            <LegendDot className="bg-red-500/20 text-red-300 border-red-500/30">
-              {t("legendWrong")}
-            </LegendDot>
-          </div>
-          <div className="space-y-2">
-            {Array.from({ length: Math.max(data.preRows.length, data.finalRows.length) }).map(
-              (_, i) => {
-                const a = data.preRows[i];
-                const b = data.finalRows[i];
-                const finalCorrectWithHint = Boolean(b?.correct && b?.hint);
-                const improved = a && b && !a.correct && b.correct;
-                const stillGap = a && b && !a.correct && !b.correct;
-                return (
-                  <div
-                    key={i}
-                    className={`grid grid-cols-[28px_1fr_60px_60px] items-center gap-3 rounded-lg border px-3 py-2.5 ${
-                      finalCorrectWithHint
-                        ? "border-amber-500/30 bg-amber-500/[0.07]"
-                        : improved
-                          ? "border-emerald-500/30 bg-emerald-500/[0.05]"
-                          : stillGap
-                            ? "border-red-500/30 bg-red-500/[0.05]"
-                            : "border-surface-border bg-background/30"
-                    }`}
-                  >
-                    <span className="text-xs text-muted-foreground tabular-nums">Q{i + 1}</span>
-                    <div
-                      className="text-sm text-foreground truncate"
-                      title={b?.label || a?.label || ""}
-                    >
-                      {b?.label || a?.label || ""}
-                    </div>
-                    <ResultBadge ok={a?.correct} hint={a?.hint} />
-                    <ResultBadge ok={b?.correct} hint={b?.hint} />
-                  </div>
-                );
-              },
-            )}
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-          <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="mt-0.5 text-amber-300 shrink-0" />
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-foreground">{t("needMoreWork")}</h2>
-              {data.gaps.length === 0 ? (
-                <p className="mt-4 text-sm text-emerald-300">{t("noGaps")}</p>
-              ) : (
-                <ul className="mt-4 space-y-2">
-                  {data.gaps.map((g, i) => (
-                    <li
-                      key={i}
-                      className="rounded-lg border border-red-500/25 bg-red-500/[0.05] p-3"
-                    >
-                      <div className="text-sm font-medium text-foreground">{g.q.question}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {t("correctLabel")}{" "}
-                        <span className="text-emerald-300">{g.q.correct_answer}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {related.length > 0 && (
-          <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-foreground mb-4">{t("suggestedNext")}</h2>
-            <div className="grid sm:grid-cols-3 gap-3">
-              {related.map((tp) => (
-                <button
-                  key={tp}
-                  type="button"
-                  onClick={() => {
-                    try {
-                      sessionStorage.setItem("knowgap:topic", tp);
-                    } catch {}
-                    clearState();
-                    navigate({ to: "/pretest" });
-                  }}
-                  className="rounded-xl border border-surface-border bg-background/40 p-4 text-left text-sm font-medium text-foreground hover:border-[#7C6AF7]/50 hover:bg-[#7C6AF7]/5 transition-colors"
+        <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+          <section className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <h2 className="text-lg font-semibold text-foreground mb-5">{t("scoreComparison")}</h2>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <ScoreCell
+                label={t("preTest")}
+                score={state.preTestScore}
+                total={data.preTotal}
+                pct={data.prePct}
+              />
+              <div className="flex flex-col items-center justify-center">
+                <ArrowRight size={22} className="text-muted-foreground" />
+                <div
+                  className={`mt-2 text-sm font-semibold inline-flex items-center gap-1 ${
+                    data.delta > 0
+                      ? "text-emerald-300"
+                      : data.delta < 0
+                        ? "text-red-300"
+                        : "text-muted-foreground"
+                  }`}
                 >
-                  {tp}
-                </button>
-              ))}
+                  {data.delta > 0 && <TrendingUp size={14} />}
+                  {data.delta > 0 ? `+${data.delta}%` : `${data.delta}%`}
+                </div>
+              </div>
+              <ScoreCell
+                label={t("finalTest")}
+                score={state.finalTestScore}
+                total={data.finalTotal}
+                pct={data.finalPct}
+                highlight
+              />
             </div>
           </section>
-        )}
 
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-          {saved === "saving" && t("savingSession")}
-          {saved === "saved-cloud" && t("savedCloud")}
-          {saved === "saved-local" && t("savedLocal")}
-        </div>
+          <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <h2 className="text-lg font-semibold text-foreground mb-1">{t("conceptByConcept")}</h2>
+            <p className="text-sm text-muted-foreground mb-4">{t("conceptByConceptSub")}</p>
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
+              <LegendDot className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                {t("legendCorrect")}
+              </LegendDot>
+              <LegendDot className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+                {t("legendHint")}
+              </LegendDot>
+              <LegendDot className="bg-red-500/20 text-red-300 border-red-500/30">
+                {t("legendWrong")}
+              </LegendDot>
+            </div>
+            <div className="space-y-2">
+              {Array.from({ length: Math.max(data.preRows.length, data.finalRows.length) }).map(
+                (_, i) => {
+                  const a = data.preRows[i];
+                  const b = data.finalRows[i];
+                  const finalCorrectWithHint = Boolean(b?.correct && b?.hint);
+                  const improved = a && b && !a.correct && b.correct;
+                  const stillGap = a && b && !a.correct && !b.correct;
+                  return (
+                    <div
+                      key={i}
+                      className={`grid grid-cols-[28px_1fr_60px_60px] items-center gap-3 rounded-lg border px-3 py-2.5 ${
+                        finalCorrectWithHint
+                          ? "border-amber-500/30 bg-amber-500/[0.07]"
+                          : improved
+                            ? "border-emerald-500/30 bg-emerald-500/[0.05]"
+                            : stillGap
+                              ? "border-red-500/30 bg-red-500/[0.05]"
+                              : "border-surface-border bg-background/30"
+                      }`}
+                    >
+                      <span className="text-xs text-muted-foreground tabular-nums">Q{i + 1}</span>
+                      <div
+                        className="text-sm text-foreground truncate"
+                        title={b?.label || a?.label || ""}
+                      >
+                        {b?.label || a?.label || ""}
+                      </div>
+                      <ResultBadge ok={a?.correct} hint={a?.hint} />
+                      <ResultBadge ok={b?.correct} hint={b?.hint} />
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          </section>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              clearState();
-              try {
-                sessionStorage.removeItem("knowgap:topic");
-              } catch {}
-              navigate({ to: "/" });
-            }}
-            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
-            style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
-          >
-            {t("startNewTopic")}
-          </button>
-          <Link
-            to="/dashboard"
-            className="rounded-lg border border-surface-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground hover:bg-surface/70"
-          >
-            {t("viewDashboard")}
-          </Link>
+          <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={20} className="mt-0.5 text-amber-300 shrink-0" />
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-foreground">{t("needMoreWork")}</h2>
+                {data.gaps.length === 0 ? (
+                  <p className="mt-4 text-sm text-emerald-300">{t("noGaps")}</p>
+                ) : (
+                  <ul className="mt-4 space-y-2">
+                    {data.gaps.map((g, i) => (
+                      <li
+                        key={i}
+                        className="rounded-lg border border-red-500/25 bg-red-500/[0.05] p-3"
+                      >
+                        <div className="text-sm font-medium text-foreground">{g.q.question}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {t("correctLabel")}{" "}
+                          <span className="text-emerald-300">{g.q.correct_answer}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {related.length > 0 && (
+            <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
+              <h2 className="text-lg font-semibold text-foreground mb-4">{t("suggestedNext")}</h2>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {related.map((tp) => (
+                  <button
+                    key={tp}
+                    type="button"
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem("knowgap:topic", tp);
+                      } catch {}
+                      clearState();
+                      navigate({ to: "/pretest" });
+                    }}
+                    className="rounded-xl border border-surface-border bg-background/40 p-4 text-left text-sm font-medium text-foreground hover:border-[#7C6AF7]/50 hover:bg-[#7C6AF7]/5 transition-colors"
+                  >
+                    {tp}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="mt-6 text-center text-xs text-muted-foreground">
+            {saved === "saving" && t("savingSession")}
+            {saved === "saved-cloud" && t("savedCloud")}
+            {saved === "saved-local" && t("savedLocal")}
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                clearState();
+                try {
+                  sessionStorage.removeItem("knowgap:topic");
+                } catch {}
+                navigate({ to: "/" });
+              }}
+              className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+              style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
+            >
+              {t("startNewTopic")}
+            </button>
+            <Link
+              to="/dashboard"
+              className="rounded-lg border border-surface-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground hover:bg-surface/70"
+            >
+              {t("viewDashboard")}
+            </Link>
+          </div>
         </div>
       </div>
     </main>

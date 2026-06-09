@@ -204,7 +204,7 @@ function CoursePage() {
     <main className="min-h-screen w-full bg-background relative animate-fade-in">
       <AppHeader />
       <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-24 sm:px-6 sm:py-8 lg:box-border lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
-        <header className="mb-6">
+        <header className="mb-6 lg:shrink-0">
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             {t("stage3")}
           </span>
