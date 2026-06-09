@@ -30,11 +30,11 @@ export function HomeButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="absolute top-5 left-5 z-10 inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface"
+        className="absolute left-3 top-4 z-10 inline-flex h-8 items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 px-2.5 text-xs font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-surface sm:left-5 sm:top-5 sm:px-3"
         aria-label={t("home")}
       >
         <Home size={14} />
-        <span>{t("home")}</span>
+        <span className="hidden sm:inline">{t("home")}</span>
       </button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>

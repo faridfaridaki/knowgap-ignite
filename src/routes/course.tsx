@@ -202,12 +202,12 @@ function CoursePage() {
   return (
     <main className="min-h-screen w-full bg-background relative animate-fade-in">
       <AppHeader />
-      <div className="mx-auto w-full max-w-[1240px] px-4 sm:px-6 py-8">
+      <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-24 sm:px-6 sm:py-8">
         <header className="mb-6">
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             {t("stage3")}
           </span>
-          <h1 className="mt-3 text-2xl sm:text-3xl font-bold text-foreground">
+          <h1 className="mt-3 text-xl font-bold leading-tight text-foreground sm:text-3xl">
             {course.course_title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -215,23 +215,23 @@ function CoursePage() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
-          <aside className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-auto rounded-2xl border border-surface-border bg-surface p-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr] lg:gap-6">
+          <aside className="rounded-2xl border border-surface-border bg-surface p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-auto">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 flex items-center gap-2">
               <BookOpen size={13} /> {t("lessons")}
             </div>
-            <ul className="space-y-1.5">
+            <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:space-y-1.5 lg:overflow-visible lg:px-0 lg:pb-0">
               {lessons.map((l) => {
                 const unlocked = isUnlocked(l.lesson_number);
                 const done = isDone(l.lesson_number);
                 const active = currentLesson === l.lesson_number;
                 return (
-                  <li key={l.lesson_number}>
+                  <li key={l.lesson_number} className="min-w-[220px] lg:min-w-0">
                     <button
                       type="button"
                       onClick={() => openLesson(l.lesson_number)}
                       disabled={!unlocked}
-                      className={`w-full text-left rounded-xl px-3 py-2.5 flex items-center gap-3 transition-colors ${
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors lg:py-2.5 ${
                         active
                           ? "bg-[#7C6AF7]/15 border border-[#7C6AF7]/40"
                           : unlocked
@@ -260,7 +260,7 @@ function CoursePage() {
                         <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                           {t("lesson")} {l.lesson_number}
                         </div>
-                        <div className="text-sm font-medium text-foreground truncate">
+                        <div className="truncate text-sm font-medium text-foreground">
                           {l.title}
                         </div>
                       </span>
@@ -352,7 +352,7 @@ function LessonView({
   const isFirst = lesson.lesson_number === 1;
 
   return (
-    <article className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-9 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] animate-fade-in">
+    <article className="rounded-2xl border border-surface-border bg-surface p-4 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] animate-fade-in sm:p-9">
       <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
         <span className="uppercase tracking-wider font-semibold">
           {t("lesson")} {lesson.lesson_number} {t("of")} {total}
@@ -369,12 +369,12 @@ function LessonView({
         />
       </div>
 
-      <h2 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
+      <h2 className="text-xl font-bold leading-tight text-foreground sm:text-3xl">
         {lesson.title}
       </h2>
 
       <Section title={t("explanation")}>
-        <div className="prose-readable space-y-4 text-[15.5px] leading-[1.75] text-foreground">
+        <div className="prose-readable space-y-4 text-[15px] leading-[1.75] text-foreground sm:text-[15.5px]">
           {lesson.explanation.split(/\n{2,}/).map((p, i) => (
             <p key={i}>{p}</p>
           ))}
@@ -402,7 +402,7 @@ function LessonView({
                 key={i}
                 className="rounded-xl border border-[#4FC4CF]/30 bg-[#4FC4CF]/[0.06] p-4"
               >
-                <div className="rounded-lg bg-background/50 p-3 font-mono text-base text-foreground">
+                <div className="overflow-x-auto rounded-lg bg-background/50 p-3 font-mono text-sm text-foreground sm:text-base">
                   {f.formula}
                 </div>
                 {f.variables && f.variables.length > 0 && (
@@ -458,12 +458,12 @@ function LessonView({
         </Section>
       )}
 
-      <div className="mt-10 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="mt-8 flex flex-col items-stretch justify-between gap-3 sm:mt-10 sm:flex-row sm:items-center">
         <button
           type="button"
           onClick={onPrev}
           disabled={isFirst}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-background/40 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-background/60 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-background/40 px-4 py-3 text-sm font-medium text-foreground hover:bg-background/60 disabled:cursor-not-allowed disabled:opacity-40 sm:py-2.5"
         >
           <ChevronLeft size={16} /> {t("previousLesson")}
         </button>
@@ -471,7 +471,7 @@ function LessonView({
         <button
           type="button"
           onClick={onComplete}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-semibold text-white ${
+          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white sm:py-2.5 ${
             isCompleted ? "bg-emerald-600 hover:bg-emerald-600/90" : ""
           }`}
           style={
@@ -488,7 +488,7 @@ function LessonView({
           <button
             type="button"
             onClick={onFinalTest}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white sm:py-2.5"
             style={{ backgroundImage: "linear-gradient(135deg, #10b981, #059669)" }}
           >
             <PartyPopper size={16} /> Practice Flashcards →
@@ -498,7 +498,7 @@ function LessonView({
             type="button"
             onClick={onNext}
             disabled={isLast}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-medium text-foreground border border-surface-border bg-background/40 hover:bg-background/60 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-background/40 px-5 py-3 text-sm font-medium text-foreground hover:bg-background/60 disabled:cursor-not-allowed disabled:opacity-40 sm:py-2.5"
           >
             {t("nextLesson")} <ChevronRight size={16} />
           </button>

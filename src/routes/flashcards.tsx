@@ -144,7 +144,7 @@ function FlashcardsPage() {
 
   if (!cards) {
     return (
-      <main className="min-h-screen w-full bg-background flex items-center justify-center px-6 relative">
+      <main className="relative flex min-h-screen w-full items-center justify-center bg-background px-4 pt-24">
         <AppHeader />
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#7C6AF7] border-t-transparent" />
@@ -157,10 +157,10 @@ function FlashcardsPage() {
   const card = cards[idx];
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-12 relative">
+    <main className="relative min-h-screen w-full bg-background px-4 pb-8 pt-28 sm:px-6 sm:py-12">
       <AppHeader />
       <div className="mx-auto w-full max-w-[720px]">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4FC4CF]/40 bg-[#4FC4CF]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4FC4CF]">
             <Sparkles size={12} /> Practice Flashcards
           </span>
@@ -172,9 +172,9 @@ function FlashcardsPage() {
           </Link>
         </div>
 
-        <div className="text-center mb-6">
+        <div className="mb-5 text-center sm:mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Quick recall practice</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 hidden text-sm text-muted-foreground sm:block">
             Tap the card or press{" "}
             <kbd className="rounded border border-surface-border bg-surface px-1.5 py-0.5 text-[10px]">
               Space
@@ -203,7 +203,10 @@ function FlashcardsPage() {
           </button>
         </div>
 
-        <div className="relative mx-auto" style={{ perspective: "1200px", height: 360 }}>
+        <div
+          className="relative mx-auto h-[min(62vh,360px)] min-h-[300px]"
+          style={{ perspective: "1200px" }}
+        >
           <button
             type="button"
             onClick={flip}
@@ -218,18 +221,20 @@ function FlashcardsPage() {
               }}
             >
               <div
-                className="absolute inset-0 rounded-2xl border border-surface-border bg-surface flex items-center justify-center p-8 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)]"
+                className="absolute inset-0 flex items-center justify-center rounded-2xl border border-surface-border bg-surface p-5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)] sm:p-8"
                 style={{ backfaceVisibility: "hidden" }}
               >
                 <div className="text-center">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">
                     Term
                   </div>
-                  <div className="text-3xl sm:text-4xl font-bold text-foreground">{card.term}</div>
+                  <div className="break-words text-2xl font-bold text-foreground sm:text-4xl">
+                    {card.term}
+                  </div>
                 </div>
               </div>
               <div
-                className="absolute inset-0 rounded-2xl border border-[#7C6AF7]/40 flex items-center justify-center p-8 shadow-[0_12px_40px_-12px_rgba(124,106,247,0.4)]"
+                className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-2xl border border-[#7C6AF7]/40 p-5 shadow-[0_12px_40px_-12px_rgba(124,106,247,0.4)] sm:p-8"
                 style={{
                   backfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
@@ -241,7 +246,7 @@ function FlashcardsPage() {
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7] mb-3">
                     Definition
                   </div>
-                  <div className="text-lg sm:text-xl text-foreground leading-relaxed">
+                  <div className="text-base leading-relaxed text-foreground sm:text-xl">
                     {card.definition}
                   </div>
                 </div>
@@ -250,7 +255,7 @@ function FlashcardsPage() {
           </button>
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-4">
+        <div className="mt-5 grid grid-cols-[44px_1fr_44px] items-center gap-3 sm:mt-6 sm:flex sm:justify-center sm:gap-4">
           <button
             type="button"
             onClick={goPrev}
@@ -262,7 +267,7 @@ function FlashcardsPage() {
           <button
             type="button"
             onClick={flip}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground hover:bg-surface/70"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface px-4 text-sm font-medium text-foreground hover:bg-surface/70"
           >
             <RotateCw size={14} />
             Flip
@@ -277,10 +282,10 @@ function FlashcardsPage() {
           </button>
         </div>
 
-        <div className="mt-10 flex items-center justify-between gap-3">
+        <div className="mt-8 grid gap-3 sm:mt-10 sm:flex sm:items-center sm:justify-between">
           <Link
             to="/course"
-            className="rounded-lg border border-surface-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground hover:bg-surface/70"
+            className="rounded-lg border border-surface-border bg-surface px-4 py-3 text-center text-sm font-medium text-foreground hover:bg-surface/70 sm:py-2.5"
           >
             ← Back to Course
           </Link>
@@ -288,7 +293,7 @@ function FlashcardsPage() {
             <button
               type="button"
               onClick={() => navigate({ to: "/final-test" })}
-              className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02] animate-fade-in"
+              className="rounded-lg px-6 py-3 text-center text-sm font-semibold text-white transition-transform animate-fade-in sm:py-2.5 sm:hover:scale-[1.02]"
               style={{ backgroundImage: "linear-gradient(135deg, #10b981, #059669)" }}
             >
               Done! Ready for the Final Test →
@@ -297,7 +302,7 @@ function FlashcardsPage() {
             <button
               type="button"
               onClick={() => navigate({ to: "/final-test" })}
-              className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
+              className="rounded-lg px-6 py-3 text-center text-sm font-semibold text-white transition-transform sm:py-2.5 sm:hover:scale-[1.02]"
               style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
             >
               Take Final Test →

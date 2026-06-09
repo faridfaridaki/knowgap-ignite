@@ -14,7 +14,7 @@ export function UserMenu() {
     return (
       <Link
         to="/auth"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 px-2.5 text-xs font-medium text-foreground backdrop-blur-sm hover:bg-surface sm:px-3"
       >
         {t("signIn")}
       </Link>
@@ -24,7 +24,7 @@ export function UserMenu() {
   const initial = (user.email ?? "?").charAt(0).toUpperCase();
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-2 py-1.5">
+    <div className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 px-1.5 backdrop-blur-sm sm:gap-2 sm:px-2">
       <span
         className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white"
         style={{
@@ -33,7 +33,9 @@ export function UserMenu() {
       >
         {initial}
       </span>
-      <span className="max-w-[140px] truncate text-xs text-foreground">{user.email}</span>
+      <span className="hidden max-w-[140px] truncate text-xs text-foreground sm:inline">
+        {user.email}
+      </span>
       <button
         type="button"
         onClick={() => supabase.auth.signOut()}

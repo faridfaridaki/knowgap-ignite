@@ -52,12 +52,12 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
   };
 
   const allowedForCurrent = useMemo(() => {
-    return allowedOptions[idx] ?? (q.options ?? []);
+    return allowedOptions[idx] ?? q.options ?? [];
   }, [allowedOptions, idx, q.options]);
 
   return (
-    <div className="w-full max-w-[680px] mx-auto animate-fade-in">
-      <div className="mb-6">
+    <div className="mx-auto w-full max-w-[680px] animate-fade-in">
+      <div className="mb-5 sm:mb-6">
         <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
           <span>
             {t("question")} {idx + 1} {t("of")} {total}
@@ -75,8 +75,8 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
         </div>
       </div>
 
-      <div className="rounded-2xl bg-surface border border-surface-border p-7 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-between">
+      <div className="rounded-2xl border border-surface-border bg-surface p-4 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] sm:p-7">
+        <div className="flex items-start justify-between gap-3">
           <div className="text-xs font-medium text-[#7C6AF7] uppercase tracking-wider">
             {t("question")} {idx + 1}
           </div>
@@ -84,14 +84,14 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
             <button
               type="button"
               onClick={useHint}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-400/15"
+              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-400/15"
             >
               <Lightbulb size={13} />
               {t("useHint")}
             </button>
           )}
         </div>
-        <h2 className="mt-3 text-xl sm:text-2xl font-semibold text-foreground leading-snug">
+        <h2 className="mt-3 text-lg font-semibold leading-snug text-foreground sm:text-2xl">
           {q.question}
         </h2>
 
@@ -106,7 +106,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
                   type="button"
                   onClick={() => !disabled && setAnswer(opt)}
                   disabled={disabled}
-                  className={`w-full text-left rounded-xl border px-4 py-3.5 text-sm transition-all ${
+                  className={`w-full rounded-xl border px-3.5 py-4 text-left text-sm transition-all sm:px-4 sm:py-3.5 ${
                     disabled
                       ? "border-surface-border bg-background/20 text-muted-foreground/50 line-through cursor-not-allowed"
                       : selected
@@ -114,7 +114,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
                         : "border-surface-border bg-background/40 text-foreground hover:border-[#7C6AF7]/50 hover:bg-[#7C6AF7]/5"
                   }`}
                 >
-                  <span className="inline-flex items-center gap-3">
+                  <span className="inline-flex items-start gap-3">
                     <span
                       className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 ${
                         selected ? "border-[#7C6AF7] bg-[#7C6AF7]" : "border-muted-foreground/40"
@@ -122,7 +122,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
                     >
                       {selected && <span className="h-2 w-2 rounded-full bg-white" />}
                     </span>
-                    <span>{opt}</span>
+                    <span className="min-w-0 flex-1 leading-relaxed break-words">{opt}</span>
                   </span>
                 </button>
               );
@@ -130,9 +130,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
           </div>
         ) : null}
 
-        {hintUsed && (
-          <p className="mt-4 text-xs text-amber-300 italic">{t("hintUsedNote")}</p>
-        )}
+        {hintUsed && <p className="mt-4 text-xs text-amber-300 italic">{t("hintUsedNote")}</p>}
       </div>
 
       {!canAdvance && (
@@ -141,12 +139,12 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
         </p>
       )}
 
-      <div className="mt-5 flex items-center justify-between">
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={() => setIdx((i) => Math.max(0, i - 1))}
           disabled={idx === 0}
-          className="rounded-lg border border-surface-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-surface/70 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="rounded-lg border border-surface-border bg-surface px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-surface/70 disabled:cursor-not-allowed disabled:opacity-40 sm:py-2.5"
         >
           {t("previous")}
         </button>
@@ -155,7 +153,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
             type="button"
             onClick={() => onSubmit(answers, hintsUsed)}
             disabled={!canAdvance}
-            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-transform disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:scale-[1.02]"
+            className="rounded-lg px-4 py-3 text-sm font-semibold text-white transition-transform disabled:cursor-not-allowed disabled:opacity-40 sm:px-6 sm:py-2.5 sm:enabled:hover:scale-[1.02]"
             style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
           >
             {submitLabel ?? t("submitTest")}
@@ -165,7 +163,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
             type="button"
             onClick={() => setIdx((i) => Math.min(total - 1, i + 1))}
             disabled={!canAdvance}
-            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white transition-transform disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:scale-[1.02]"
+            className="rounded-lg px-4 py-3 text-sm font-semibold text-white transition-transform disabled:cursor-not-allowed disabled:opacity-40 sm:px-6 sm:py-2.5 sm:enabled:hover:scale-[1.02]"
             style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
           >
             {t("next")}

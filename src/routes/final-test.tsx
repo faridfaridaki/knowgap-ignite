@@ -79,19 +79,23 @@ function FinalTestPage() {
   }
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-14 relative animate-fade-in">
+    <main className="relative min-h-screen w-full bg-background px-4 pb-8 pt-28 animate-fade-in sm:px-6 sm:py-14">
       <AppHeader />
-      <div className="mx-auto w-full max-w-[680px] mb-8 text-center">
+      <div className="mx-auto mb-6 w-full max-w-[680px] text-center sm:mb-8">
         <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
           {t("stage5")}
         </span>
-        <h1 className="mt-4 text-2xl sm:text-3xl font-bold text-foreground">
+        <h1 className="mt-4 text-xl font-bold text-foreground sm:text-3xl">
           {t("finalTestTitle")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{topic}</p>
       </div>
 
-      <QuizPlayer questions={questions} onSubmit={handleSubmit} submitLabel={t("submitFinalTest")} />
+      <QuizPlayer
+        questions={questions}
+        onSubmit={handleSubmit}
+        submitLabel={t("submitFinalTest")}
+      />
     </main>
   );
 }

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -86,8 +87,9 @@ function AuthScreen() {
   };
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-10 flex items-center justify-center animate-fade-in">
-      <div className="absolute top-5 right-5">
+    <main className="flex min-h-screen w-full items-center justify-center bg-background px-4 pb-8 pt-24 animate-fade-in sm:px-6 sm:py-10">
+      <div className="absolute right-3 top-4 flex items-center gap-1.5 sm:right-5 sm:top-5 sm:gap-2">
+        <ThemeToggle />
         <LanguageToggle />
       </div>
       <div className="w-full max-w-[420px]">
@@ -109,7 +111,7 @@ function AuthScreen() {
           type="button"
           onClick={handleGoogle}
           disabled={googleLoading}
-          className="mt-8 w-full inline-flex items-center justify-center gap-2.5 rounded-xl border border-surface-border bg-surface px-4 py-3 text-sm font-semibold text-foreground hover:bg-surface/70 disabled:opacity-50"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border border-surface-border bg-surface px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-surface/70 disabled:opacity-50"
         >
           <GoogleIcon />
           {googleLoading ? t("pleaseWait") : t("continueWithGoogle")}
@@ -131,7 +133,7 @@ function AuthScreen() {
             placeholder={t("emailPlaceholder")}
             autoComplete="email"
             required
-            className="rounded-xl border border-surface-border bg-surface px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none focus:border-[#7C6AF7]"
+            className="rounded-xl border border-surface-border bg-surface px-4 py-3.5 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-[#7C6AF7] sm:text-sm"
           />
           <input
             type="password"
@@ -141,7 +143,7 @@ function AuthScreen() {
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             minLength={6}
             required
-            className="rounded-xl border border-surface-border bg-surface px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 outline-none focus:border-[#7C6AF7]"
+            className="rounded-xl border border-surface-border bg-surface px-4 py-3.5 text-base text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-[#7C6AF7] sm:text-sm"
           />
           {error && <p className="text-sm text-[#F87171]">{error}</p>}
           {info && <p className="text-sm text-[#4ADE80]">{info}</p>}

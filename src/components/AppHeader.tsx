@@ -16,16 +16,17 @@ export function AppHeader() {
   return (
     <>
       {!isHome && <HomeButton />}
-      <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+      <div className="absolute right-3 top-4 z-10 flex max-w-[calc(100vw-4.75rem)] flex-wrap items-center justify-end gap-1.5 sm:right-5 sm:top-5 sm:max-w-none sm:gap-2">
         <ThemeToggle />
         <LanguageToggle />
         {user && (
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-surface-border bg-surface/60 px-2.5 text-xs font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-surface sm:px-3"
+            aria-label={t("dashboard")}
           >
             <LayoutDashboard size={14} />
-            <span>{t("dashboard")}</span>
+            <span className="hidden sm:inline">{t("dashboard")}</span>
           </Link>
         )}
         <UserMenu />
