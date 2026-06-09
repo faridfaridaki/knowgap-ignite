@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -37,19 +36,15 @@ function AuthScreen() {
     setError(null);
     setGoogleLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
       });
-      if (result.error) {
-        setError(
-          result.error instanceof Error ? result.error.message : String(result.error),
-        );
-        return;
-      }
-      if (result.redirected) return; // browser will navigate
-      navigate({ to: "/" });
-    } catch (err: any) {
-      setError(err?.message ?? "Google sign-in failed");
+      if (err) throw err;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setGoogleLoading(false);
     }
@@ -83,8 +78,8 @@ function AuthScreen() {
         if (err) throw err;
         navigate({ to: "/" });
       }
-    } catch (err: any) {
-      setError(err?.message ?? "Something went wrong.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
