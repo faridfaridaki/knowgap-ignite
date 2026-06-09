@@ -23,6 +23,37 @@ function shuffleArr<T>(arr: T[]): T[] {
   return a;
 }
 
+function hasRichBack(card: Flashcard): boolean {
+  return Boolean(
+    card.simple_definition?.trim() &&
+    card.expanded_explanation?.trim() &&
+    card.how_it_works?.trim() &&
+    card.example?.trim(),
+  );
+}
+
+function FlashcardBack({ card }: { card: Flashcard }) {
+  const sections = [
+    ["Simple Definition", card.simple_definition || card.definition],
+    ["Expanded Explanation", card.expanded_explanation],
+    ["How it Works", card.how_it_works],
+    ["Example", card.example],
+  ].filter(([, value]) => typeof value === "string" && value.trim());
+
+  return (
+    <div className="space-y-3 text-left">
+      {sections.map(([label, value]) => (
+        <section key={label}>
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
+            {label}
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-foreground sm:text-base">{value}</p>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function FlashcardsPage() {
   const navigate = useNavigate();
   const { lang, hydrated } = useT();
@@ -42,7 +73,7 @@ function FlashcardsPage() {
       navigate({ to: "/" });
       return;
     }
-    if (s.flashcards.length > 0) {
+    if (s.flashcards.length > 0 && s.flashcards.every(hasRichBack)) {
       setCards(s.flashcards);
       return;
     }
@@ -234,7 +265,7 @@ function FlashcardsPage() {
                 </div>
               </div>
               <div
-                className="absolute inset-0 flex items-center justify-center overflow-y-auto rounded-2xl border border-[#7C6AF7]/40 p-5 shadow-[0_12px_40px_-12px_rgba(124,106,247,0.4)] sm:p-8"
+                className="absolute inset-0 overflow-y-auto rounded-2xl border border-[#7C6AF7]/40 p-5 shadow-[0_12px_40px_-12px_rgba(124,106,247,0.4)] sm:p-8"
                 style={{
                   backfaceVisibility: "hidden",
                   transform: "rotateY(180deg)",
@@ -242,14 +273,7 @@ function FlashcardsPage() {
                     "linear-gradient(135deg, rgba(124,106,247,0.15), rgba(91,79,212,0.08))",
                 }}
               >
-                <div className="text-center">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7] mb-3">
-                    Definition
-                  </div>
-                  <div className="text-base leading-relaxed text-foreground sm:text-xl">
-                    {card.definition}
-                  </div>
-                </div>
+                <FlashcardBack card={card} />
               </div>
             </div>
           </button>

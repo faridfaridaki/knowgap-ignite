@@ -30,6 +30,10 @@ export interface HistoryLessonConcept {
 export interface HistoryFlashcard {
   term: string;
   definition: string;
+  simple_definition?: string;
+  expanded_explanation?: string;
+  how_it_works?: string;
+  example?: string;
 }
 
 export interface HistoryKnowledgeGap {

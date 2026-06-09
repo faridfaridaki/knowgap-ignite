@@ -17,6 +17,10 @@ export interface LessonConcept {
 export interface Flashcard {
   term: string;
   definition: string;
+  simple_definition?: string;
+  expanded_explanation?: string;
+  how_it_works?: string;
+  example?: string;
 }
 
 export interface CourseTerm {
@@ -132,7 +136,11 @@ export function initState(topic: string): LearningState {
 }
 
 function normalize(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!?;:,"']/g, "");
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?;:,"']/g, "");
 }
 
 export function isAnswerCorrect(q: QuizQuestion, given: string): boolean {
@@ -149,11 +157,7 @@ export function isAnswerCorrect(q: QuizQuestion, given: string): boolean {
 /**
  * Score returns decimals: correct=1, correct after hint=0.5, wrong=0.
  */
-export function scoreTest(
-  qs: QuizQuestion[],
-  answers: string[],
-  hints?: boolean[],
-): number {
+export function scoreTest(qs: QuizQuestion[], answers: string[], hints?: boolean[]): number {
   let s = 0;
   qs.forEach((q, i) => {
     if (isAnswerCorrect(q, answers[i] ?? "")) {

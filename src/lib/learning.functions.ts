@@ -32,6 +32,10 @@ interface LessonConcept {
 interface Flashcard {
   term: string;
   definition: string;
+  simple_definition?: string;
+  expanded_explanation?: string;
+  how_it_works?: string;
+  example?: string;
 }
 
 interface FlashcardSource {
@@ -57,14 +61,39 @@ function uniqueFlashcards(cards: Flashcard[]): Flashcard[] {
   const out: Flashcard[] = [];
   for (const card of cards) {
     const term = card.term.trim();
-    const definition = card.definition.trim();
+    const simple_definition = (card.simple_definition || card.definition).trim();
+    const definition = (card.definition || simple_definition).trim();
     if (!term || !definition) continue;
     const key = normalizeKey(term);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ term, definition });
+    out.push({
+      term,
+      definition,
+      simple_definition,
+      expanded_explanation: card.expanded_explanation?.trim(),
+      how_it_works: card.how_it_works?.trim(),
+      example: card.example?.trim(),
+    });
   }
   return out;
+}
+
+function buildFlashcard(
+  term: string,
+  simple_definition: string,
+  expanded_explanation: string,
+  how_it_works: string,
+  example: string,
+): Flashcard {
+  return {
+    term,
+    definition: simple_definition,
+    simple_definition,
+    expanded_explanation,
+    how_it_works,
+    example,
+  };
 }
 
 function sanitizeQuestions(raw: any): QuizQuestion[] {
@@ -251,6 +280,16 @@ function fallbackFlashcards(
     sources.map((source) => ({
       term: source.term,
       definition: source.definition,
+      simple_definition: source.definition,
+      expanded_explanation: isRu
+        ? `Это понятие относится к теме "${topic}" и помогает точнее понимать материал. Оно задает смысл термина и показывает, где его использовать.`
+        : `This concept belongs to "${topic}" and helps explain the topic more precisely. It gives the term a clear meaning and shows where it should be used.`,
+      how_it_works: isRu
+        ? `Сначала определи, что обозначает термин, затем найди его роль в задаче, примере или объяснении.`
+        : `First identify what the term names, then connect it to its role in a problem, example, or explanation.`,
+      example: isRu
+        ? `В теме "${topic}" термин "${source.term}" используется для объяснения конкретной части материала.`
+        : `In "${topic}", "${source.term}" is used to explain a specific part of the material.`,
     })),
   );
 
@@ -260,95 +299,94 @@ function fallbackFlashcards(
       ? [`Основная идея ${topic}`, "Ключевые понятия", "Практическое применение", "Пример"]
       : [`Core idea of ${topic}`, "Key concepts", "Practical application", "Example"];
   const lessonCards = baseTerms.map((term) => ({
-    term,
-    definition: isRu
-      ? `Термин связан с темой "${topic}" и обозначает одну из важных идей, которую нужно понимать в этом разделе.`
-      : `This term belongs to "${topic}" and names one of the important ideas to understand in this section.`,
+    ...buildFlashcard(
+      term,
+      isRu ? `Важное понятие из темы "${topic}".` : `An important concept from "${topic}".`,
+      isRu
+        ? `Это понятие обозначает одну из центральных идей темы и помогает связать отдельные факты в понятную систему.`
+        : `This concept names one of the central ideas in the topic and helps connect separate facts into a clearer system.`,
+      isRu
+        ? `Когда ты встречаешь это понятие, спроси, какую роль оно играет: описывает объект, процесс, правило, причину или результат.`
+        : `When you see this concept, ask what role it plays: object, process, rule, cause, or result.`,
+      isRu
+        ? `Например, в теме "${topic}" это понятие может использоваться для объяснения шага в решении.`
+        : `For example, in "${topic}", this concept can explain one step in solving a problem.`,
+    ),
   }));
   const extras = isRu
     ? [
-        {
-          term: `${topic}: определение`,
-          definition: `Краткое объяснение того, что означает тема "${topic}" и какие идеи входят в неё.`,
-        },
-        {
-          term: `${topic}: ключевой принцип`,
-          definition: `Главное правило или идея, на которой строится понимание темы "${topic}".`,
-        },
-        {
-          term: `${topic}: пример`,
-          definition: `Конкретная ситуация, которая показывает, как понятие из темы "${topic}" используется на практике.`,
-        },
-        {
-          term: `${topic}: применение`,
-          definition: `Способ использовать знания по теме "${topic}" для решения задачи или объяснения ситуации.`,
-        },
-        {
-          term: `${topic}: связь понятий`,
-          definition: `Отношение между несколькими терминами темы "${topic}", которое помогает понять материал глубже.`,
-        },
-        {
-          term: `${topic}: результат`,
-          definition: `То, что можно получить или объяснить после правильного применения идей темы "${topic}".`,
-        },
-        {
-          term: `${topic}: причина`,
-          definition: `Фактор или условие, которое объясняет, почему явление в теме "${topic}" происходит.`,
-        },
-        {
-          term: `${topic}: свойство`,
-          definition: `Характеристика понятия из темы "${topic}", по которой его можно распознать или описать.`,
-        },
-        {
-          term: `${topic}: процесс`,
-          definition: `Последовательность шагов или изменений, связанных с темой "${topic}".`,
-        },
-        {
-          term: `${topic}: условие`,
-          definition: `Требование или ситуация, при которой идея из темы "${topic}" применяется правильно.`,
-        },
+        buildFlashcard(
+          `${topic}: определение`,
+          `Краткое объяснение значения темы "${topic}".`,
+          `Определение устанавливает границы понятия: что входит в него и что не входит.`,
+          `Оно обычно называет общий класс понятия и добавляет признаки, которые делают его отличимым.`,
+          `Например, определение помогает понять, какие идеи действительно относятся к теме "${topic}".`,
+        ),
+        buildFlashcard(
+          `${topic}: ключевой принцип`,
+          `Главное правило или идея темы "${topic}".`,
+          `Ключевой принцип показывает, на чем строится понимание материала и почему отдельные шаги работают.`,
+          `Он связывает термины, примеры и задачи в одно объяснение.`,
+          `Например, при решении задачи принцип подсказывает, какой метод выбрать.`,
+        ),
+        buildFlashcard(
+          `${topic}: применение`,
+          `Использование знаний по теме "${topic}" на практике.`,
+          `Применение показывает, как идея переходит из объяснения в действие, решение или вывод.`,
+          `Ты выбираешь нужное понятие, проверяешь условия и используешь его для конкретной цели.`,
+          `Например, понятие можно применить, чтобы решить задачу или объяснить ситуацию.`,
+        ),
+        buildFlashcard(
+          `${topic}: связь понятий`,
+          `Отношение между несколькими терминами темы "${topic}".`,
+          `Связи показывают, как одно понятие поддерживает, ограничивает или объясняет другое.`,
+          `Чтобы найти связь, сравни роли терминов и посмотри, зависят ли они друг от друга.`,
+          `Например, причина может быть связана с результатом через процесс.`,
+        ),
+        buildFlashcard(
+          `${topic}: процесс`,
+          `Последовательность шагов или изменений в теме "${topic}".`,
+          `Процесс объясняет, как что-то развивается от начального состояния к результату.`,
+          `Он работает через порядок действий, условий или причин, которые следуют друг за другом.`,
+          `Например, процесс можно описать как шаг 1, шаг 2 и итог.`,
+        ),
       ]
     : [
-        {
-          term: `${topic}: definition`,
-          definition: `A short explanation of what "${topic}" means and which ideas belong to it.`,
-        },
-        {
-          term: `${topic}: key principle`,
-          definition: `The main rule or idea that supports understanding of "${topic}".`,
-        },
-        {
-          term: `${topic}: example`,
-          definition: `A concrete case that shows how a term from "${topic}" is used in practice.`,
-        },
-        {
-          term: `${topic}: application`,
-          definition: `A way to use knowledge of "${topic}" to solve a problem or explain a situation.`,
-        },
-        {
-          term: `${topic}: concept relationship`,
-          definition: `A connection between multiple terms in "${topic}" that helps explain the material more deeply.`,
-        },
-        {
-          term: `${topic}: outcome`,
-          definition: `What you can find, explain, or produce after applying the ideas from "${topic}" correctly.`,
-        },
-        {
-          term: `${topic}: cause`,
-          definition: `A factor or condition that explains why something in "${topic}" happens.`,
-        },
-        {
-          term: `${topic}: property`,
-          definition: `A characteristic of a concept in "${topic}" that helps identify or describe it.`,
-        },
-        {
-          term: `${topic}: process`,
-          definition: `A sequence of steps or changes connected to "${topic}".`,
-        },
-        {
-          term: `${topic}: condition`,
-          definition: `A requirement or situation where an idea from "${topic}" applies correctly.`,
-        },
+        buildFlashcard(
+          `${topic}: definition`,
+          `A short explanation of what "${topic}" means.`,
+          `A definition sets the boundaries of a concept: what belongs to it and what does not.`,
+          `It usually names the general category first, then adds the specific features that make the concept different.`,
+          `For example, a definition helps decide which ideas really belong to "${topic}".`,
+        ),
+        buildFlashcard(
+          `${topic}: key principle`,
+          `The main rule or idea behind "${topic}".`,
+          `A key principle explains why the material works and gives the topic its basic logic.`,
+          `It connects terms, examples, and problems into one usable explanation.`,
+          `For example, the principle can tell you which method to use in a problem.`,
+        ),
+        buildFlashcard(
+          `${topic}: application`,
+          `Using knowledge of "${topic}" in practice.`,
+          `Application shows how an idea moves from explanation into action, problem solving, or interpretation.`,
+          `You choose the right concept, check the conditions, and use it for a specific goal.`,
+          `For example, you can apply a concept to solve a task or explain a situation.`,
+        ),
+        buildFlashcard(
+          `${topic}: concept relationship`,
+          `A connection between terms in "${topic}".`,
+          `Concept relationships show how one idea supports, limits, causes, or explains another.`,
+          `To find a relationship, compare the roles of two terms and check whether one depends on the other.`,
+          `For example, a cause can connect to an outcome through a process.`,
+        ),
+        buildFlashcard(
+          `${topic}: process`,
+          `A sequence of steps or changes in "${topic}".`,
+          `A process explains how something develops from a starting point to a result.`,
+          `It works through ordered actions, causes, or conditions that follow one another.`,
+          `For example, a process can be described as step 1, step 2, then the result.`,
+        ),
       ];
 
   return uniqueFlashcards([...sourceCards, ...lessonCards, ...extras]).slice(0, 10);
@@ -479,12 +517,32 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     const sourceBlock = data.sources.length
       ? data.sources.map((source) => `- ${source.term}: ${source.definition}`).join("\n")
       : "(infer terms from the lessons)";
-    const prompt = `Generate EXACTLY 10 flashcards for the topic "${data.topic}". Each flashcard must use a different important term or concept from the topic. The front must be only the term or concept name. The back must be the definition of that term. Do not include formulas, study strategies, questions, examples-only cards, or generic cards.\n\nLessons:\n${lessonsBlock}\n\nAvailable terms:\n${sourceBlock}\n\nReturn ONLY JSON: {"flashcards":[{"term":"...","definition":"..."}]} where definition is 1-2 clear sentences.\n${langInstruction(data.language)}`;
+    const prompt = `Generate EXACTLY 10 flashcards for the topic "${data.topic}". Each flashcard must use a different important term or concept from the topic. The front must be only the term or concept name. The back must teach the term using these exact sections:
+- simple_definition: one short sentence with the exact meaning
+- expanded_explanation: 2-3 sentences explaining the concept more deeply
+- how_it_works: 2-3 sentences explaining the mechanism, rules, steps, or usage
+- example: one concrete example that uses the term
+
+Do not include formulas-only cards, study strategies, questions, examples-only cards, or generic filler cards.
+
+Lessons:
+${lessonsBlock}
+
+Available terms:
+${sourceBlock}
+
+Return ONLY JSON: {"flashcards":[{"term":"...","definition":"same as simple_definition","simple_definition":"...","expanded_explanation":"...","how_it_works":"...","example":"..."}]}.
+${langInstruction(data.language)}`;
     try {
       const parsed = await callGroqJson({ prompt, temperature: 0.6 });
       const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
       const flashcards = uniqueFlashcards(
-        arr.filter((c: any) => c && typeof c.term === "string" && typeof c.definition === "string"),
+        arr.filter(
+          (c: any) =>
+            c &&
+            typeof c.term === "string" &&
+            (typeof c.definition === "string" || typeof c.simple_definition === "string"),
+        ),
       );
       if (flashcards.length < 10) throw new Error("Invalid flashcards response");
       return { flashcards: flashcards.slice(0, 10) };
