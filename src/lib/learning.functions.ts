@@ -66,6 +66,143 @@ Rules:
 - The 3 wrong options must be PLAUSIBLE distractors based on common misconceptions — never silly or obviously wrong.
 - explanation is one clear sentence explaining why the correct answer is right.`;
 
+function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): QuizQuestion[] {
+  const isRu = lang === "ru";
+  const label = kind === "pre" ? "pre-test" : "final test";
+  const ruLabel = kind === "pre" ? "предварительного теста" : "итогового теста";
+  const templates = isRu
+    ? [
+        {
+          question: `Что лучше всего описывает главную цель темы "${topic}"?`,
+          options: [
+            `Понять основные идеи темы "${topic}" и уметь применять их`,
+            "Запомнить случайные факты без связи между ними",
+            "Избегать примеров и практики",
+            "Использовать только сложные определения",
+          ],
+          correct: `Понять основные идеи темы "${topic}" и уметь применять их`,
+          explanation:
+            "Понимание темы означает знание ключевых идей и умение применять их в задачах.",
+        },
+        {
+          question: `Какой первый шаг лучше сделать при изучении "${topic}"?`,
+          options: [
+            "Определить ключевые понятия простыми словами",
+            "Сразу переходить к самым сложным деталям",
+            "Игнорировать непонятные слова",
+            "Учить ответы без объяснения",
+          ],
+          correct: "Определить ключевые понятия простыми словами",
+          explanation: "Простые определения создают основу для более сложного понимания.",
+        },
+        {
+          question: `Что показывает, что ученик действительно понимает "${topic}"?`,
+          options: [
+            "Он может объяснить идею своими словами и привести пример",
+            "Он может повторить фразу без понимания",
+            "Он избегает вопросов по теме",
+            "Он знает только название темы",
+          ],
+          correct: "Он может объяснить идею своими словами и привести пример",
+          explanation: "Собственное объяснение и пример показывают реальное понимание.",
+        },
+        {
+          question: `Что делать, если часть темы "${topic}" непонятна?`,
+          options: [
+            "Разбить её на меньшие вопросы и разобрать по шагам",
+            "Пропустить всю тему",
+            "Учить только ответы",
+            "Не использовать примеры",
+          ],
+          correct: "Разбить её на меньшие вопросы и разобрать по шагам",
+          explanation: "Сложные темы легче понять, когда они разделены на понятные части.",
+        },
+        {
+          question: `Какой способ лучше всего закрепляет "${topic}"?`,
+          options: [
+            "Решить задачу или объяснить пример самостоятельно",
+            "Просто перечитать заголовок",
+            "Не проверять себя",
+            "Смотреть только готовые ответы",
+          ],
+          correct: "Решить задачу или объяснить пример самостоятельно",
+          explanation: "Активная практика помогает проверить и укрепить понимание.",
+        },
+      ]
+    : [
+        {
+          question: `What best describes the main goal of learning "${topic}"?`,
+          options: [
+            `Understand the core ideas of "${topic}" and apply them`,
+            "Memorize random facts with no connection",
+            "Avoid examples and practice",
+            "Use only complicated definitions",
+          ],
+          correct: `Understand the core ideas of "${topic}" and apply them`,
+          explanation: "Understanding means knowing the key ideas and being able to use them.",
+        },
+        {
+          question: `What is the best first step when studying "${topic}"?`,
+          options: [
+            "Define the key concepts in simple words",
+            "Jump straight to the hardest details",
+            "Ignore unfamiliar terms",
+            "Memorize answers without explanations",
+          ],
+          correct: "Define the key concepts in simple words",
+          explanation: "Simple definitions create a base for deeper understanding.",
+        },
+        {
+          question: `What shows that a student really understands "${topic}"?`,
+          options: [
+            "They can explain the idea in their own words and give an example",
+            "They can repeat a sentence without understanding it",
+            "They avoid questions about the topic",
+            "They only know the topic name",
+          ],
+          correct: "They can explain the idea in their own words and give an example",
+          explanation: "A personal explanation and example are strong signs of real understanding.",
+        },
+        {
+          question: `What should you do if part of "${topic}" is confusing?`,
+          options: [
+            "Break it into smaller questions and work step by step",
+            "Skip the whole topic",
+            "Only memorize answers",
+            "Avoid using examples",
+          ],
+          correct: "Break it into smaller questions and work step by step",
+          explanation:
+            "Complex ideas are easier to learn when they are divided into smaller parts.",
+        },
+        {
+          question: `What is the best way to strengthen your understanding of "${topic}"?`,
+          options: [
+            "Solve a problem or explain an example yourself",
+            "Only reread the title",
+            "Never test yourself",
+            "Only look at finished answers",
+          ],
+          correct: "Solve a problem or explain an example yourself",
+          explanation: "Active practice checks and strengthens understanding.",
+        },
+      ];
+
+  return templates.map((q, index) => ({
+    id: index + 1,
+    type: "multiple_choice",
+    question:
+      kind === "pre"
+        ? q.question
+        : isRu
+          ? `${q.question} (Вопрос ${ruLabel})`
+          : `${q.question} (${label} question)`,
+    options: q.options,
+    correct_answer: q.correct,
+    explanation: q.explanation,
+  }));
+}
+
 export const generatePreTest = createServerFn({ method: "POST" })
   .inputValidator((input: { topic: string; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
@@ -84,7 +221,7 @@ export const generatePreTest = createServerFn({ method: "POST" })
       return { questions };
     } catch (error) {
       console.error("generatePreTest failed:", error);
-      return { questions: [], error: AI_BUSY_MESSAGE };
+      return { questions: fallbackQuestions(data.topic, data.language, "pre") };
     }
   });
 
@@ -111,7 +248,7 @@ export const generateFinalTest = createServerFn({ method: "POST" })
       return { questions };
     } catch (error) {
       console.error("generateFinalTest failed:", error);
-      return { questions: [], error: AI_BUSY_MESSAGE };
+      return { questions: fallbackQuestions(data.topic, data.language, "final") };
     }
   });
 
