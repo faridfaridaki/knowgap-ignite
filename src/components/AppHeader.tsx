@@ -16,7 +16,7 @@ export function AppHeader() {
   return (
     <>
       {!isHome && <HomeButton />}
-      <div className="absolute right-3 top-4 z-10 flex max-w-[calc(100vw-4.75rem)] flex-wrap items-center justify-end gap-1.5 sm:right-5 sm:top-5 sm:max-w-none sm:gap-2">
+      <div className="fixed right-3 top-4 z-40 flex max-w-[calc(100vw-4.75rem)] flex-wrap items-center justify-end gap-1.5 sm:right-5 sm:top-5 sm:max-w-none sm:gap-2">
         <ThemeToggle />
         <LanguageToggle />
         {user && (

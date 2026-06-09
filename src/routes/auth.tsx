@@ -88,7 +88,7 @@ function AuthScreen() {
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-background px-4 pb-8 pt-24 animate-fade-in sm:px-6 sm:py-10">
-      <div className="absolute right-3 top-4 flex items-center gap-1.5 sm:right-5 sm:top-5 sm:gap-2">
+      <div className="fixed right-3 top-4 z-40 flex items-center gap-1.5 sm:right-5 sm:top-5 sm:gap-2">
         <ThemeToggle />
         <LanguageToggle />
       </div>
