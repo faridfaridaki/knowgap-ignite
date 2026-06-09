@@ -203,6 +203,58 @@ function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): Qu
   }));
 }
 
+function fallbackFlashcards(topic: string, lessonTitles: string[], lang: Lang): Flashcard[] {
+  const isRu = lang === "ru";
+  const baseTerms = lessonTitles.length
+    ? lessonTitles
+    : isRu
+      ? [`Основная идея ${topic}`, "Ключевые понятия", "Практическое применение", "Пример"]
+      : [`Core idea of ${topic}`, "Key concepts", "Practical application", "Example"];
+  const cards = baseTerms.slice(0, 8).map((term) => ({
+    term,
+    definition: isRu
+      ? `Это важная часть темы "${topic}". Попробуйте объяснить её своими словами и связать с конкретным примером.`
+      : `This is an important part of "${topic}". Try to explain it in your own words and connect it to a concrete example.`,
+  }));
+  const extras = isRu
+    ? [
+        {
+          term: "Проверка понимания",
+          definition:
+            "Способ убедиться, что вы можете не только узнать ответ, но и объяснить причину.",
+        },
+        {
+          term: "Связь между идеями",
+          definition:
+            "Понимание становится сильнее, когда вы видите, как отдельные понятия работают вместе.",
+        },
+        {
+          term: "Активная практика",
+          definition:
+            "Решение задач и самостоятельные объяснения помогают закрепить материал лучше, чем простое чтение.",
+        },
+      ]
+    : [
+        {
+          term: "Understanding check",
+          definition:
+            "A way to confirm that you can explain the reason behind an answer, not only recognize it.",
+        },
+        {
+          term: "Connections between ideas",
+          definition:
+            "Understanding gets stronger when you see how separate concepts work together.",
+        },
+        {
+          term: "Active practice",
+          definition:
+            "Solving problems and explaining ideas yourself helps the material stick better than rereading.",
+        },
+      ];
+
+  return [...cards, ...extras].slice(0, 10);
+}
+
 export const generatePreTest = createServerFn({ method: "POST" })
   .inputValidator((input: { topic: string; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
@@ -313,7 +365,9 @@ export const generateFlashcards = createServerFn({ method: "POST" })
       return { flashcards };
     } catch (error) {
       console.error("generateFlashcards failed:", error);
-      return { flashcards: [], error: AI_BUSY_MESSAGE };
+      return {
+        flashcards: fallbackFlashcards(data.topic, data.lessonTitles, data.language),
+      };
     }
   });
 
