@@ -204,84 +204,86 @@ function CoursePage() {
     <main className="min-h-screen w-full bg-background relative animate-fade-in">
       <AppHeader />
       <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-24 sm:px-6 sm:py-8">
-        <header className="mb-6">
-          <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
-            {t("stage3")}
-          </span>
-          <h1 className="mt-3 text-xl font-bold leading-tight text-foreground sm:text-3xl">
-            {course.course_title}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {completed.length} {t("of")} {lessons.length} {t("lessonsCompleted")}
-          </p>
-        </header>
-
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr] lg:gap-6">
-          <aside className="rounded-2xl border border-surface-border bg-surface p-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-auto">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 flex items-center gap-2">
-              <BookOpen size={13} /> {t("lessons")}
-            </div>
-            <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:space-y-1.5 lg:overflow-visible lg:px-0 lg:pb-0">
-              {lessons.map((l) => {
-                const unlocked = isUnlocked(l.lesson_number);
-                const done = isDone(l.lesson_number);
-                const active = currentLesson === l.lesson_number;
-                return (
-                  <li key={l.lesson_number} className="min-w-[220px] lg:min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => openLesson(l.lesson_number)}
-                      disabled={!unlocked}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors lg:py-2.5 ${
-                        active
-                          ? "bg-[#7C6AF7]/15 border border-[#7C6AF7]/40"
-                          : unlocked
-                            ? "hover:bg-surface/70 border border-transparent"
-                            : "opacity-50 cursor-not-allowed border border-transparent"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                          done
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : active
-                              ? "bg-[#7C6AF7] text-white"
-                              : "bg-surface-border text-muted-foreground"
+          <div className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-auto">
+            <header className="mb-4">
+              <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
+                {t("stage3")}
+              </span>
+              <h1 className="mt-3 text-xl font-bold leading-tight text-foreground sm:text-2xl">
+                {course.course_title}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {completed.length} {t("of")} {lessons.length} {t("lessonsCompleted")}
+              </p>
+            </header>
+
+            <aside className="rounded-2xl border border-surface-border bg-surface p-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 flex items-center gap-2">
+                <BookOpen size={13} /> {t("lessons")}
+              </div>
+              <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:block lg:space-y-1.5 lg:overflow-visible lg:px-0 lg:pb-0">
+                {lessons.map((l) => {
+                  const unlocked = isUnlocked(l.lesson_number);
+                  const done = isDone(l.lesson_number);
+                  const active = currentLesson === l.lesson_number;
+                  return (
+                    <li key={l.lesson_number} className="min-w-[220px] lg:min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => openLesson(l.lesson_number)}
+                        disabled={!unlocked}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors lg:py-2.5 ${
+                          active
+                            ? "bg-[#7C6AF7]/15 border border-[#7C6AF7]/40"
+                            : unlocked
+                              ? "hover:bg-surface/70 border border-transparent"
+                              : "opacity-50 cursor-not-allowed border border-transparent"
                         }`}
                       >
-                        {done ? (
-                          <CheckCircle2 size={15} />
-                        ) : !unlocked ? (
-                          <Lock size={13} />
-                        ) : (
-                          l.lesson_number
-                        )}
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                          {t("lesson")} {l.lesson_number}
-                        </div>
-                        <div className="truncate text-sm font-medium text-foreground">
-                          {l.title}
-                        </div>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                            done
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : active
+                                ? "bg-[#7C6AF7] text-white"
+                                : "bg-surface-border text-muted-foreground"
+                          }`}
+                        >
+                          {done ? (
+                            <CheckCircle2 size={15} />
+                          ) : !unlocked ? (
+                            <Lock size={13} />
+                          ) : (
+                            l.lesson_number
+                          )}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {t("lesson")} {l.lesson_number}
+                          </div>
+                          <div className="truncate text-sm font-medium text-foreground">
+                            {l.title}
+                          </div>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
 
-            {allDone && (
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/flashcards" })}
-                className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
-                style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
-              >
-                Practice Flashcards →
-              </button>
-            )}
-          </aside>
+              {allDone && (
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/flashcards" })}
+                  className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
+                  style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
+                >
+                  Practice Flashcards →
+                </button>
+              )}
+            </aside>
+          </div>
 
           <section>
             {lesson ? (
