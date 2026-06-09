@@ -5,6 +5,7 @@ import { Lock, CheckCircle2, ChevronLeft, ChevronRight, PartyPopper, BookOpen } 
 import { AppHeader } from "@/components/AppHeader";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
+import { MarkdownText } from "@/components/MarkdownText";
 import { generateCourse, generateCourseLesson } from "@/lib/learning.functions";
 import { loadState, patchState, isAnswerCorrect } from "@/lib/learning-state";
 import type {
@@ -374,11 +375,10 @@ function LessonView({
       </h2>
 
       <Section title={t("explanation")}>
-        <div className="prose-readable space-y-4 text-[15px] leading-[1.75] text-foreground sm:text-[15.5px]">
-          {lesson.explanation.split(/\n{2,}/).map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-        </div>
+        <MarkdownText
+          text={lesson.explanation}
+          className="prose-readable text-[15px] leading-[1.75] text-foreground sm:text-[15.5px]"
+        />
       </Section>
 
       {lesson.terms.length > 0 && (
@@ -415,13 +415,15 @@ function LessonView({
                     ))}
                   </div>
                 )}
-                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                  {f.explanation}
-                </p>
+                <MarkdownText
+                  text={f.explanation}
+                  className="mt-3 text-sm leading-relaxed text-muted-foreground"
+                />
                 {f.worked_example && (
-                  <div className="mt-3 rounded-lg border border-surface-border bg-background/50 p-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                    {f.worked_example}
-                  </div>
+                  <MarkdownText
+                    text={f.worked_example}
+                    className="mt-3 rounded-lg border border-surface-border bg-background/50 p-3 text-sm leading-relaxed text-foreground"
+                  />
                 )}
               </div>
             ))}
@@ -535,7 +537,10 @@ function PracticeProblem({ index, problem }: { index: number; problem: CoursePra
       <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
         {t("problem")} {index}
       </div>
-      <p className="text-[15px] text-foreground leading-relaxed">{problem.problem}</p>
+      <MarkdownText
+        text={problem.problem}
+        className="text-[15px] leading-relaxed text-foreground"
+      />
       <button
         type="button"
         onClick={() => setShow((s) => !s)}
@@ -559,9 +564,10 @@ function PracticeProblem({ index, problem }: { index: number; problem: CoursePra
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C6AF7]/20 text-[11px] font-bold text-[#7C6AF7]">
                       {i + 1}
                     </span>
-                    <span className="flex-1 whitespace-pre-wrap">
-                      {step.replace(/^\s*step\s*\d+[:.)\s-]*/i, "")}
-                    </span>
+                    <MarkdownText
+                      text={step.replace(/^\s*step\s*\d+[:.)\s-]*/i, "")}
+                      className="flex-1 text-sm leading-relaxed"
+                    />
                   </li>
                 ))}
               </ol>
@@ -572,7 +578,10 @@ function PracticeProblem({ index, problem }: { index: number; problem: CoursePra
               <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300 mb-1">
                 {t("finalAnswer")}
               </div>
-              <div className="text-base font-semibold text-foreground">{finalAnswer}</div>
+              <MarkdownText
+                text={finalAnswer}
+                className="text-base font-semibold text-foreground"
+              />
             </div>
           )}
         </div>

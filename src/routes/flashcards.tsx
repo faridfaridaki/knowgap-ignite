@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, RotateCw, Shuffle, Sparkles } from "lucide-react";
 import { AiErrorState } from "@/components/AiErrorState";
 import { AppHeader } from "@/components/AppHeader";
+import { MarkdownText } from "@/components/MarkdownText";
 import { generateFlashcards } from "@/lib/learning.functions";
 import { loadState, patchState } from "@/lib/learning-state";
 import type { Flashcard } from "@/lib/learning-state";
@@ -47,7 +48,10 @@ function FlashcardBack({ card }: { card: Flashcard }) {
           <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             {label}
           </h3>
-          <p className="mt-1 text-sm leading-relaxed text-foreground sm:text-base">{value}</p>
+          <MarkdownText
+            text={value}
+            className="mt-1 text-sm leading-relaxed text-foreground sm:text-base"
+          />
         </section>
       ))}
     </div>

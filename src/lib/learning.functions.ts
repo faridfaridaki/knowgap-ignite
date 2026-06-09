@@ -517,13 +517,14 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     const sourceBlock = data.sources.length
       ? data.sources.map((source) => `- ${source.term}: ${source.definition}`).join("\n")
       : "(infer terms from the lessons)";
-    const prompt = `Generate EXACTLY 10 flashcards for the topic "${data.topic}". Each flashcard must use a different important term or concept from the topic. The front must be only the term or concept name. The back must teach the term using these exact sections:
+    const prompt = `Generate EXACTLY 10 flashcards for the topic "${data.topic}". Each flashcard must use a different important term or concept from the topic. The front must be only the term or concept name. The back must teach the term using Markdown-friendly content in these exact fields:
 - simple_definition: one short sentence with the exact meaning
-- expanded_explanation: 2-3 sentences explaining the concept more deeply
-- how_it_works: 2-3 sentences explaining the mechanism, rules, steps, or usage
-- example: one concrete example that uses the term
+- expanded_explanation: 2-3 short Markdown bullets OR one short paragraph explaining the concept more deeply
+- how_it_works: a Markdown numbered list for mechanisms, rules, steps, or usage
+- example: one concrete example using Markdown for math, code, or emphasis when helpful
 
 Do not include formulas-only cards, study strategies, questions, examples-only cards, or generic filler cards.
+For math, use inline Markdown math like $5x^4$. Do not write long unformatted step-by-step prose.
 
 Lessons:
 ${lessonsBlock}
@@ -898,7 +899,7 @@ Return ONLY valid JSON with this exact schema:
 {
   "lesson_number": ${data.lessonNumber},
   "title": "${data.lessonTitle}",
-  "explanation": "2-3 paragraphs separated by \\n\\n. Simple language, one analogy, build step by step.",
+  "explanation": "Markdown string. Use short paragraphs and bullet lists where useful. Simple language, one analogy, build step by step.",
   "terms": [{ "term": "...", "definition": "..." }],
   "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
   "real_life_examples": ["example 1", "example 2"],
@@ -909,8 +910,11 @@ Return ONLY valid JSON with this exact schema:
 Rules:
 - Stay focused on THIS lesson's scope; do not duplicate other lessons.
 - Include 2-4 key terms, 0-3 formulas (empty for conceptual topics), 2 real-life examples, 1-2 practice problems.
-- For each formula, include variables and a worked_example.
+- For each formula, include variables and a worked_example written in Markdown. Use numbered steps for worked examples.
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
+- Use Markdown formatting inside explanation, formula explanations, worked_example, practice problem text, steps, and final_answer.
+- For math, use inline Markdown math like $5x^4$ or code spans when clearer.
+- Do not write long unformatted sequences like "First... Next... Now..." as one paragraph; use Markdown numbered lists or bullets instead.
 - ${langInstruction(data.language)}`;
     try {
       const raw: any = await callGroqJson({
