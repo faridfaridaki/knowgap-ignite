@@ -203,7 +203,7 @@ function CoursePage() {
   return (
     <main className="min-h-screen w-full bg-background relative animate-fade-in">
       <AppHeader />
-      <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-24 sm:px-6 sm:py-8">
+      <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-24 sm:px-6 sm:py-8 lg:box-border lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
         <header className="mb-6">
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             {t("stage3")}
@@ -216,7 +216,7 @@ function CoursePage() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_1fr] lg:gap-6">
+        <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[300px_1fr] lg:gap-6">
           <aside className="rounded-2xl border border-surface-border bg-surface p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-auto">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 flex items-center gap-2">
               <BookOpen size={13} /> {t("lessons")}
@@ -283,7 +283,7 @@ function CoursePage() {
             )}
           </aside>
 
-          <section>
+          <section className="lg:min-h-0 lg:overflow-y-auto lg:pr-2">
             {lesson ? (
               lessonReady ? (
                 <LessonView
