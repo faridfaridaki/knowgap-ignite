@@ -39,6 +39,15 @@ interface FlashcardSource {
   definition: string;
 }
 
+function shuffleOptions(options: string[]): string[] {
+  const shuffled = [...options];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 function sanitizeQuestions(raw: any): QuizQuestion[] {
   const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.questions) ? raw.questions : [];
   const out: QuizQuestion[] = [];
@@ -50,11 +59,12 @@ function sanitizeQuestions(raw: any): QuizQuestion[] {
     if (!options || options.length !== 4) return;
     // Ensure correct_answer is one of the options
     if (!options.includes(q.correct_answer)) return;
+    const shuffledOptions = shuffleOptions(options);
     out.push({
       id: i + 1,
       type: "multiple_choice",
       question: q.question,
-      options,
+      options: shuffledOptions,
       correct_answer: q.correct_answer,
       explanation: typeof q.explanation === "string" ? q.explanation : "",
     });
@@ -193,19 +203,22 @@ function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): Qu
         },
       ];
 
-  return templates.map((q, index) => ({
-    id: index + 1,
-    type: "multiple_choice",
-    question:
-      kind === "pre"
-        ? q.question
-        : isRu
-          ? `${q.question} (Вопрос ${ruLabel})`
-          : `${q.question} (${label} question)`,
-    options: q.options,
-    correct_answer: q.correct,
-    explanation: q.explanation,
-  }));
+  return templates.map((q, index) => {
+    const shuffledOptions = shuffleOptions(q.options);
+    return {
+      id: index + 1,
+      type: "multiple_choice",
+      question:
+        kind === "pre"
+          ? q.question
+          : isRu
+            ? `${q.question} (Вопрос ${ruLabel})`
+            : `${q.question} (${label} question)`,
+      options: shuffledOptions,
+      correct_answer: q.correct,
+      explanation: q.explanation,
+    };
+  });
 }
 
 function fallbackFlashcards(
