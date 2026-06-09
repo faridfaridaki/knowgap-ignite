@@ -28,6 +28,7 @@ function AuthScreen() {
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/" });
@@ -48,6 +49,24 @@ function AuthScreen() {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleApple = async () => {
+    setError(null);
+    setAppleLoading(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (err) throw err;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Apple sign-in failed");
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -110,11 +129,20 @@ function AuthScreen() {
         <button
           type="button"
           onClick={handleGoogle}
-          disabled={googleLoading}
+          disabled={googleLoading || appleLoading}
           className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border border-surface-border bg-surface px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-surface/70 disabled:opacity-50"
         >
           <GoogleIcon />
           {googleLoading ? t("pleaseWait") : t("continueWithGoogle")}
+        </button>
+        <button
+          type="button"
+          onClick={handleApple}
+          disabled={googleLoading || appleLoading}
+          className="mt-3 inline-flex w-full items-center justify-center gap-2.5 rounded-xl border border-surface-border bg-surface px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-surface/70 disabled:opacity-50"
+        >
+          <AppleIcon />
+          {appleLoading ? t("pleaseWait") : t("continueWithApple")}
         </button>
 
         <div className="my-5 flex items-center gap-3">
@@ -197,6 +225,21 @@ function GoogleIcon() {
         d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
         fill="#EA4335"
       />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+      className="fill-current"
+    >
+      <path d="M17.05 12.56c-.03-2.68 2.19-3.98 2.29-4.04-1.25-1.82-3.18-2.07-3.86-2.1-1.62-.17-3.2.97-4.02.97-.84 0-2.1-.95-3.46-.92-1.75.03-3.39 1.04-4.29 2.62-1.86 3.22-.47 7.95 1.31 10.55.89 1.27 1.93 2.69 3.28 2.64 1.32-.05 1.81-.85 3.41-.85 1.58 0 2.04.85 3.42.82 1.42-.02 2.31-1.27 3.17-2.55 1.03-1.46 1.44-2.9 1.45-2.98-.03-.01-2.67-1.02-2.7-4.66ZM14.42 4.7c.72-.9 1.22-2.12 1.08-3.36-1.05.05-2.36.73-3.11 1.6-.67.77-1.27 2.04-1.11 3.23 1.18.09 2.39-.59 3.14-1.47Z" />
     </svg>
   );
 }
