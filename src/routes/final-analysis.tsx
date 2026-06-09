@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, X, TrendingUp, AlertTriangle, ArrowRight, Lightbulb } from "lucide-react";
@@ -16,11 +16,62 @@ import { suggestRelatedTopics } from "@/lib/analyze.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { saveSession } from "@/lib/history";
+import type { HistorySession } from "@/lib/history";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/final-analysis")({
-  component: FinalAnalysisPage,
+  component: FinalAnalysisRoute,
 });
+
+function FinalAnalysisRoute() {
+  const location = useLocation();
+  if (location.pathname !== "/final-analysis") return <Outlet />;
+  return <FinalAnalysisPage />;
+}
+
+function buildHistorySession({
+  state,
+  duration,
+  preTotal,
+  finalTotal,
+  improvement,
+  knowledgeGaps,
+  related,
+}: {
+  state: LearningState;
+  duration: number;
+  preTotal: number;
+  finalTotal: number;
+  improvement: number;
+  knowledgeGaps: { question: string; correct_answer: string }[];
+  related: string[];
+}): HistorySession {
+  return {
+    id: crypto.randomUUID(),
+    topic: state.topic,
+    date: new Date().toISOString(),
+    subtopics: [],
+    messages: [],
+    stats: { questionsAnswered: preTotal + finalTotal, durationMinutes: duration },
+    preTest: {
+      questions: state.preTestQuestions,
+      answers: state.preTestAnswers,
+      score: state.preTestScore,
+      total: preTotal,
+    },
+    finalTest: {
+      questions: state.finalTestQuestions,
+      answers: state.finalTestAnswers,
+      score: state.finalTestScore,
+      total: finalTotal,
+    },
+    lesson: state.lesson,
+    flashcards: state.flashcards,
+    improvement,
+    knowledgeGaps,
+    suggestedTopics: related,
+  };
+}
 
 function FinalAnalysisPage() {
   const navigate = useNavigate();
@@ -65,7 +116,7 @@ function FinalAnalysisPage() {
     const prePct = preTotal ? Math.round((state.preTestScore / preTotal) * 100) : 0;
     const finalPct = finalTotal ? Math.round((state.finalTestScore / finalTotal) * 100) : 0;
     const improvement = finalPct - prePct;
-    const knowledge_gaps = state.finalTestQuestions
+    const knowledgeGaps = state.finalTestQuestions
       .map((q, i) => ({ q, ok: isAnswerCorrect(q, state.finalTestAnswers[i] ?? "") }))
       .filter((x) => !x.ok)
       .map((x) => ({ question: x.q.question, correct_answer: x.q.correct_answer }));
@@ -88,7 +139,7 @@ function FinalAnalysisPage() {
       subtopics: [],
       messages: [],
       improvement,
-      knowledge_gaps,
+      knowledge_gaps: knowledgeGaps,
       suggested_topics: related,
     };
 
@@ -99,27 +150,33 @@ function FinalAnalysisPage() {
           .insert({ ...payload, user_id: user.id } as never);
         if (error) {
           console.error("Save to cloud failed:", error);
-          saveSession({
-            id: crypto.randomUUID(),
-            topic: state.topic,
-            date: new Date().toISOString(),
-            subtopics: [],
-            messages: [],
-            stats: { questionsAnswered: payload.questions_count, durationMinutes: duration },
-          });
+          saveSession(
+            buildHistorySession({
+              state,
+              duration,
+              preTotal,
+              finalTotal,
+              improvement,
+              knowledgeGaps,
+              related,
+            }),
+          );
           setSaved("saved-local");
         } else {
           setSaved("saved-cloud");
         }
       } else {
-        saveSession({
-          id: crypto.randomUUID(),
-          topic: state.topic,
-          date: new Date().toISOString(),
-          subtopics: [],
-          messages: [],
-          stats: { questionsAnswered: payload.questions_count, durationMinutes: duration },
-        });
+        saveSession(
+          buildHistorySession({
+            state,
+            duration,
+            preTotal,
+            finalTotal,
+            improvement,
+            knowledgeGaps,
+            related,
+          }),
+        );
         setSaved("saved-local");
       }
     })();
@@ -160,9 +217,7 @@ function FinalAnalysisPage() {
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             {t("stage6")}
           </span>
-          <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-foreground">
-            {t("yourReport")}
-          </h1>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-foreground">{t("yourReport")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{state.topic}</p>
         </div>
 
@@ -233,7 +288,10 @@ function FinalAnalysisPage() {
                     }`}
                   >
                     <span className="text-xs text-muted-foreground tabular-nums">Q{i + 1}</span>
-                    <div className="text-sm text-foreground truncate" title={b?.label || a?.label || ""}>
+                    <div
+                      className="text-sm text-foreground truncate"
+                      title={b?.label || a?.label || ""}
+                    >
                       {b?.label || a?.label || ""}
                     </div>
                     <ResultBadge ok={a?.correct} hint={a?.hint} />
@@ -345,7 +403,9 @@ function ScoreCell({
   return (
     <div
       className={`rounded-xl border p-5 ${
-        highlight ? "border-[#7C6AF7]/40 bg-[#7C6AF7]/[0.06]" : "border-surface-border bg-background/30"
+        highlight
+          ? "border-[#7C6AF7]/40 bg-[#7C6AF7]/[0.06]"
+          : "border-surface-border bg-background/30"
       }`}
     >
       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -375,14 +435,16 @@ function ResultBadge({ ok, hint }: { ok?: boolean; hint?: boolean }) {
       className={`mx-auto inline-flex h-6 w-6 items-center justify-center rounded-full ${cls}`}
       title={hint && ok ? "Correct with hint (0.5)" : undefined}
     >
-      {ok ? (hint ? <Lightbulb size={12} /> : <Check size={14} />) : <X size={14} />}
+      {ok ? hint ? <Lightbulb size={12} /> : <Check size={14} /> : <X size={14} />}
     </span>
   );
 }
 
 function LegendDot({ className, children }: { className: string; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium ${className}`}
+    >
       <span className="h-2 w-2 rounded-full bg-current" />
       {children}
     </span>
