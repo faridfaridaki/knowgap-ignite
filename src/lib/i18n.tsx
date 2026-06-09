@@ -140,7 +140,6 @@ const dict = {
     createAccountLink: "Create an account",
     signInInstead: "Sign in instead",
     continueWithGoogle: "Continue with Google",
-    continueWithApple: "Continue with Apple",
     orDivider: "or",
     checkEmail: "Check your email to confirm your account, then sign in.",
 
@@ -274,7 +273,6 @@ const dict = {
     createAccountLink: "Создать аккаунт",
     signInInstead: "Войти",
     continueWithGoogle: "Войти через Google",
-    continueWithApple: "Войти через Apple",
     orDivider: "или",
     checkEmail: "Проверь почту, чтобы подтвердить аккаунт.",
 
