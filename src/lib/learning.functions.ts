@@ -48,6 +48,25 @@ function shuffleOptions(options: string[]): string[] {
   return shuffled;
 }
 
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function uniqueFlashcards(cards: Flashcard[]): Flashcard[] {
+  const seen = new Set<string>();
+  const out: Flashcard[] = [];
+  for (const card of cards) {
+    const term = card.term.trim();
+    const definition = card.definition.trim();
+    if (!term || !definition) continue;
+    const key = normalizeKey(term);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ term, definition });
+  }
+  return out;
+}
+
 function sanitizeQuestions(raw: any): QuizQuestion[] {
   const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.questions) ? raw.questions : [];
   const out: QuizQuestion[] = [];
@@ -228,61 +247,111 @@ function fallbackFlashcards(
   lang: Lang,
 ): Flashcard[] {
   const isRu = lang === "ru";
-  if (sources.length > 0) {
-    return sources.slice(0, 10).map((source) => ({
+  const sourceCards = uniqueFlashcards(
+    sources.map((source) => ({
       term: source.term,
       definition: source.definition,
-    }));
-  }
+    })),
+  );
 
   const baseTerms = lessonTitles.length
     ? lessonTitles
     : isRu
       ? [`Основная идея ${topic}`, "Ключевые понятия", "Практическое применение", "Пример"]
       : [`Core idea of ${topic}`, "Key concepts", "Practical application", "Example"];
-  const cards = baseTerms.slice(0, 8).map((term) => ({
+  const lessonCards = baseTerms.map((term) => ({
     term,
     definition: isRu
-      ? `Это важная часть темы "${topic}". Попробуйте объяснить её своими словами и связать с конкретным примером.`
-      : `This is an important part of "${topic}". Try to explain it in your own words and connect it to a concrete example.`,
+      ? `Термин связан с темой "${topic}" и обозначает одну из важных идей, которую нужно понимать в этом разделе.`
+      : `This term belongs to "${topic}" and names one of the important ideas to understand in this section.`,
   }));
   const extras = isRu
     ? [
         {
-          term: "Проверка понимания",
-          definition:
-            "Способ убедиться, что вы можете не только узнать ответ, но и объяснить причину.",
+          term: `${topic}: определение`,
+          definition: `Краткое объяснение того, что означает тема "${topic}" и какие идеи входят в неё.`,
         },
         {
-          term: "Связь между идеями",
-          definition:
-            "Понимание становится сильнее, когда вы видите, как отдельные понятия работают вместе.",
+          term: `${topic}: ключевой принцип`,
+          definition: `Главное правило или идея, на которой строится понимание темы "${topic}".`,
         },
         {
-          term: "Активная практика",
-          definition:
-            "Решение задач и самостоятельные объяснения помогают закрепить материал лучше, чем простое чтение.",
+          term: `${topic}: пример`,
+          definition: `Конкретная ситуация, которая показывает, как понятие из темы "${topic}" используется на практике.`,
+        },
+        {
+          term: `${topic}: применение`,
+          definition: `Способ использовать знания по теме "${topic}" для решения задачи или объяснения ситуации.`,
+        },
+        {
+          term: `${topic}: связь понятий`,
+          definition: `Отношение между несколькими терминами темы "${topic}", которое помогает понять материал глубже.`,
+        },
+        {
+          term: `${topic}: результат`,
+          definition: `То, что можно получить или объяснить после правильного применения идей темы "${topic}".`,
+        },
+        {
+          term: `${topic}: причина`,
+          definition: `Фактор или условие, которое объясняет, почему явление в теме "${topic}" происходит.`,
+        },
+        {
+          term: `${topic}: свойство`,
+          definition: `Характеристика понятия из темы "${topic}", по которой его можно распознать или описать.`,
+        },
+        {
+          term: `${topic}: процесс`,
+          definition: `Последовательность шагов или изменений, связанных с темой "${topic}".`,
+        },
+        {
+          term: `${topic}: условие`,
+          definition: `Требование или ситуация, при которой идея из темы "${topic}" применяется правильно.`,
         },
       ]
     : [
         {
-          term: "Understanding check",
-          definition:
-            "A way to confirm that you can explain the reason behind an answer, not only recognize it.",
+          term: `${topic}: definition`,
+          definition: `A short explanation of what "${topic}" means and which ideas belong to it.`,
         },
         {
-          term: "Connections between ideas",
-          definition:
-            "Understanding gets stronger when you see how separate concepts work together.",
+          term: `${topic}: key principle`,
+          definition: `The main rule or idea that supports understanding of "${topic}".`,
         },
         {
-          term: "Active practice",
-          definition:
-            "Solving problems and explaining ideas yourself helps the material stick better than rereading.",
+          term: `${topic}: example`,
+          definition: `A concrete case that shows how a term from "${topic}" is used in practice.`,
+        },
+        {
+          term: `${topic}: application`,
+          definition: `A way to use knowledge of "${topic}" to solve a problem or explain a situation.`,
+        },
+        {
+          term: `${topic}: concept relationship`,
+          definition: `A connection between multiple terms in "${topic}" that helps explain the material more deeply.`,
+        },
+        {
+          term: `${topic}: outcome`,
+          definition: `What you can find, explain, or produce after applying the ideas from "${topic}" correctly.`,
+        },
+        {
+          term: `${topic}: cause`,
+          definition: `A factor or condition that explains why something in "${topic}" happens.`,
+        },
+        {
+          term: `${topic}: property`,
+          definition: `A characteristic of a concept in "${topic}" that helps identify or describe it.`,
+        },
+        {
+          term: `${topic}: process`,
+          definition: `A sequence of steps or changes connected to "${topic}".`,
+        },
+        {
+          term: `${topic}: condition`,
+          definition: `A requirement or situation where an idea from "${topic}" applies correctly.`,
         },
       ];
 
-  return [...cards, ...extras].slice(0, 10);
+  return uniqueFlashcards([...sourceCards, ...lessonCards, ...extras]).slice(0, 10);
 }
 
 export const generatePreTest = createServerFn({ method: "POST" })
@@ -409,16 +478,16 @@ export const generateFlashcards = createServerFn({ method: "POST" })
       : "(use core concepts of the topic)";
     const sourceBlock = data.sources.length
       ? data.sources.map((source) => `- ${source.term}: ${source.definition}`).join("\n")
-      : "(infer terms and formulas from the lessons)";
-    const prompt = `Generate 8-10 flashcards for the topic "${data.topic}". Use ONLY important terms and formulas. The front must be only a term, concept name, or formula. The back must be its definition, meaning, or formula explanation. Do not create study-strategy cards.\n\nLessons:\n${lessonsBlock}\n\nAvailable terms and formulas:\n${sourceBlock}\n\nReturn ONLY JSON: {"flashcards":[{"term":"...","definition":"..."}]} where definition is 1-2 clear sentences.\n${langInstruction(data.language)}`;
+      : "(infer terms from the lessons)";
+    const prompt = `Generate EXACTLY 10 flashcards for the topic "${data.topic}". Each flashcard must use a different important term or concept from the topic. The front must be only the term or concept name. The back must be the definition of that term. Do not include formulas, study strategies, questions, examples-only cards, or generic cards.\n\nLessons:\n${lessonsBlock}\n\nAvailable terms:\n${sourceBlock}\n\nReturn ONLY JSON: {"flashcards":[{"term":"...","definition":"..."}]} where definition is 1-2 clear sentences.\n${langInstruction(data.language)}`;
     try {
       const parsed = await callGroqJson({ prompt, temperature: 0.6 });
       const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
-      const flashcards: Flashcard[] = arr
-        .filter((c: any) => c && typeof c.term === "string" && typeof c.definition === "string")
-        .slice(0, 10);
-      if (flashcards.length === 0) throw new Error("Invalid flashcards response");
-      return { flashcards };
+      const flashcards = uniqueFlashcards(
+        arr.filter((c: any) => c && typeof c.term === "string" && typeof c.definition === "string"),
+      );
+      if (flashcards.length < 10) throw new Error("Invalid flashcards response");
+      return { flashcards: flashcards.slice(0, 10) };
     } catch (error) {
       console.error("generateFlashcards failed:", error);
       return {

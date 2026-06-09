@@ -48,23 +48,12 @@ function FlashcardsPage() {
     }
     const lessonTitles = s.course?.lessons?.map((l) => l.title) ?? [];
     const sources =
-      s.course?.lessons?.flatMap((lesson) => [
-        ...(lesson.terms ?? []).map((term) => ({
+      s.course?.lessons?.flatMap((lesson) =>
+        (lesson.terms ?? []).map((term) => ({
           term: term.term,
           definition: term.definition,
         })),
-        ...(lesson.formulas ?? []).map((formula) => ({
-          term: formula.formula,
-          definition: [
-            formula.explanation,
-            formula.variables?.length
-              ? `Variables: ${formula.variables.map((v) => `${v.symbol} = ${v.meaning}`).join(", ")}`
-              : "",
-          ]
-            .filter(Boolean)
-            .join(" "),
-        })),
-      ]) ?? [];
+      ) ?? [];
     let cancelled = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
