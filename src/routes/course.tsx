@@ -1,14 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  Lock,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  PartyPopper,
-  BookOpen,
-} from "lucide-react";
+import { Lock, CheckCircle2, ChevronLeft, ChevronRight, PartyPopper, BookOpen } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
@@ -95,9 +88,7 @@ function CoursePage() {
           }
           setCourse((prev) => {
             if (!prev) return prev;
-            const lessons = prev.lessons.map((l) =>
-              l.lesson_number === n ? res.lesson! : l,
-            );
+            const lessons = prev.lessons.map((l) => (l.lesson_number === n ? res.lesson! : l));
             const next = { ...prev, lessons };
             patchState({ course: next });
             return next;
@@ -132,8 +123,6 @@ function CoursePage() {
       if (target && (!target.explanation || target.explanation.trim().length === 0)) {
         loadLesson(startAt, s.course, s.topic);
       }
-      const nextN = Math.min(startAt + 1, s.course.lessons.length);
-      if (nextN !== startAt) loadLesson(nextN, s.course, s.topic);
       return;
     }
     if (generationInFlight.current) return;
@@ -150,10 +139,7 @@ function CoursePage() {
         }
         patchState({ course: res.course });
         setCourse(res.course);
-        // Fetch lesson 1 and prefetch lesson 2 in parallel.
         loadLesson(startAt, res.course, s.topic);
-        const nextN = Math.min(startAt + 1, res.course.lessons.length);
-        if (nextN !== startAt) loadLesson(nextN, res.course, s.topic);
       })
       .catch((e) => {
         setError(friendlyAiError(e));
@@ -171,8 +157,7 @@ function CoursePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
-
-  const lessons = course?.lessons ?? [];
+  const lessons = useMemo(() => course?.lessons ?? [], [course]);
   const lesson: CourseLesson | undefined = useMemo(
     () => lessons.find((l) => l.lesson_number === currentLesson),
     [lessons, currentLesson],
@@ -205,7 +190,6 @@ function CoursePage() {
 
   const lessonReady = !!lesson && lesson.explanation.trim().length > 0;
   const isLessonLoading = !!lesson && !lessonReady && lessonLoading === lesson.lesson_number;
-
 
   if (error) {
     return <AiErrorState message={error} onRetry={loadCourse} />;
@@ -341,7 +325,6 @@ function CoursePage() {
         </div>
       </div>
     </main>
-
   );
 }
 
@@ -374,9 +357,7 @@ function LessonView({
         <span className="uppercase tracking-wider font-semibold">
           {t("lesson")} {lesson.lesson_number} {t("of")} {total}
         </span>
-        <span className="tabular-nums">
-          {Math.round((lesson.lesson_number / total) * 100)}%
-        </span>
+        <span className="tabular-nums">{Math.round((lesson.lesson_number / total) * 100)}%</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-background overflow-hidden mb-6">
         <div

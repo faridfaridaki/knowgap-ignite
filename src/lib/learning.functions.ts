@@ -89,16 +89,14 @@ export const generatePreTest = createServerFn({ method: "POST" })
   });
 
 export const generateFinalTest = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: { topic: string; previousQuestions: string[]; language?: string }) => {
-      if (!input?.topic?.trim()) throw new Error("Topic required");
-      return {
-        topic: input.topic.slice(0, 2000),
-        previousQuestions: (input.previousQuestions || []).slice(0, 10),
-        language: normLang(input.language),
-      };
-    },
-  )
+  .inputValidator((input: { topic: string; previousQuestions: string[]; language?: string }) => {
+    if (!input?.topic?.trim()) throw new Error("Topic required");
+    return {
+      topic: input.topic.slice(0, 2000),
+      previousQuestions: (input.previousQuestions || []).slice(0, 10),
+      language: normLang(input.language),
+    };
+  })
   .handler(async ({ data }): Promise<{ questions: QuizQuestion[]; error?: string }> => {
     const avoid = data.previousQuestions.map((q) => `- ${q}`).join("\n");
     const sys = `${QUIZ_SYSTEM_BASE}\n${langInstruction(data.language)}`;
@@ -118,16 +116,14 @@ export const generateFinalTest = createServerFn({ method: "POST" })
   });
 
 export const generateLesson = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: { topic: string; missedConcepts: string[]; language?: string }) => {
-      if (!input?.topic?.trim()) throw new Error("Topic required");
-      return {
-        topic: input.topic.slice(0, 2000),
-        missedConcepts: (input.missedConcepts || []).slice(0, 10),
-        language: normLang(input.language),
-      };
-    },
-  )
+  .inputValidator((input: { topic: string; missedConcepts: string[]; language?: string }) => {
+    if (!input?.topic?.trim()) throw new Error("Topic required");
+    return {
+      topic: input.topic.slice(0, 2000),
+      missedConcepts: (input.missedConcepts || []).slice(0, 10),
+      language: normLang(input.language),
+    };
+  })
   .handler(async ({ data }): Promise<{ lesson: LessonConcept[]; error?: string }> => {
     const list = data.missedConcepts.length
       ? data.missedConcepts.map((c) => `- ${c}`).join("\n")
@@ -174,9 +170,7 @@ export const generateFlashcards = createServerFn({ method: "POST" })
       const parsed = await callGroqJson({ prompt, temperature: 0.6 });
       const arr = Array.isArray(parsed?.flashcards) ? parsed.flashcards : [];
       const flashcards: Flashcard[] = arr
-        .filter(
-          (c: any) => c && typeof c.term === "string" && typeof c.definition === "string",
-        )
+        .filter((c: any) => c && typeof c.term === "string" && typeof c.definition === "string")
         .slice(0, 10);
       if (flashcards.length === 0) throw new Error("Invalid flashcards response");
       return { flashcards };
@@ -240,8 +234,7 @@ function sanitizeCourse(raw: any): Course | null {
                     )
                     .map((v: any) => ({ symbol: v.symbol, meaning: v.meaning }))
                 : [],
-              worked_example:
-                typeof f.worked_example === "string" ? f.worked_example : undefined,
+              worked_example: typeof f.worked_example === "string" ? f.worked_example : undefined,
             }))
         : [];
       const examples = Array.isArray(l.real_life_examples)
@@ -299,6 +292,138 @@ function emptyLesson(n: number, title: string): CourseLesson {
   };
 }
 
+function fallbackCourse(topic: string, lang: Lang): Course {
+  const titles =
+    lang === "ru"
+      ? [
+          `Основы темы: ${topic}`,
+          "Ключевые термины и идеи",
+          "Как устроена тема шаг за шагом",
+          "Типичные ошибки и заблуждения",
+          "Практические примеры",
+          "Связи между главными понятиями",
+          "Решение базовых задач",
+          "Решение более сложных задач",
+          "Как проверять своё понимание",
+          "Итоговое повторение и следующий шаг",
+        ]
+      : [
+          `Foundations of ${topic}`,
+          "Key terms and core ideas",
+          "How the topic works step by step",
+          "Common mistakes and misconceptions",
+          "Practical examples",
+          "How the main ideas connect",
+          "Solving basic problems",
+          "Solving harder problems",
+          "How to check your understanding",
+          "Final review and next steps",
+        ];
+
+  return {
+    course_title: lang === "ru" ? `Курс по теме: ${topic}` : `Course on ${topic}`,
+    lessons: titles.map((title, index) => emptyLesson(index + 1, title)),
+  };
+}
+
+function fallbackLesson(data: {
+  topic: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  allTitles: string[];
+  wrongQuestions: string[];
+  language: Lang;
+}): CourseLesson {
+  const isRu = data.language === "ru";
+  const previous = data.allTitles.slice(0, Math.max(0, data.lessonNumber - 1)).join(", ");
+  const next = data.allTitles.slice(data.lessonNumber).join(", ");
+  const focus = data.wrongQuestions[0] || data.topic;
+  const title =
+    data.lessonTitle || (isRu ? `Урок ${data.lessonNumber}` : `Lesson ${data.lessonNumber}`);
+
+  return {
+    lesson_number: data.lessonNumber,
+    title,
+    explanation: isRu
+      ? [
+          `В этом уроке мы разбираем "${title}" в рамках темы "${data.topic}". Главная цель - понять идею простыми словами, а затем связать её с тем, что уже было в курсе.`,
+          previous
+            ? `Перед этим были темы: ${previous}. Используй их как основу: новое понятие должно объяснять, уточнять или применять то, что ты уже изучил.`
+            : `Начни с базового вопроса: что это такое, зачем это нужно и какую проблему помогает решить?`,
+          next
+            ? `Дальше курс перейдёт к: ${next}. Поэтому после урока попробуй сформулировать связь между этим уроком и следующими темами одним предложением.`
+            : `Это завершающий урок, поэтому собери всё в одну картину: определение, пример, типичная ошибка и способ проверить себя.`,
+        ].join("\n\n")
+      : [
+          `In this lesson, we focus on "${title}" inside the broader topic of "${data.topic}". The goal is to understand the idea in plain language, then connect it to the rest of the course.`,
+          previous
+            ? `The earlier lessons were: ${previous}. Use those as the base: this lesson should extend, clarify, or apply what came before.`
+            : `Start with the basic question: what is it, why does it matter, and what problem does it help solve?`,
+          next
+            ? `Next, the course moves toward: ${next}. After this lesson, try to explain how this idea prepares you for those topics in one sentence.`
+            : `This is the final lesson, so pull everything together: definition, example, common mistake, and a quick self-check.`,
+        ].join("\n\n"),
+    terms: isRu
+      ? [
+          {
+            term: "Главная идея",
+            definition: `Основной смысл урока "${title}" в теме "${data.topic}".`,
+          },
+          { term: "Пример", definition: "Конкретная ситуация, где идея становится понятной." },
+          {
+            term: "Проверка понимания",
+            definition: "Способ объяснить тему своими словами без подсказок.",
+          },
+        ]
+      : [
+          {
+            term: "Core idea",
+            definition: `The main meaning of "${title}" within "${data.topic}".`,
+          },
+          {
+            term: "Example",
+            definition: "A concrete situation that makes the idea easier to understand.",
+          },
+          {
+            term: "Understanding check",
+            definition: "A way to explain the topic in your own words without hints.",
+          },
+        ],
+    formulas: [],
+    real_life_examples: isRu
+      ? [
+          `Представь, что ты объясняешь "${title}" другу за одну минуту: сначала дай простое определение, потом пример.`,
+          `Свяжи урок с вопросом, который вызвал трудность: "${focus}". Это помогает превратить ошибку в ориентир для обучения.`,
+        ]
+      : [
+          `Imagine explaining "${title}" to a friend in one minute: start with a simple definition, then give one example.`,
+          `Connect the lesson to a question that was difficult: "${focus}". That turns a mistake into a guide for learning.`,
+        ],
+    practice_problems: [
+      {
+        problem: isRu
+          ? `Объясни "${title}" своими словами и приведи один пример из реальной жизни.`
+          : `Explain "${title}" in your own words and give one real-life example.`,
+        steps: isRu
+          ? [
+              "Шаг 1: Напиши короткое определение.",
+              "Шаг 2: Добавь пример.",
+              "Шаг 3: Проверь, связано ли объяснение с общей темой.",
+            ]
+          : [
+              "Step 1: Write a short definition.",
+              "Step 2: Add an example.",
+              "Step 3: Check whether the explanation connects to the bigger topic.",
+            ],
+        final_answer: isRu
+          ? "Хороший ответ содержит определение, пример и связь с темой."
+          : "A good answer includes a definition, an example, and a connection to the topic.",
+      },
+    ],
+    has_problems: true,
+  };
+}
+
 export const generateCourse = createServerFn({ method: "POST" })
   .inputValidator((input: { topic: string; wrongQuestions: string[]; language?: string }) => {
     if (!input?.topic?.trim()) throw new Error("Topic required");
@@ -347,14 +472,13 @@ Rules:
       for (let i = 1; i <= 10; i += 1) {
         const found = lessonsRaw.find((l: any) => Number(l?.lesson_number) === i);
         const lessonTitle =
-          (found && typeof found.title === "string" && found.title.trim()) ||
-          `Lesson ${i}`;
+          (found && typeof found.title === "string" && found.title.trim()) || `Lesson ${i}`;
         lessons.push(emptyLesson(i, lessonTitle));
       }
       return { course: { course_title: title, lessons } };
     } catch (error) {
       console.error("generateCourse (outline) failed:", error);
-      return { course: null, error: AI_BUSY_MESSAGE };
+      return { course: fallbackCourse(data.topic, data.language) };
     }
   });
 
@@ -385,9 +509,7 @@ export const generateCourseLesson = createServerFn({ method: "POST" })
     const wrong = data.wrongQuestions.length
       ? data.wrongQuestions.map((q) => `- ${q}`).join("\n")
       : "(none — student got everything right, still teach thoroughly)";
-    const outline = data.allTitles
-      .map((t, i) => `${i + 1}. ${t}`)
-      .join("\n");
+    const outline = data.allTitles.map((t, i) => `${i + 1}. ${t}`).join("\n");
     const prompt = `You are writing lesson ${data.lessonNumber} of a 10-lesson course on "${data.topic}".
 
 Course outline:
@@ -434,7 +556,6 @@ Rules:
       return { lesson };
     } catch (error) {
       console.error(`generateCourseLesson(${data.lessonNumber}) failed:`, error);
-      return { lesson: null, error: AI_BUSY_MESSAGE };
+      return { lesson: fallbackLesson(data) };
     }
   });
-
