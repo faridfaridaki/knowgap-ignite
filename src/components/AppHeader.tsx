@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard } from "lucide-react";
 import { HomeButton } from "@/components/HomeButton";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
@@ -16,6 +17,7 @@ export function AppHeader() {
     <>
       {!isHome && <HomeButton />}
       <div className="absolute top-5 right-5 z-10 flex items-center gap-2">
+        <ThemeToggle />
         <LanguageToggle />
         {user && (
           <Link
