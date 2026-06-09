@@ -217,7 +217,7 @@ function CoursePage() {
         </header>
 
         <div className="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[300px_1fr] lg:gap-6">
-          <aside className="rounded-2xl border border-surface-border bg-surface p-3 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-auto">
+          <aside className="rounded-2xl border border-surface-border bg-surface p-3 lg:min-h-0 lg:self-stretch lg:overflow-y-auto">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-2 py-2 flex items-center gap-2">
               <BookOpen size={13} /> {t("lessons")}
             </div>
