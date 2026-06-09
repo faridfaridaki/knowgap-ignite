@@ -274,17 +274,20 @@ function FinalAnalysisPage() {
               (_, i) => {
                 const a = data.preRows[i];
                 const b = data.finalRows[i];
+                const finalCorrectWithHint = Boolean(b?.correct && b?.hint);
                 const improved = a && b && !a.correct && b.correct;
                 const stillGap = a && b && !a.correct && !b.correct;
                 return (
                   <div
                     key={i}
                     className={`grid grid-cols-[28px_1fr_60px_60px] items-center gap-3 rounded-lg border px-3 py-2.5 ${
-                      improved
-                        ? "border-emerald-500/30 bg-emerald-500/[0.05]"
-                        : stillGap
-                          ? "border-red-500/30 bg-red-500/[0.05]"
-                          : "border-surface-border bg-background/30"
+                      finalCorrectWithHint
+                        ? "border-amber-500/30 bg-amber-500/[0.07]"
+                        : improved
+                          ? "border-emerald-500/30 bg-emerald-500/[0.05]"
+                          : stillGap
+                            ? "border-red-500/30 bg-red-500/[0.05]"
+                            : "border-surface-border bg-background/30"
                     }`}
                   >
                     <span className="text-xs text-muted-foreground tabular-nums">Q{i + 1}</span>
