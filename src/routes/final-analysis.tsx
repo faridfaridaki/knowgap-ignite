@@ -218,10 +218,10 @@ function FinalAnalysisPage() {
             {t("stage6")}
           </span>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-foreground">{t("yourReport")}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{state.topic}</p>
         </div>
 
         <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+          <p className="mb-6 text-center text-sm text-muted-foreground">{state.topic}</p>
           <section className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
             <h2 className="text-lg font-semibold text-foreground mb-5">{t("scoreComparison")}</h2>
             <div className="grid grid-cols-3 gap-4 text-center">

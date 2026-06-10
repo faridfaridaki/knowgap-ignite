@@ -32,6 +32,7 @@ interface LessonConcept {
 interface Flashcard {
   term: string;
   definition: string;
+  format_version?: string;
   simple_definition?: string;
   expanded_explanation?: string;
   how_it_works?: string;
@@ -42,6 +43,18 @@ interface FlashcardSource {
   term: string;
   definition: string;
 }
+
+const FLASHCARD_FORMAT_VERSION = "topic-rich-v2";
+const GENERIC_FLASHCARD_TERMS = new Set([
+  "word",
+  "definition",
+  "part of speech",
+  "context",
+  "etymology",
+  "example",
+  "concept",
+  "term",
+]);
 
 function shuffleOptions(options: string[]): string[] {
   const shuffled = [...options];
@@ -70,6 +83,7 @@ function uniqueFlashcards(cards: Flashcard[]): Flashcard[] {
     out.push({
       term,
       definition,
+      format_version: FLASHCARD_FORMAT_VERSION,
       simple_definition,
       expanded_explanation: card.expanded_explanation?.trim(),
       how_it_works: card.how_it_works?.trim(),
@@ -89,11 +103,43 @@ function buildFlashcard(
   return {
     term,
     definition: simple_definition,
+    format_version: FLASHCARD_FORMAT_VERSION,
     simple_definition,
     expanded_explanation,
     how_it_works,
     example,
   };
+}
+
+function topicAllowsLanguageTerms(topic: string): boolean {
+  const normalized = normalizeKey(topic);
+  return [
+    "language",
+    "linguistic",
+    "grammar",
+    "vocabulary",
+    "word",
+    "definition",
+    "speech",
+    "etymology",
+    "english",
+    "writing",
+  ].some((needle) => normalized.includes(needle));
+}
+
+function isTopicSpecificFlashcard(card: Flashcard, topic: string): boolean {
+  if (
+    !card.simple_definition ||
+    !card.expanded_explanation ||
+    !card.how_it_works ||
+    !card.example
+  ) {
+    return false;
+  }
+  if (!topicAllowsLanguageTerms(topic) && GENERIC_FLASHCARD_TERMS.has(normalizeKey(card.term))) {
+    return false;
+  }
+  return true;
 }
 
 function sanitizeQuestions(raw: any): QuizQuestion[] {
@@ -517,14 +563,19 @@ export const generateFlashcards = createServerFn({ method: "POST" })
     const sourceBlock = data.sources.length
       ? data.sources.map((source) => `- ${source.term}: ${source.definition}`).join("\n")
       : "(infer terms from the lessons)";
-    const prompt = `Generate EXACTLY 10 flashcards for the topic "${data.topic}". Each flashcard must use a different important term or concept from the topic. The front must be only the term or concept name. The back must teach the term using Markdown-friendly content in these exact fields:
-- simple_definition: one short sentence with the exact meaning
-- expanded_explanation: 2-3 short Markdown bullets OR one short paragraph explaining the concept more deeply
-- how_it_works: a Markdown numbered list for mechanisms, rules, steps, or usage
-- example: one concrete example using Markdown for math, code, or emphasis when helpful
+    const prompt = `Generate EXACTLY 10 flashcards for the MAIN COURSE TOPIC "${data.topic}".
 
-Do not include formulas-only cards, study strategies, questions, examples-only cards, or generic filler cards.
-For math, use inline Markdown math like $5x^4$. Do not write long unformatted step-by-step prose.
+Every card MUST be based directly on the main course topic and its lessons. Use course-specific terms, rules, processes, formulas, methods, or concepts. Do NOT create generic language-learning cards such as "Word", "Definition", "Part of Speech", "Context", or "Etymology" unless the main course topic is actually about linguistics or vocabulary.
+
+Each card must use a different important term or concept. The front must be ONLY the term or concept name. The back must teach that term using Markdown-friendly content in these exact fields:
+- simple_definition: one short sentence giving the exact meaning
+- expanded_explanation: one clear paragraph explaining the concept more deeply
+- how_it_works: 2-4 concise Markdown bullets or numbered steps explaining mechanisms, rules, formulas, usage, or problem-solving role
+- example: one concrete example that uses the term in the context of "${data.topic}"
+
+Do not include formulas-only cards, study strategies, questions, examples-only cards, lesson-title-only cards, or generic filler cards.
+For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
+Do not write long unformatted step-by-step prose.
 
 Lessons:
 ${lessonsBlock}
@@ -544,7 +595,7 @@ ${langInstruction(data.language)}`;
             typeof c.term === "string" &&
             (typeof c.definition === "string" || typeof c.simple_definition === "string"),
         ),
-      );
+      ).filter((card) => isTopicSpecificFlashcard(card, data.topic));
       if (flashcards.length < 10) throw new Error("Invalid flashcards response");
       return { flashcards: flashcards.slice(0, 10) };
     } catch (error) {
@@ -566,6 +617,9 @@ interface CoursePracticeProblem {
   steps: string[];
   final_answer: string;
 }
+interface LessonCheckpointQuestion extends QuizQuestion {
+  type: "multiple_choice";
+}
 interface CourseLesson {
   lesson_number: number;
   title: string;
@@ -574,11 +628,69 @@ interface CourseLesson {
   formulas: CourseFormula[];
   real_life_examples: string[];
   practice_problems: CoursePracticeProblem[];
+  checkpoint_question?: LessonCheckpointQuestion;
   has_problems: boolean;
 }
 interface Course {
   course_title: string;
   lessons: CourseLesson[];
+}
+
+function sanitizeCheckpointQuestion(raw: any, id: number): LessonCheckpointQuestion | undefined {
+  const q = raw?.checkpoint_question ?? raw;
+  if (!q || typeof q.question !== "string" || typeof q.correct_answer !== "string") {
+    return undefined;
+  }
+  const options = Array.isArray(q.options)
+    ? q.options.filter((o: any) => typeof o === "string").slice(0, 4)
+    : [];
+  if (options.length !== 4 || !options.includes(q.correct_answer)) return undefined;
+  return {
+    id,
+    type: "multiple_choice",
+    question: q.question,
+    options: shuffleOptions(options),
+    correct_answer: q.correct_answer,
+    explanation: typeof q.explanation === "string" ? q.explanation : "",
+  };
+}
+
+function fallbackCheckpointQuestion(data: {
+  topic: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  language: Lang;
+}): LessonCheckpointQuestion {
+  const isRu = data.language === "ru";
+  const correct = isRu
+    ? `Объяснить "${data.lessonTitle}" и применить его к теме "${data.topic}"`
+    : `Explain "${data.lessonTitle}" and apply it to "${data.topic}"`;
+  return {
+    id: data.lessonNumber,
+    type: "multiple_choice",
+    question: isRu
+      ? `Что лучше всего показывает понимание урока "${data.lessonTitle}"?`
+      : `What best shows that you understand the lesson "${data.lessonTitle}"?`,
+    options: shuffleOptions(
+      isRu
+        ? [
+            correct,
+            "Запомнить только название урока",
+            "Пропустить примеры и перейти дальше",
+            "Выучить отдельный факт без связи с темой",
+          ]
+        : [
+            correct,
+            "Only memorize the lesson title",
+            "Skip the examples and move on",
+            "Learn one isolated fact without connecting it to the topic",
+          ],
+    ),
+    correct_answer: correct,
+    explanation: isRu
+      ? "Понимание означает, что ты можешь объяснить идею и применить её в контексте темы."
+      : "Understanding means you can explain the idea and use it in the topic context.",
+  };
 }
 
 function sanitizeCourse(raw: any): Course | null {
@@ -646,6 +758,7 @@ function sanitizeCourse(raw: any): Course | null {
         formulas,
         real_life_examples: examples,
         practice_problems: problems,
+        checkpoint_question: sanitizeCheckpointQuestion(l.checkpoint_question, i + 1),
         has_problems: typeof l.has_problems === "boolean" ? l.has_problems : problems.length > 0,
       };
     })
@@ -663,37 +776,65 @@ function emptyLesson(n: number, title: string): CourseLesson {
     formulas: [],
     real_life_examples: [],
     practice_problems: [],
+    checkpoint_question: undefined,
     has_problems: false,
   };
 }
 
 function fallbackCourse(topic: string, lang: Lang): Course {
+  const isMathTopic = /\b(math|mathematics|algebra|geometry|arithmetic)\b/i.test(topic);
   const titles =
-    lang === "ru"
+    isMathTopic && lang === "ru"
       ? [
-          `Основы темы: ${topic}`,
-          "Ключевые термины и идеи",
-          "Как устроена тема шаг за шагом",
-          "Типичные ошибки и заблуждения",
-          "Практические примеры",
-          "Связи между главными понятиями",
-          "Решение базовых задач",
-          "Решение более сложных задач",
-          "Как проверять своё понимание",
-          "Итоговое повторение и следующий шаг",
+          "Пропорции, проценты и дроби",
+          "Быстрый счёт и оценка результата",
+          "Алгебраическое мышление и неизвестные",
+          "Геометрия площади, объёма и пространства",
+          "Степени, масштабирование и рост",
+          "Вероятность, шансы и риск",
+          "Средние значения, медианы и графики",
+          "Логика, условия и таблицы истинности",
+          "Финансовая математика: проценты и кредиты",
+          "Стратегии решения сложных задач",
         ]
-      : [
-          `Foundations of ${topic}`,
-          "Key terms and core ideas",
-          "How the topic works step by step",
-          "Common mistakes and misconceptions",
-          "Practical examples",
-          "How the main ideas connect",
-          "Solving basic problems",
-          "Solving harder problems",
-          "How to check your understanding",
-          "Final review and next steps",
-        ];
+      : isMathTopic
+        ? [
+            "Mastering Proportions, Percentages, Ratios, and Fractions",
+            "Mental Math Shortcuts for Estimation and Scaling",
+            "Algebraic Thinking and Solving for Unknowns",
+            "Geometry of Area, Volume, and Space",
+            "Exponents, Scaling, Growth, and Large Numbers",
+            "Probability, Odds, Risk, and Expected Outcomes",
+            "Reading Data with Averages, Medians, and Graphs",
+            "Logic, Conditions, and Truth Tables",
+            "Financial Math with Interest, Loans, and Inflation",
+            "Problem-Solving Frameworks for Unfamiliar Problems",
+          ]
+        : lang === "ru"
+          ? [
+              `Основы темы: ${topic}`,
+              "Ключевые термины и идеи",
+              "Как устроена тема шаг за шагом",
+              "Типичные ошибки и заблуждения",
+              "Практические примеры",
+              "Связи между главными понятиями",
+              "Решение базовых задач",
+              "Решение более сложных задач",
+              "Как проверять своё понимание",
+              "Итоговое повторение и следующий шаг",
+            ]
+          : [
+              `Foundations of ${topic}`,
+              "Key terms and core ideas",
+              "How the topic works step by step",
+              "Common mistakes and misconceptions",
+              "Practical examples",
+              "How the main ideas connect",
+              "Solving basic problems",
+              "Solving harder problems",
+              "How to check your understanding",
+              "Final review and next steps",
+            ];
 
   return {
     course_title: lang === "ru" ? `Курс по теме: ${topic}` : `Course on ${topic}`,
@@ -795,6 +936,7 @@ function fallbackLesson(data: {
           : "A good answer includes a definition, an example, and a connection to the topic.",
       },
     ],
+    checkpoint_question: fallbackCheckpointQuestion(data),
     has_problems: true,
   };
 }
@@ -825,8 +967,13 @@ Return ONLY valid JSON with this exact schema:
 }
 
 Rules:
-- Return EXACTLY 10 lessons, numbered 1-10, progressing from basics to advanced.
-- Each title is short (under 80 chars), specific, and descriptive.
+- Return EXACTLY 10 lessons, numbered 1-10.
+- Build a clear progression: lessons 1-3 are foundations, lessons 4-6 are intermediate tools, lessons 7-9 are applied or advanced subtopics, lesson 10 integrates the course.
+- Every lesson MUST teach a different subtopic. Do not make ten lessons that all explain the same idea with different wording.
+- If the topic is broad, split it into concrete subdomains. For math, examples of distinct subtopics are proportions, mental math, algebra, geometry, exponents, probability, data, logic, financial math, and problem-solving frameworks.
+- Each title must name the exact subtopic and skill, not just a generic phrase like "Introduction" or "Advanced Concepts".
+- Each title is short (under 90 chars), specific, and descriptive.
+- Use the student's wrong questions only to choose emphasis; do not let every lesson become about the same pre-test mistake.
 - Do NOT include explanations, terms, formulas, or problems — TITLES ONLY.
 - ${langInstruction(data.language)}`;
     try {
@@ -904,16 +1051,23 @@ Return ONLY valid JSON with this exact schema:
   "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
   "real_life_examples": ["example 1", "example 2"],
   "practice_problems": [{ "problem": "...", "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."], "final_answer": "..." }],
+  "checkpoint_question": { "id": ${data.lessonNumber}, "type": "multiple_choice", "question": "...", "options": ["...", "...", "...", "..."], "correct_answer": "...", "explanation": "..." },
   "has_problems": true
 }
 
 Rules:
-- Stay focused on THIS lesson's scope; do not duplicate other lessons.
+- Stay focused on THIS lesson's subtopic: "${data.lessonTitle}".
+- Use the full course outline to avoid repetition. Do not reteach earlier or later lessons except for one short connection sentence when useful.
+- Make the lesson progressively appropriate: early lessons should be simple and concrete, middle lessons should add tools and patterns, later lessons should combine ideas and use more complex examples.
+- Structure the explanation with Markdown headings or bold labels such as: Core idea, Why it matters, How to use it, Common mistake, Quick check.
+- Teach the specific skill named in the lesson title. Do not drift back to the general topic unless it directly supports this lesson.
 - Include 2-4 key terms, 0-3 formulas (empty for conceptual topics), 2 real-life examples, 1-2 practice problems.
+- Add exactly one checkpoint_question that tests only this lesson's subtopic. It must be multiple choice with exactly 4 options. The correct_answer must exactly match one option.
+- If the student answers the checkpoint wrong, the app may ask for another checkpoint, so make the question clear and focused.
 - For each formula, include variables and a worked_example written in Markdown. Use numbered steps for worked examples.
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
 - Use Markdown formatting inside explanation, formula explanations, worked_example, practice problem text, steps, and final_answer.
-- For math, use inline Markdown math like $5x^4$ or code spans when clearer.
+- For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
 - Do not write long unformatted sequences like "First... Next... Now..." as one paragraph; use Markdown numbered lists or bullets instead.
 - ${langInstruction(data.language)}`;
     try {
@@ -931,9 +1085,84 @@ Rules:
       });
       const lesson = wrapped?.lessons?.[0];
       if (!lesson) throw new Error("Invalid lesson response");
+      if (!lesson.checkpoint_question) {
+        lesson.checkpoint_question = fallbackCheckpointQuestion(data);
+      }
       return { lesson };
     } catch (error) {
       console.error(`generateCourseLesson(${data.lessonNumber}) failed:`, error);
       return { lesson: fallbackLesson(data) };
+    }
+  });
+
+export const generateLessonCheckpoint = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      topic: string;
+      lessonNumber: number;
+      lessonTitle: string;
+      explanation?: string;
+      terms?: { term: string; definition: string }[];
+      language?: string;
+    }) => {
+      if (!input?.topic?.trim()) throw new Error("Topic required");
+      const n = Number(input.lessonNumber);
+      if (!Number.isFinite(n) || n < 1 || n > 10) throw new Error("Invalid lesson number");
+      return {
+        topic: input.topic.slice(0, 2000),
+        lessonNumber: Math.floor(n),
+        lessonTitle: String(input.lessonTitle || "").slice(0, 200),
+        explanation: String(input.explanation || "").slice(0, 2500),
+        terms: Array.isArray(input.terms)
+          ? input.terms
+              .filter(
+                (term) =>
+                  term && typeof term.term === "string" && typeof term.definition === "string",
+              )
+              .slice(0, 6)
+          : [],
+        language: normLang(input.language),
+      };
+    },
+  )
+  .handler(async ({ data }): Promise<{ question: LessonCheckpointQuestion; error?: string }> => {
+    const terms = data.terms.length
+      ? data.terms.map((term) => `- ${term.term}: ${term.definition}`).join("\n")
+      : "(use the lesson title and explanation)";
+    const prompt = `Create ONE new checkpoint question for lesson ${data.lessonNumber} of "${data.topic}".
+
+Lesson title: "${data.lessonTitle}"
+
+Lesson explanation:
+${data.explanation || "(not provided)"}
+
+Key terms:
+${terms}
+
+Return ONLY valid JSON:
+{ "question": "...", "options": ["...", "...", "...", "..."], "correct_answer": "...", "explanation": "..." }
+
+Rules:
+- Test only this lesson's subtopic, not the whole course.
+- Use exactly 4 plausible multiple-choice options.
+- correct_answer must exactly match one option.
+- Make the new question different from the obvious first question a student may have just missed.
+- For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
+- ${langInstruction(data.language)}`;
+    try {
+      const raw = await callGroqJson({
+        prompt,
+        temperature: 0.75,
+        maxTokens: 900,
+        timeoutMs: 20000,
+        retryCount: 1,
+        queued: false,
+      });
+      const question = sanitizeCheckpointQuestion(raw, data.lessonNumber);
+      if (!question) throw new Error("Invalid checkpoint response");
+      return { question };
+    } catch (error) {
+      console.error(`generateLessonCheckpoint(${data.lessonNumber}) failed:`, error);
+      return { question: fallbackCheckpointQuestion(data) };
     }
   });

@@ -30,6 +30,7 @@ export interface HistoryLessonConcept {
 export interface HistoryFlashcard {
   term: string;
   definition: string;
+  format_version?: string;
   simple_definition?: string;
   expanded_explanation?: string;
   how_it_works?: string;

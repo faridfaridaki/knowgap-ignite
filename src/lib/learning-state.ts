@@ -17,6 +17,7 @@ export interface LessonConcept {
 export interface Flashcard {
   term: string;
   definition: string;
+  format_version?: string;
   simple_definition?: string;
   expanded_explanation?: string;
   how_it_works?: string;
@@ -41,6 +42,9 @@ export interface CoursePracticeProblem {
   solution_steps?: string;
   answer?: string;
 }
+export interface LessonCheckpointQuestion extends QuizQuestion {
+  type: "multiple_choice";
+}
 export interface CourseLesson {
   lesson_number: number;
   title: string;
@@ -49,6 +53,7 @@ export interface CourseLesson {
   formulas: CourseFormula[];
   real_life_examples: string[];
   practice_problems: CoursePracticeProblem[];
+  checkpoint_question?: LessonCheckpointQuestion;
   has_problems: boolean;
 }
 export interface Course {

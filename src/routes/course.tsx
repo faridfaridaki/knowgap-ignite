@@ -6,7 +6,11 @@ import { AppHeader } from "@/components/AppHeader";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
 import { MarkdownText } from "@/components/MarkdownText";
-import { generateCourse, generateCourseLesson } from "@/lib/learning.functions";
+import {
+  generateCourse,
+  generateCourseLesson,
+  generateLessonCheckpoint,
+} from "@/lib/learning.functions";
 import { loadState, patchState, isAnswerCorrect } from "@/lib/learning-state";
 import type {
   Course,
@@ -26,6 +30,7 @@ function CoursePage() {
   const { t, lang, hydrated } = useT();
   const generate = useServerFn(generateCourse);
   const generateOneLesson = useServerFn(generateCourseLesson);
+  const generateCheckpoint = useServerFn(generateLessonCheckpoint);
   const [state, setState] = useState<LearningState | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLesson, setCurrentLesson] = useState(1);
@@ -189,6 +194,37 @@ function CoursePage() {
     }
   };
 
+  const refreshCheckpoint = useCallback(
+    async (targetLesson: CourseLesson) => {
+      const topic = stateRef.current?.topic;
+      if (!topic) return targetLesson.checkpoint_question;
+      const res = await generateCheckpoint({
+        data: {
+          topic,
+          lessonNumber: targetLesson.lesson_number,
+          lessonTitle: targetLesson.title,
+          explanation: targetLesson.explanation,
+          terms: targetLesson.terms,
+          language: langRef.current,
+        },
+      });
+      const question = res.question;
+      setCourse((prev) => {
+        if (!prev) return prev;
+        const lessons = prev.lessons.map((l) =>
+          l.lesson_number === targetLesson.lesson_number
+            ? { ...l, checkpoint_question: question }
+            : l,
+        );
+        const next = { ...prev, lessons };
+        patchState({ course: next });
+        return next;
+      });
+      return question;
+    },
+    [generateCheckpoint],
+  );
+
   const lessonReady = !!lesson && lesson.explanation.trim().length > 0;
   const isLessonLoading = !!lesson && !lessonReady && lessonLoading === lesson.lesson_number;
 
@@ -292,6 +328,7 @@ function CoursePage() {
                   onPrev={() => openLesson(lesson.lesson_number - 1)}
                   onNext={() => openLesson(lesson.lesson_number + 1)}
                   onComplete={markComplete}
+                  onRefreshCheckpoint={refreshCheckpoint}
                   isCompleted={isDone(lesson.lesson_number)}
                   allDone={allDone}
                   onFinalTest={() => navigate({ to: "/flashcards" })}
@@ -335,6 +372,7 @@ function LessonView({
   onPrev,
   onNext,
   onComplete,
+  onRefreshCheckpoint,
   isCompleted,
   allDone,
   onFinalTest,
@@ -344,6 +382,7 @@ function LessonView({
   onPrev: () => void;
   onNext: () => void;
   onComplete: () => void;
+  onRefreshCheckpoint: (lesson: CourseLesson) => Promise<unknown>;
   isCompleted: boolean;
   allDone: boolean;
   onFinalTest: () => void;
@@ -460,6 +499,13 @@ function LessonView({
         </Section>
       )}
 
+      <LessonCheckpoint
+        lesson={lesson}
+        isCompleted={isCompleted}
+        onComplete={onComplete}
+        onRefreshCheckpoint={onRefreshCheckpoint}
+      />
+
       <div className="mt-8 flex flex-col items-stretch justify-between gap-3 sm:mt-10 sm:flex-row sm:items-center">
         <button
           type="button"
@@ -472,9 +518,9 @@ function LessonView({
 
         <button
           type="button"
-          onClick={onComplete}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white sm:py-2.5 ${
-            isCompleted ? "bg-emerald-600 hover:bg-emerald-600/90" : ""
+          disabled
+          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed sm:py-2.5 ${
+            isCompleted ? "bg-emerald-600" : "opacity-70"
           }`}
           style={
             isCompleted
@@ -483,7 +529,7 @@ function LessonView({
           }
         >
           <CheckCircle2 size={16} />
-          {isCompleted ? t("completedBtn") : t("markComplete")}
+          {isCompleted ? t("completedBtn") : t("lessonCheckpoint")}
         </button>
 
         {isLast && allDone ? (
@@ -499,7 +545,7 @@ function LessonView({
           <button
             type="button"
             onClick={onNext}
-            disabled={isLast}
+            disabled={isLast || !isCompleted}
             className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-background/40 px-5 py-3 text-sm font-medium text-foreground hover:bg-background/60 disabled:cursor-not-allowed disabled:opacity-40 sm:py-2.5"
           >
             {t("nextLesson")} <ChevronRight size={16} />
@@ -507,6 +553,152 @@ function LessonView({
         )}
       </div>
     </article>
+  );
+}
+
+function LessonCheckpoint({
+  lesson,
+  isCompleted,
+  onComplete,
+  onRefreshCheckpoint,
+}: {
+  lesson: CourseLesson;
+  isCompleted: boolean;
+  onComplete: () => void;
+  onRefreshCheckpoint: (lesson: CourseLesson) => Promise<unknown>;
+}) {
+  const { t } = useT();
+  const question = lesson.checkpoint_question;
+  const [selected, setSelected] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [tone, setTone] = useState<"neutral" | "ok" | "wrong">("neutral");
+  const [loading, setLoading] = useState(false);
+  const requestedMissingQuestion = useRef(false);
+
+  useEffect(() => {
+    setSelected("");
+    setMessage(null);
+    setTone("neutral");
+    setLoading(false);
+    requestedMissingQuestion.current = false;
+  }, [lesson.lesson_number, question?.question]);
+
+  useEffect(() => {
+    if (question || isCompleted || requestedMissingQuestion.current) return;
+    requestedMissingQuestion.current = true;
+    let cancelled = false;
+    setLoading(true);
+    onRefreshCheckpoint(lesson).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isCompleted, lesson, onRefreshCheckpoint, question]);
+
+  if (!question) {
+    return (
+      <Section title={t("lessonCheckpoint")}>
+        <div className="rounded-xl border border-surface-border bg-background/40 p-4">
+          <p className="text-sm text-muted-foreground">{t("checkpointIntro")}</p>
+          <p className="mt-3 text-xs text-muted-foreground">{t("generatingNewQuestion")}</p>
+        </div>
+      </Section>
+    );
+  }
+
+  const checkAnswer = async () => {
+    if (isCompleted) return;
+    if (!selected) {
+      setTone("wrong");
+      setMessage(t("chooseAnswer"));
+      return;
+    }
+    if (isAnswerCorrect(question, selected)) {
+      setTone("ok");
+      setMessage(t("correctCheckpoint"));
+      onComplete();
+      return;
+    }
+    setTone("wrong");
+    setMessage(t("wrongCheckpoint"));
+    setSelected("");
+    setLoading(true);
+    try {
+      await onRefreshCheckpoint(lesson);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Section title={t("lessonCheckpoint")}>
+      <div className="rounded-xl border border-[#7C6AF7]/30 bg-[#7C6AF7]/[0.06] p-4">
+        <p className="text-xs font-medium text-muted-foreground">{t("checkpointIntro")}</p>
+        <MarkdownText
+          text={question.question}
+          className="mt-3 text-[15px] font-semibold leading-relaxed text-foreground"
+        />
+        <div className="mt-4 grid gap-2">
+          {(question.options ?? []).map((option) => {
+            const active = selected === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  if (isCompleted || loading) return;
+                  setSelected(option);
+                  setMessage(null);
+                  setTone("neutral");
+                }}
+                disabled={isCompleted || loading}
+                className={`rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${
+                  active
+                    ? "border-[#7C6AF7] bg-[#7C6AF7]/20 text-foreground"
+                    : "border-surface-border bg-background/40 text-foreground hover:border-[#7C6AF7]/50"
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+        {message && (
+          <p
+            className={`mt-3 text-sm font-medium ${
+              tone === "ok"
+                ? "text-emerald-300"
+                : tone === "wrong"
+                  ? "text-amber-300"
+                  : "text-muted-foreground"
+            }`}
+          >
+            {message}
+          </p>
+        )}
+        {loading && (
+          <p className="mt-2 text-xs text-muted-foreground">{t("generatingNewQuestion")}</p>
+        )}
+        {isCompleted && question.explanation && (
+          <MarkdownText
+            text={question.explanation}
+            className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] p-3 text-sm leading-relaxed text-foreground"
+          />
+        )}
+        {!isCompleted && (
+          <button
+            type="button"
+            onClick={checkAnswer}
+            disabled={loading}
+            className="mt-4 inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
+          >
+            {t("checkAnswer")}
+          </button>
+        )}
+      </div>
+    </Section>
   );
 }
 

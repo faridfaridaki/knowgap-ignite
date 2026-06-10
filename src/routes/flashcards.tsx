@@ -15,6 +15,8 @@ export const Route = createFileRoute("/flashcards")({
   component: FlashcardsPage,
 });
 
+const FLASHCARD_FORMAT_VERSION = "topic-rich-v2";
+
 function shuffleArr<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -29,7 +31,8 @@ function hasRichBack(card: Flashcard): boolean {
     card.simple_definition?.trim() &&
     card.expanded_explanation?.trim() &&
     card.how_it_works?.trim() &&
-    card.example?.trim(),
+    card.example?.trim() &&
+    card.format_version === FLASHCARD_FORMAT_VERSION,
   );
 }
 
