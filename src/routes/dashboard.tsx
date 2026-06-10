@@ -12,12 +12,18 @@ import {
 } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
 import { AuthGuard } from "@/components/AuthGuard";
+import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { loadHistory, formatDate, type HistorySession } from "@/lib/history";
 import { fetchConversationsForUser } from "@/lib/history-db";
 import { formatScore } from "@/lib/learning-state";
+
+const INITIAL_SECTION_ITEMS = 4;
+const SECTION_INCREMENT = 2;
+const MAX_VISIBLE_COURSES = 8;
+const MAX_VISIBLE_COMPACT_SECTION = 6;
 
 interface DashboardRow extends HistorySession {
   courseLessonsTotal: number;
@@ -32,12 +38,17 @@ export const Route = createFileRoute("/dashboard")({
       { name: "description", content: "Your KnowGap learning dashboard." },
     ],
   }),
-  component: () => (
-    <AuthGuard>
+  component: DashboardRoute,
+});
+
+function DashboardRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard loadingTitle={t("loadingDashboard")} loadingSubtitle={t("loadingDashboardSub")}>
       <DashboardPage />
     </AuthGuard>
-  ),
-});
+  );
+}
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -46,6 +57,9 @@ function DashboardPage() {
   const [sessions, setSessions] = useState<DashboardRow[]>([]);
   const [displayName, setDisplayName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [visibleCoursesCount, setVisibleCoursesCount] = useState(INITIAL_SECTION_ITEMS);
+  const [visibleActivityCount, setVisibleActivityCount] = useState(INITIAL_SECTION_ITEMS);
+  const [visibleFocusCount, setVisibleFocusCount] = useState(INITIAL_SECTION_ITEMS);
 
   // Load profile name
   useEffect(() => {
@@ -63,6 +77,7 @@ function DashboardPage() {
   // Load sessions + raw course data for progress
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     void (async () => {
       if (user) {
         const rows = await fetchConversationsForUser(user.id);
@@ -101,6 +116,17 @@ function DashboardPage() {
     };
   }, [user]);
 
+  useEffect(() => {
+    setVisibleCoursesCount(INITIAL_SECTION_ITEMS);
+    setVisibleActivityCount(INITIAL_SECTION_ITEMS);
+    setVisibleFocusCount(INITIAL_SECTION_ITEMS);
+  }, [sessions.length]);
+
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((a, b) => +new Date(b.date) - +new Date(a.date)),
+    [sessions],
+  );
+
   const stats = useMemo(() => {
     const completed = sessions.filter((s) => s.finalTest).length;
     const lessonsDone = sessions.reduce((acc, s) => acc + s.courseLessonsDone, 0);
@@ -131,9 +157,9 @@ function DashboardPage() {
   const suggestedTopics = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
-    for (const s of sessions) {
+    for (const s of sortedSessions) {
       for (const tp of s.suggestedTopics ?? []) {
-        if (!seen.has(tp) && !sessions.some((sx) => sx.topic === tp)) {
+        if (!seen.has(tp) && !sortedSessions.some((sx) => sx.topic === tp)) {
           seen.add(tp);
           out.push(tp);
           if (out.length >= 4) break;
@@ -142,17 +168,45 @@ function DashboardPage() {
       if (out.length >= 4) break;
     }
     return out;
-  }, [sessions]);
+  }, [sortedSessions]);
 
   const recentActivity = useMemo(() => {
     type Activity = { date: string; kind: "scored" | "started"; session: DashboardRow };
     const list: Activity[] = [];
-    for (const s of sessions) {
+    for (const s of sortedSessions) {
       if (s.finalTest) list.push({ date: s.date, kind: "scored", session: s });
       else list.push({ date: s.date, kind: "started", session: s });
     }
-    return list.sort((a, b) => +new Date(b.date) - +new Date(a.date)).slice(0, 8);
-  }, [sessions]);
+    return list
+      .sort((a, b) => +new Date(b.date) - +new Date(a.date))
+      .slice(0, MAX_VISIBLE_COMPACT_SECTION);
+  }, [sortedSessions]);
+
+  const visibleCoursesLimit = Math.min(sortedSessions.length, MAX_VISIBLE_COURSES);
+  const visibleCourses = sortedSessions.slice(0, visibleCoursesCount);
+  const canShowMoreCourses = visibleCoursesCount < visibleCoursesLimit;
+  const visibleRecentActivity = recentActivity.slice(0, visibleActivityCount);
+  const canShowMoreActivity =
+    visibleActivityCount < Math.min(recentActivity.length, MAX_VISIBLE_COMPACT_SECTION);
+  const visibleKnowledgeGaps = knowledgeGaps.slice(0, visibleFocusCount);
+  const canShowMoreFocus =
+    visibleFocusCount < Math.min(knowledgeGaps.length, MAX_VISIBLE_COMPACT_SECTION);
+
+  const showMoreCourses = () => {
+    setVisibleCoursesCount((count) => Math.min(count + SECTION_INCREMENT, visibleCoursesLimit));
+  };
+
+  const showMoreActivity = () => {
+    setVisibleActivityCount((count) =>
+      Math.min(count + SECTION_INCREMENT, MAX_VISIBLE_COMPACT_SECTION),
+    );
+  };
+
+  const showMoreFocus = () => {
+    setVisibleFocusCount((count) =>
+      Math.min(count + SECTION_INCREMENT, MAX_VISIBLE_COMPACT_SECTION),
+    );
+  };
 
   const startTopic = (topic: string) => {
     try {
@@ -161,6 +215,10 @@ function DashboardPage() {
     } catch {}
     navigate({ to: "/pretest" });
   };
+
+  if (loading) {
+    return <FullScreenLoader title={t("loadingDashboard")} subtitle={t("loadingDashboardSub")} />;
+  }
 
   return (
     <main className="min-h-screen w-full bg-background px-6 py-10 relative animate-fade-in">
@@ -193,9 +251,7 @@ function DashboardPage() {
         {/* My Courses */}
         <section className="mt-10">
           <h2 className="text-lg font-semibold text-foreground mb-4">{t("myCourses")}</h2>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">…</p>
-          ) : sessions.length === 0 ? (
+          {sortedSessions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-surface-border p-8 text-center">
               <p className="text-sm text-muted-foreground">{t("noCoursesYet")}</p>
               <Link
@@ -207,97 +263,102 @@ function DashboardPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {sessions.map((s) => {
-                const preTotal = s.preTest?.total ?? s.preTest?.questions.length ?? 0;
-                const finalTotal = s.finalTest?.total ?? s.finalTest?.questions.length ?? 0;
-                const finalPct = finalTotal
-                  ? Math.round(((s.finalTest?.score ?? 0) / finalTotal) * 100)
-                  : 0;
-                const progressPct = s.courseLessonsTotal
-                  ? Math.round((s.courseLessonsDone / s.courseLessonsTotal) * 100)
-                  : 0;
-                return (
-                  <div
-                    key={s.id}
-                    className="rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-5 transition-all hover:border-[#7C6AF7]/40"
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <h3 className="truncate text-base font-semibold text-foreground">
-                        {s.topic}
-                      </h3>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatDate(s.date)}
-                      </span>
-                    </div>
-
-                    {(preTotal > 0 || finalTotal > 0) && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        {preTotal > 0 && (
-                          <span className="rounded-full border border-surface-border bg-background/40 px-2.5 py-1 text-foreground">
-                            {t("preTest")} {formatScore(s.preTest!.score)}/{preTotal}
-                          </span>
-                        )}
-                        <ArrowRight size={12} className="text-muted-foreground" />
-                        {finalTotal > 0 && (
-                          <span className="rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-2.5 py-1 text-[#7C6AF7] font-medium">
-                            {t("finalTest")} {formatScore(s.finalTest!.score)}/{finalTotal} (
-                            {finalPct}%)
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                        <span>{t("progress")}</span>
-                        <span className="tabular-nums">
-                          {s.courseLessonsDone}/{s.courseLessonsTotal}
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {visibleCourses.map((s) => {
+                  const preTotal = s.preTest?.total ?? s.preTest?.questions.length ?? 0;
+                  const finalTotal = s.finalTest?.total ?? s.finalTest?.questions.length ?? 0;
+                  const finalPct = finalTotal
+                    ? Math.round(((s.finalTest?.score ?? 0) / finalTotal) * 100)
+                    : 0;
+                  const progressPct = s.courseLessonsTotal
+                    ? Math.round((s.courseLessonsDone / s.courseLessonsTotal) * 100)
+                    : 0;
+                  return (
+                    <div
+                      key={s.id}
+                      className="rounded-2xl border border-surface-border bg-surface/60 backdrop-blur-sm p-5 transition-all hover:border-[#7C6AF7]/40"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h3 className="truncate text-base font-semibold text-foreground">
+                          {s.topic}
+                        </h3>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatDate(s.date)}
                         </span>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${progressPct}%`,
-                            backgroundImage: "linear-gradient(90deg, #7C6AF7, #4FC4CF)",
-                          }}
-                        />
-                      </div>
-                    </div>
 
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      {(preTotal > 0 || finalTotal > 0) && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                          {preTotal > 0 && (
+                            <span className="rounded-full border border-surface-border bg-background/40 px-2.5 py-1 text-foreground">
+                              {t("preTest")} {formatScore(s.preTest!.score)}/{preTotal}
+                            </span>
+                          )}
+                          <ArrowRight size={12} className="text-muted-foreground" />
+                          {finalTotal > 0 && (
+                            <span className="rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-2.5 py-1 text-[#7C6AF7] font-medium">
+                              {t("finalTest")} {formatScore(s.finalTest!.score)}/{finalTotal} (
+                              {finalPct}%)
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                          <span>{t("progress")}</span>
+                          <span className="tabular-nums">
+                            {s.courseLessonsDone}/{s.courseLessonsTotal}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${progressPct}%`,
+                              backgroundImage: "linear-gradient(90deg, #7C6AF7, #4FC4CF)",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <Link
+                          to="/saved-course/$id"
+                          params={{ id: s.id }}
+                          className={`text-center rounded-lg px-3 py-2 text-xs font-semibold text-white ${
+                            s.hasSavedCourse ? "" : "pointer-events-none opacity-50"
+                          }`}
+                          style={{
+                            backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)",
+                          }}
+                        >
+                          {t("viewCourse")}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => startTopic(s.topic)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-background/40 px-3 py-2 text-xs font-medium text-foreground hover:bg-background/60"
+                        >
+                          <RotateCw size={12} /> {t("retakeCourse")}
+                        </button>
+                      </div>
                       <Link
-                        to="/saved-course/$id"
+                        to="/final-analysis/$id"
                         params={{ id: s.id }}
-                        className={`text-center rounded-lg px-3 py-2 text-xs font-semibold text-white ${
-                          s.hasSavedCourse ? "" : "pointer-events-none opacity-50"
-                        }`}
-                        style={{
-                          backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)",
-                        }}
+                        className="mt-2 inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                       >
-                        {t("viewCourse")}
+                        {t("viewFullAnalysis")}
                       </Link>
-                      <button
-                        type="button"
-                        onClick={() => startTopic(s.topic)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border bg-background/40 px-3 py-2 text-xs font-medium text-foreground hover:bg-background/60"
-                      >
-                        <RotateCw size={12} /> {t("retakeCourse")}
-                      </button>
                     </div>
-                    <Link
-                      to="/final-analysis/$id"
-                      params={{ id: s.id }}
-                      className="mt-2 inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                    >
-                      {t("viewFullAnalysis")}
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+              {canShowMoreCourses && (
+                <ViewMoreButton label={t("viewMore")} onClick={showMoreCourses} />
+              )}
+            </>
           )}
         </section>
 
@@ -306,7 +367,7 @@ function DashboardPage() {
           <section className="mt-10">
             <h2 className="text-lg font-semibold text-foreground mb-4">{t("recentActivity")}</h2>
             <ul className="space-y-2">
-              {recentActivity.map((a, i) => (
+              {visibleRecentActivity.map((a, i) => (
                 <li
                   key={i}
                   className="flex items-start gap-3 rounded-xl border border-surface-border bg-surface/40 p-3"
@@ -327,6 +388,9 @@ function DashboardPage() {
                 </li>
               ))}
             </ul>
+            {canShowMoreActivity && (
+              <ViewMoreButton label={t("viewMore")} onClick={showMoreActivity} />
+            )}
           </section>
         )}
 
@@ -339,7 +403,7 @@ function DashboardPage() {
                 <h2 className="text-lg font-semibold text-foreground">{t("focusAreas")}</h2>
                 <p className="text-xs text-muted-foreground mt-1">{t("focusAreasSub")}</p>
                 <ul className="mt-4 space-y-2">
-                  {knowledgeGaps.map((g, i) => (
+                  {visibleKnowledgeGaps.map((g, i) => (
                     <li
                       key={i}
                       className="rounded-lg border border-red-500/25 bg-red-500/[0.05] px-3 py-2 text-sm text-foreground flex items-center justify-between gap-3"
@@ -353,6 +417,9 @@ function DashboardPage() {
                     </li>
                   ))}
                 </ul>
+                {canShowMoreFocus && (
+                  <ViewMoreButton label={t("viewMore")} onClick={showMoreFocus} />
+                )}
               </div>
             </div>
           </section>
@@ -381,6 +448,20 @@ function DashboardPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function ViewMoreButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <div className="mt-4 flex justify-center">
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-lg border border-surface-border bg-surface px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface/70"
+      >
+        {label}
+      </button>
+    </div>
   );
 }
 

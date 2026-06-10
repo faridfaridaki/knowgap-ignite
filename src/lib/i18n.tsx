@@ -120,6 +120,8 @@ const dict = {
 
     // Dashboard
     welcomeBack: "Welcome back",
+    loadingDashboard: "Loading your dashboard...",
+    loadingDashboardSub: "Pulling in your saved courses, activity, and focus areas.",
     coursesCompleted: "Courses completed",
     lessonsDone: "Lessons done",
     avgImprovement: "Avg. improvement",
@@ -138,6 +140,7 @@ const dict = {
     suggestedForYou: "Suggested topics",
     noCoursesYet: "No courses yet. Start one below.",
     progress: "Progress",
+    viewMore: "View more",
 
     // Auth
     welcomeBackTitle: "Welcome back",
@@ -267,6 +270,8 @@ const dict = {
     restartTopic: "Пройти заново →",
 
     welcomeBack: "С возвращением",
+    loadingDashboard: "Загружаем панель...",
+    loadingDashboardSub: "Подтягиваем сохранённые курсы, активность и слабые места.",
     coursesCompleted: "Курсов пройдено",
     lessonsDone: "Уроков сделано",
     avgImprovement: "Средний прогресс",
@@ -285,6 +290,7 @@ const dict = {
     suggestedForYou: "Рекомендуемые темы",
     noCoursesYet: "Пока нет курсов. Начни первый ниже.",
     progress: "Прогресс",
+    viewMore: "Показать ещё",
 
     welcomeBackTitle: "С возвращением",
     createAccount: "Создать аккаунт",

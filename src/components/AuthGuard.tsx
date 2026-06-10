@@ -1,8 +1,17 @@
 import { useEffect, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
+import { FullScreenLoader } from "@/components/FullScreenLoader";
 
-export function AuthGuard({ children }: { children: ReactNode }) {
+export function AuthGuard({
+  children,
+  loadingTitle = "Loading...",
+  loadingSubtitle,
+}: {
+  children: ReactNode;
+  loadingTitle?: string;
+  loadingSubtitle?: string;
+}) {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -11,11 +20,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   }, [user, loading, navigate]);
 
   if (loading || !user) {
-    return (
-      <main className="min-h-screen w-full bg-background flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </main>
-    );
+    return <FullScreenLoader title={loadingTitle} subtitle={loadingSubtitle} />;
   }
   return <>{children}</>;
 }
