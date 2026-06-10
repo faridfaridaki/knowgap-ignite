@@ -45,7 +45,7 @@ interface FlashcardSource {
 }
 
 const FLASHCARD_FORMAT_VERSION = "topic-rich-v2";
-const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v4";
+const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v5";
 const GENERIC_FLASHCARD_TERMS = new Set([
   "word",
   "definition",
@@ -68,6 +68,20 @@ function shuffleOptions(options: string[]): string[] {
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function uniqueOptionStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    const key = normalizeKey(trimmed);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
 }
 
 function uniqueFlashcards(cards: Flashcard[]): Flashcard[] {
@@ -649,17 +663,51 @@ function sanitizeCheckpointQuestion(raw: any, id: number): LessonCheckpointQuest
   if (!q || typeof q.question !== "string" || typeof q.correct_answer !== "string") {
     return undefined;
   }
+  const correct = q.correct_answer.trim();
   const options = Array.isArray(q.options)
-    ? q.options.filter((o: any) => typeof o === "string").slice(0, 4)
+    ? uniqueOptionStrings(q.options.filter((o: any) => typeof o === "string")).slice(0, 4)
     : [];
-  if (options.length !== 4 || !options.includes(q.correct_answer)) return undefined;
+  if (options.length !== 4 || !options.includes(correct)) return undefined;
   return {
     id,
     type: "multiple_choice",
-    question: q.question,
+    question: q.question.trim(),
     options: shuffleOptions(options),
-    correct_answer: q.correct_answer,
+    correct_answer: correct,
     explanation: typeof q.explanation === "string" ? q.explanation : "",
+  };
+}
+
+function makeCheckpointQuestion(
+  data: { lessonNumber: number; language: Lang },
+  question: string,
+  correct: string,
+  wrong: string[],
+  explanation: string,
+): LessonCheckpointQuestion {
+  const isRu = data.language === "ru";
+  const correctAnswer = correct.trim();
+  const fillOptions = isRu
+    ? [
+        "Использовать только название урока без проверки примера",
+        "Выбрать первый знакомый вариант",
+        "Игнорировать детали ситуации",
+        "Взять правило из другого урока",
+      ]
+    : [
+        "Use only the lesson title without checking the example",
+        "Choose the first familiar option",
+        "Ignore the details in the situation",
+        "Use a rule from a different lesson",
+      ];
+  const options = uniqueOptionStrings([correctAnswer, ...wrong, ...fillOptions]).slice(0, 4);
+  return {
+    id: data.lessonNumber,
+    type: "multiple_choice",
+    question: question.trim(),
+    options: shuffleOptions(options),
+    correct_answer: correctAnswer,
+    explanation: explanation.trim(),
   };
 }
 
@@ -670,33 +718,83 @@ function fallbackMathCheckpointQuestion(data: {
   language: Lang;
 }): LessonCheckpointQuestion {
   const isRu = data.language === "ru";
-  if (isRu) {
-    const correct = "5 стаканов";
-    return {
-      id: data.lessonNumber,
-      type: "multiple_choice",
-      question:
-        "Рецепт использует 3 стакана риса на 6 человек. Сколько стаканов нужно на 10 человек?",
-      options: shuffleOptions([correct, "4 стакана", "6 стаканов", "9 стаканов"]),
-      correct_answer: correct,
-      explanation: "Пропорция 3/6 = x/10 даёт 6x = 30, значит x = 5.",
-    };
-  }
-
   const title = normalizeKey(data.lessonTitle);
   const make = (
     question: string,
     correct: string,
     wrong: string[],
     explanation: string,
-  ): LessonCheckpointQuestion => ({
-    id: data.lessonNumber,
-    type: "multiple_choice",
-    question,
-    options: shuffleOptions([correct, ...wrong]),
-    correct_answer: correct,
-    explanation,
-  });
+  ): LessonCheckpointQuestion =>
+    makeCheckpointQuestion(data, question, correct, wrong, explanation);
+
+  if (isRu) {
+    const ruMathFallbacks = [
+      {
+        question:
+          "Рецепт использует 3 стакана риса на 6 человек. Сколько стаканов нужно на 10 человек?",
+        correct: "5 стаканов",
+        wrong: ["4 стакана", "6 стаканов", "9 стаканов"],
+        explanation: "Пропорция 3/6 = x/10 даёт 6x = 30, значит x = 5.",
+      },
+      {
+        question: "Какой лучший быстрый примерный ответ для 19 × 51?",
+        correct: "Около 1 000",
+        wrong: ["Около 100", "Около 500", "Около 2 000"],
+        explanation: "19 ≈ 20 и 51 ≈ 50, поэтому 20 × 50 = 1 000.",
+      },
+      {
+        question: "Реши уравнение: 3x + 6 = 24.",
+        correct: "x = 6",
+        wrong: ["x = 5", "x = 8", "x = 10"],
+        explanation: "Сначала вычитаем 6: 3x = 18. Затем делим на 3: x = 6.",
+      },
+      {
+        question: "Прямоугольник имеет длину 8 м и ширину 5 м. Чему равна площадь?",
+        correct: "40 м²",
+        wrong: ["13 м²", "26 м²", "80 м²"],
+        explanation: "Площадь прямоугольника равна длина × ширина, то есть 8 × 5 = 40.",
+      },
+      {
+        question: "Чему равно 2³?",
+        correct: "8",
+        wrong: ["5", "6", "9"],
+        explanation: "2³ означает 2 × 2 × 2, что равно 8.",
+      },
+      {
+        question: "В мешке 3 красных и 7 синих шаров. Какова вероятность выбрать красный шар?",
+        correct: "3/10",
+        wrong: ["3/7", "7/10", "1/3"],
+        explanation: "Всего 10 шаров, из них 3 красных, поэтому вероятность равна 3/10.",
+      },
+      {
+        question: "Найди медиану чисел 4, 9, 2, 11 и 7.",
+        correct: "7",
+        wrong: ["4", "6.6", "9"],
+        explanation: "В порядке возрастания: 2, 4, 7, 9, 11. Среднее число — 7.",
+      },
+      {
+        question:
+          "Правило: доступ разрешён, если возраст больше 18 И пропуск = да. Возраст 20, пропуск = нет. Доступ разрешён?",
+        correct: "Нет",
+        wrong: ["Да", "Только если возраст 21", "Только если пропуск может быть"],
+        explanation: "Для И оба условия должны быть истинными, но пропуск не равен «да».",
+      },
+      {
+        question: "Какой простой процент за год получится от 10% на сумму $200?",
+        correct: "$20",
+        wrong: ["$10", "$30", "$40"],
+        explanation: "Простой процент: 200 × 0.10 = 20.",
+      },
+      {
+        question: "Задача имеет 4 шага, и на каждом шаге есть 3 варианта. Сколько всего путей?",
+        correct: "81",
+        wrong: ["12", "64", "27"],
+        explanation: "Перемножаем варианты: 3 × 3 × 3 × 3 = 81.",
+      },
+    ];
+    const fallback = ruMathFallbacks[(data.lessonNumber - 1) % ruMathFallbacks.length];
+    return make(fallback.question, fallback.correct, fallback.wrong, fallback.explanation);
+  }
 
   if (/(proportion|percentage|ratio|fraction)/i.test(title)) {
     return make(
@@ -765,12 +863,75 @@ function fallbackMathCheckpointQuestion(data: {
       "The age condition is true, but pass = yes is false. AND needs both conditions true.",
     );
   }
-  return make(
-    "A problem takes 4 steps, and each step has 3 possible choices. How many total paths are possible?",
-    "81",
-    ["12", "64", "27"],
-    "Multiply the choices for each step: 3 × 3 × 3 × 3 = 81.",
-  );
+  const defaultMathFallbacks = [
+    {
+      question:
+        "A recipe uses 3 cups of rice for 6 people. At the same rate, how many cups are needed for 10 people?",
+      correct: "5 cups",
+      wrong: ["4 cups", "6 cups", "9 cups"],
+      explanation: "Set 3/6 = x/10, then cross-multiply: 6x = 30, so x = 5.",
+    },
+    {
+      question: "Estimate 19 × 51 by rounding to nearby friendly numbers. Which estimate is best?",
+      correct: "About 1,000",
+      wrong: ["About 100", "About 500", "About 2,000"],
+      explanation: "Round 19 to 20 and 51 to 50, then calculate 20 × 50 = 1,000.",
+    },
+    {
+      question: "Solve for x: 3x + 6 = 24.",
+      correct: "x = 6",
+      wrong: ["x = 5", "x = 8", "x = 10"],
+      explanation: "Subtract 6 from both sides to get 3x = 18, then divide by 3.",
+    },
+    {
+      question: "A rectangle is 8 meters long and 5 meters wide. What is its area?",
+      correct: "40 square meters",
+      wrong: ["13 square meters", "26 square meters", "80 square meters"],
+      explanation: "Rectangle area is length × width, so 8 × 5 = 40.",
+    },
+    {
+      question: "What is 2³?",
+      correct: "8",
+      wrong: ["5", "6", "9"],
+      explanation: "2³ means 2 × 2 × 2, which equals 8.",
+    },
+    {
+      question:
+        "A bag has 3 red marbles and 7 blue marbles. What is the probability of picking a red marble?",
+      correct: "3/10",
+      wrong: ["3/7", "7/10", "1/3"],
+      explanation: "There are 10 total marbles and 3 are red, so the probability is 3/10.",
+    },
+    {
+      question: "What is the median of 4, 9, 2, 11, and 7?",
+      correct: "7",
+      wrong: ["4", "6.6", "9"],
+      explanation: "Order the numbers as 2, 4, 7, 9, 11. The middle value is 7.",
+    },
+    {
+      question:
+        "A rule says: access is allowed if age > 18 AND pass = yes. Age is 20 and pass = no. Is access allowed?",
+      correct: "No",
+      wrong: ["Yes", "Only if age is 21", "Only if pass is maybe"],
+      explanation:
+        "The age condition is true, but pass = yes is false. AND needs both conditions true.",
+    },
+    {
+      question: "What is 10% simple interest on $200 for one year?",
+      correct: "$20",
+      wrong: ["$10", "$30", "$40"],
+      explanation: "Simple interest is principal × rate, so 200 × 0.10 = 20.",
+    },
+    {
+      question:
+        "A problem takes 4 steps, and each step has 3 possible choices. How many total paths are possible?",
+      correct: "81",
+      wrong: ["12", "64", "27"],
+      explanation: "Multiply the choices for each step: 3 × 3 × 3 × 3 = 81.",
+    },
+  ];
+  const fallback = defaultMathFallbacks[(data.lessonNumber - 1) % defaultMathFallbacks.length];
+  return make(fallback.question, fallback.correct, fallback.wrong, fallback.explanation);
 }
 
 function fallbackCheckpointQuestion(data: {
@@ -783,35 +944,238 @@ function fallbackCheckpointQuestion(data: {
     return fallbackMathCheckpointQuestion(data);
   }
   const isRu = data.language === "ru";
-  const correct = isRu
-    ? "Выбрать конкретный пример, применить правило урока и проверить результат"
-    : "Choose a concrete example, apply the lesson rule, and check the result";
-  return {
-    id: data.lessonNumber,
-    type: "multiple_choice",
-    question: isRu
-      ? `Какое действие лучше всего применяет урок "${data.lessonTitle}" на практике?`
-      : `Which action best applies the lesson "${data.lessonTitle}" in practice?`,
-    options: shuffleOptions(
-      isRu
-        ? [
-            correct,
-            "Запомнить только название темы",
-            "Пропустить пример и перейти дальше",
-            "Выбрать ответ без проверки причины",
-          ]
-        : [
-            correct,
-            "Only memorize the topic title",
-            "Skip the example and move on",
-            "Pick an answer without checking the reason",
+  const topic = data.topic || (isRu ? "темы" : "the topic");
+  const title =
+    data.lessonTitle || (isRu ? `Урок ${data.lessonNumber}` : `Lesson ${data.lessonNumber}`);
+  const templates = isRu
+    ? [
+        {
+          question: `Ученик начинает задание по уроку "${title}" в теме "${topic}". Какой первый шаг самый сильный?`,
+          correct: `Назвать конкретный случай и правило из урока "${title}", которое к нему подходит`,
+          wrong: [
+            `Дать общий пересказ темы "${topic}" и остановиться`,
+            "Выбрать самый длинный вариант ответа",
+            "Начать с правила из другого урока",
           ],
-    ),
-    correct_answer: correct,
-    explanation: isRu
-      ? "Практическое применение требует конкретного примера, правила и проверки результата."
-      : "Practical application needs a concrete example, a rule, and a check of the result.",
-  };
+          explanation:
+            "Сильный ответ начинается с конкретного случая и применимого правила, а не с общего пересказа.",
+        },
+        {
+          question: `В примере есть две детали, которые помогают применить "${title}". Какой ответ лучше использует доказательства?`,
+          correct: "Указать обе важные детали и связать их с критерием урока",
+          wrong: [
+            "Упомянуть одну деталь без объяснения",
+            "Игнорировать детали и опираться на интуицию",
+            "Повторить название урока как ответ",
+          ],
+          explanation:
+            "Доказательство работает только тогда, когда детали связаны с правилом или критерием.",
+        },
+        {
+          question: `Кто-то применяет "${title}", но пропускает порядок действий. Что нужно добавить?`,
+          correct: "Пошаговый метод и проверку каждого шага на примере",
+          wrong: [
+            "Более длинное определение без примера",
+            "Ответ без объяснения процесса",
+            "Список несвязанных фактов",
+          ],
+          explanation:
+            "Урок проверяет применение метода, поэтому нужен порядок действий и проверка.",
+        },
+        {
+          question: `Нужно классифицировать пример из темы "${topic}" по уроку "${title}". Какой подход правильный?`,
+          correct: "Сравнить признаки примера с признаками категории из урока",
+          wrong: [
+            "Выбрать категорию по первому слову в примере",
+            "Определить категорию по личному мнению",
+            "Не смотреть на признаки примера",
+          ],
+          explanation: "Классификация требует признаков, а не догадки по названию.",
+        },
+        {
+          question: `Даны два возможных ответа по уроку "${title}". Как выбрать более сильный?`,
+          correct: "Проверить оба ответа по одинаковым критериям и выбрать лучше подтверждённый",
+          wrong: [
+            "Выбрать ответ, который звучит увереннее",
+            "Выбрать первый ответ без сравнения",
+            "Сравнивать ответы по разным правилам",
+          ],
+          explanation:
+            "Честное сравнение использует одинаковые критерии и смотрит на подтверждение.",
+        },
+        {
+          question: `В решении по "${title}" есть ошибка. Что лучше всего её исправляет?`,
+          correct: "Найти неверный шаг, объяснить почему он слабый и заменить его правилом урока",
+          wrong: [
+            "Оставить ошибку, если итог звучит красиво",
+            "Удалить весь пример без исправления",
+            "Добавить новый термин вместо проверки",
+          ],
+          explanation:
+            "Исправление должно найти причину ошибки и заменить её правильным применением.",
+        },
+        {
+          question: `Появился новый случай по теме "${topic}". Как применить "${title}" к новой ситуации?`,
+          correct: "Найти похожий шаблон, применить правило и проверить вывод по фактам",
+          wrong: [
+            "Считать, что новый случай решается случайно",
+            "Использовать старый ответ без изменений",
+            "Смотреть только на название темы",
+          ],
+          explanation:
+            "Перенос навыка требует распознать шаблон и проверить, подходит ли правило к фактам.",
+        },
+        {
+          question: `Нужно оценить утверждение по уроку "${title}". Что следует сделать перед выбором ответа?`,
+          correct: "Отделить факты от интерпретации и проверить, что вывод следует из фактов",
+          wrong: [
+            "Считать любую интерпретацию фактом",
+            "Выбрать самый эмоциональный вариант",
+            "Пропустить проверку доказательств",
+          ],
+          explanation:
+            "Оценка утверждений требует отделять факты от интерпретации и проверять вывод.",
+        },
+        {
+          question: `Как лучше использовать чеклист из урока "${title}"?`,
+          correct: "Проверить ответ по каждому пункту и найти недостающие доказательства",
+          wrong: [
+            "Прочитать чеклист один раз и не применять его",
+            "Использовать только последний пункт",
+            "Заменить доказательства уверенностью",
+          ],
+          explanation: "Чеклист полезен только тогда, когда каждый пункт реально проверяет ответ.",
+        },
+        {
+          question: `Финальная задача объединяет "${title}" с темой "${topic}". Какой ответ самый полный?`,
+          correct: "Объединить главные идеи курса и подтвердить вывод конкретными деталями",
+          wrong: [
+            "Назвать только один термин без применения",
+            "Сделать общий вывод без деталей",
+            "Использовать пример, не связанный с темой",
+          ],
+          explanation:
+            "Финальный ответ должен объединять идеи и доказывать вывод конкретными деталями.",
+        },
+      ]
+    : [
+        {
+          question: `A student starts a task about "${title}" in "${topic}". What is the strongest first move?`,
+          correct: `Name the concrete case, then state the "${title}" rule that fits it`,
+          wrong: [
+            `Give a broad summary of "${topic}" and stop there`,
+            "Choose the longest answer because it sounds detailed",
+            "Start with a rule from a different lesson",
+          ],
+          explanation:
+            "A strong answer starts with the specific case and the matching lesson rule.",
+        },
+        {
+          question: `An example contains two details that support "${title}". Which response uses evidence best?`,
+          correct: "Point to both relevant details and connect them to the lesson criterion",
+          wrong: [
+            "Mention one detail without explaining why it matters",
+            "Ignore the details and rely on intuition",
+            "Repeat the lesson title as the answer",
+          ],
+          explanation:
+            "Evidence works only when the details are connected to the rule or criterion.",
+        },
+        {
+          question: `Someone applies "${title}" but skips the method. What should they add?`,
+          correct: "The ordered steps and a check of each step against the example",
+          wrong: [
+            "A longer definition without an example",
+            "An answer with no process explanation",
+            "A list of unrelated facts",
+          ],
+          explanation: "The checkpoint tests applying the method, so the steps and checks matter.",
+        },
+        {
+          question: `You need to classify an example from "${topic}" using "${title}". What is the right approach?`,
+          correct: "Compare the example's features with the category features from the lesson",
+          wrong: [
+            "Choose the category based on the first word in the example",
+            "Classify it by personal opinion",
+            "Ignore the example's specific features",
+          ],
+          explanation: "Classification requires matching features, not guessing from a label.",
+        },
+        {
+          question: `You have two possible answers for "${title}". How should you choose the stronger one?`,
+          correct:
+            "Test both answers against the same criteria and choose the better-supported one",
+          wrong: [
+            "Choose the answer that sounds more confident",
+            "Pick the first answer without comparing",
+            "Use different rules for each answer",
+          ],
+          explanation:
+            "A fair comparison uses the same criteria and checks which answer has stronger support.",
+        },
+        {
+          question: `A solution for "${title}" contains a mistake. What best fixes it?`,
+          correct: "Find the wrong step, explain why it fails, and replace it with the lesson rule",
+          wrong: [
+            "Keep the mistake if the conclusion sounds good",
+            "Delete the whole example without correcting it",
+            "Add a new term instead of checking the reasoning",
+          ],
+          explanation:
+            "A real correction identifies the weak step and replaces it with the correct application.",
+        },
+        {
+          question: `A new case appears in "${topic}". How should "${title}" be applied to it?`,
+          correct: "Find the matching pattern, apply the rule, and verify the result with facts",
+          wrong: [
+            "Treat the new case as random",
+            "Reuse an old answer without changing anything",
+            "Look only at the topic title",
+          ],
+          explanation:
+            "Transfer means recognizing the pattern and checking whether the rule fits the facts.",
+        },
+        {
+          question: `You need to evaluate a claim using "${title}". What should happen before choosing?`,
+          correct: "Separate facts from interpretation and check whether the conclusion follows",
+          wrong: [
+            "Treat every interpretation as a fact",
+            "Choose the most emotional option",
+            "Skip the evidence check",
+          ],
+          explanation:
+            "Evaluating a claim requires separating facts from interpretation before deciding.",
+        },
+        {
+          question: `What is the best way to use the checklist from "${title}"?`,
+          correct: "Check the answer against every item and identify missing evidence",
+          wrong: [
+            "Read the checklist once without applying it",
+            "Use only the final item",
+            "Replace evidence with confidence",
+          ],
+          explanation: "A checklist works only when each item actively tests the answer.",
+        },
+        {
+          question: `A final task combines "${title}" with the wider topic "${topic}". Which answer is most complete?`,
+          correct: "Combine the course ideas and defend the conclusion with concrete details",
+          wrong: [
+            "Name one term without applying it",
+            "Make a broad conclusion with no details",
+            "Use an example unrelated to the topic",
+          ],
+          explanation:
+            "A final answer should connect the ideas and prove the conclusion with specific details.",
+        },
+      ];
+  const template = templates[(data.lessonNumber - 1) % templates.length];
+  return makeCheckpointQuestion(
+    data,
+    template.question,
+    template.correct,
+    template.wrong,
+    template.explanation,
+  );
 }
 
 function sanitizeCourse(raw: any): Course | null {
@@ -1831,6 +2195,24 @@ function hasPracticalLessonStructure(explanation: string): boolean {
   );
 }
 
+function isGenericCheckpointQuestion(question: LessonCheckpointQuestion | undefined): boolean {
+  if (!question) return true;
+  const text =
+    `${question.question} ${question.correct_answer} ${question.options?.join(" ") ?? ""}`
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  return [
+    "choose a concrete example, apply the lesson rule, and check the result",
+    "only memorize the topic title",
+    "skip the example and move on",
+    "pick an answer without checking the reason",
+    "выбрать конкретный пример, применить правило урока и проверить результат",
+    "запомнить только название темы",
+    "пропустить пример и перейти дальше",
+    "выбрать ответ без проверки причины",
+  ].some((phrase) => text.includes(phrase));
+}
+
 function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
   if (!isMathTopic(`${topic} ${lesson.title}`)) return false;
   const practiceText = lesson.practice_problems
@@ -1856,6 +2238,7 @@ function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
     return true;
   }
   if (!lesson.checkpoint_question || !hasMathSignal(checkpointText)) return true;
+  if (isGenericCheckpointQuestion(lesson.checkpoint_question)) return true;
   return forbiddenSoftPrompt.test(`${practiceText} ${checkpointText}`);
 }
 
@@ -1884,6 +2267,7 @@ function isWeakPracticalLesson(lesson: CourseLesson, topic: string): boolean {
     return true;
   }
   if (!lesson.checkpoint_question) return true;
+  if (isGenericCheckpointQuestion(lesson.checkpoint_question)) return true;
   return forbiddenSoftPrompt.test(`${practiceText} ${checkpointText}`);
 }
 
@@ -2173,8 +2557,11 @@ Rules:
 - Include 1-3 formulas for math or formula-based subjects. For non-formula subjects, formulas may be empty, but the explanation must still include concrete rules, criteria, or steps.
 - Put practice problem solutions only in the steps and final_answer fields, not inside the explanation. The UI hides those answers.
 - Add exactly one checkpoint_question that tests only this lesson's subtopic. It must be multiple choice with exactly 4 options. The correct_answer must exactly match one option.
+- The checkpoint question, correct answer, and 3 wrong answers must be unique to this lesson's subtopic. Do not reuse generic option wording across lessons.
+- Never use generic checkpoint options such as "Choose a concrete example, apply the lesson rule, and check the result", "Only memorize the topic title", "Skip the example and move on", or "Pick an answer without checking the reason".
 - For math checkpoints, ask the student to calculate, simplify, choose the correct equation, interpret a numerical result, or identify the correct next step in a calculation.
 - For non-math checkpoints, ask the student to apply the lesson skill to a concrete scenario, example, text, claim, case, or decision.
+- For non-math checkpoints, every answer option must describe a specific action or conclusion tied to "${data.lessonTitle}", not a generic study habit.
 - If the student answers the checkpoint wrong, the app may ask for another checkpoint, so make the question clear and focused.
 - For each formula, include variables and a worked_example written in Markdown. Use numbered steps for worked examples.
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
@@ -2263,11 +2650,14 @@ Rules:
 - Test only this lesson's subtopic, not the whole course.
 - Use exactly 4 plausible multiple-choice options.
 - correct_answer must exactly match one option.
+- The question, correct answer, and 3 wrong answers must be unique to this lesson's subtopic. Do not reuse generic answer wording from other lessons.
+- Never use generic options such as "Choose a concrete example, apply the lesson rule, and check the result", "Only memorize the topic title", "Skip the example and move on", or "Pick an answer without checking the reason".
 - Do not test whether the student can define learning, understanding, or the lesson title. Test the actual lesson skill.
 - For math lessons, use a numerical calculation, equation, formula application, graph/data interpretation, or next-step-in-solution question.
 - For math lessons, include enough numbers in the question so there is one objectively correct answer.
 - For non-math lessons, use a concrete scenario, short text, claim, case, term, timeline, process, or decision and ask the student to apply the lesson skill.
 - The correct answer must require using the lesson's rule, method, criteria, or process, not just recognizing a definition.
+- For non-math lessons, every option must describe a specific action or conclusion tied to "${data.lessonTitle}", not a generic study habit.
 - Make the new question different from the obvious first question a student may have just missed.
 - For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
 - ${langInstruction(data.language)}`;
@@ -2282,6 +2672,7 @@ Rules:
       });
       const question = sanitizeCheckpointQuestion(raw, data.lessonNumber);
       if (!question) throw new Error("Invalid checkpoint response");
+      if (isGenericCheckpointQuestion(question)) throw new Error("Generic checkpoint response");
       return { question };
     } catch (error) {
       console.error(`generateLessonCheckpoint(${data.lessonNumber}) failed:`, error);

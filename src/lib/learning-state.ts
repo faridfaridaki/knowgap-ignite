@@ -80,7 +80,7 @@ export interface LearningState {
   currentLesson: number;
 }
 
-export const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v4";
+export const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v5";
 
 const KEY = "knowgap:state";
 
