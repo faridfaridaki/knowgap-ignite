@@ -45,6 +45,7 @@ interface FlashcardSource {
 }
 
 const FLASHCARD_FORMAT_VERSION = "topic-rich-v2";
+const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v3";
 const GENERIC_FLASHCARD_TERMS = new Set([
   "word",
   "definition",
@@ -140,6 +141,12 @@ function isTopicSpecificFlashcard(card: Flashcard, topic: string): boolean {
     return false;
   }
   return true;
+}
+
+function isMathTopic(value: string): boolean {
+  return /\b(math|mathematics|algebra|geometry|arithmetic|calculus|statistics|probability|fraction|ratio|percentage)\b/i.test(
+    value,
+  );
 }
 
 function sanitizeQuestions(raw: any): QuizQuestion[] {
@@ -623,6 +630,7 @@ interface LessonCheckpointQuestion extends QuizQuestion {
 interface CourseLesson {
   lesson_number: number;
   title: string;
+  format_version?: string;
   explanation: string;
   terms: { term: string; definition: string }[];
   formulas: CourseFormula[];
@@ -655,12 +663,117 @@ function sanitizeCheckpointQuestion(raw: any, id: number): LessonCheckpointQuest
   };
 }
 
+function fallbackMathCheckpointQuestion(data: {
+  topic: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  language: Lang;
+}): LessonCheckpointQuestion {
+  const isRu = data.language === "ru";
+  if (isRu) {
+    const correct = "5 стаканов";
+    return {
+      id: data.lessonNumber,
+      type: "multiple_choice",
+      question:
+        "Рецепт использует 3 стакана риса на 6 человек. Сколько стаканов нужно на 10 человек?",
+      options: shuffleOptions([correct, "4 стакана", "6 стаканов", "9 стаканов"]),
+      correct_answer: correct,
+      explanation: "Пропорция 3/6 = x/10 даёт 6x = 30, значит x = 5.",
+    };
+  }
+
+  const title = normalizeKey(data.lessonTitle);
+  const make = (
+    question: string,
+    correct: string,
+    wrong: string[],
+    explanation: string,
+  ): LessonCheckpointQuestion => ({
+    id: data.lessonNumber,
+    type: "multiple_choice",
+    question,
+    options: shuffleOptions([correct, ...wrong]),
+    correct_answer: correct,
+    explanation,
+  });
+
+  if (/(proportion|percentage|ratio|fraction)/i.test(title)) {
+    return make(
+      "A recipe uses 3 cups of rice for 6 people. At the same rate, how many cups are needed for 10 people?",
+      "5 cups",
+      ["4 cups", "6 cups", "9 cups"],
+      "Set 3/6 = x/10, then cross-multiply: 6x = 30, so x = 5.",
+    );
+  }
+  if (/(mental|estimation|scaling)/i.test(title)) {
+    return make(
+      "Estimate 19 × 51 by rounding to nearby friendly numbers. Which estimate is best?",
+      "About 1,000",
+      ["About 100", "About 500", "About 2,000"],
+      "Round 19 to 20 and 51 to 50, then calculate 20 × 50 = 1,000.",
+    );
+  }
+  if (/(algebra|unknown|variable|equation)/i.test(title)) {
+    return make(
+      "Solve for x: 3x + 6 = 24.",
+      "x = 6",
+      ["x = 5", "x = 8", "x = 10"],
+      "Subtract 6 from both sides to get 3x = 18, then divide by 3.",
+    );
+  }
+  if (/(geometry|area|volume|space)/i.test(title)) {
+    return make(
+      "A rectangle is 8 meters long and 5 meters wide. What is its area?",
+      "40 square meters",
+      ["13 square meters", "26 square meters", "80 square meters"],
+      "Rectangle area is length × width, so 8 × 5 = 40.",
+    );
+  }
+  if (/(exponent|scaling|growth)/i.test(title)) {
+    return make("What is 2³?", "8", ["5", "6", "9"], "2³ means 2 × 2 × 2, which equals 8.");
+  }
+  if (/(probability|odds|risk)/i.test(title)) {
+    return make(
+      "A bag has 3 red marbles and 7 blue marbles. What is the probability of picking a red marble?",
+      "3/10",
+      ["3/7", "7/10", "1/3"],
+      "There are 10 total marbles and 3 are red, so the probability is 3/10.",
+    );
+  }
+  if (/(data|average|median|graph)/i.test(title)) {
+    return make(
+      "What is the median of 4, 9, 2, 11, and 7?",
+      "7",
+      ["4", "6.6", "9"],
+      "Order the numbers as 2, 4, 7, 9, 11. The middle value is 7.",
+    );
+  }
+  if (/(financial|interest|loan|inflation)/i.test(title)) {
+    return make(
+      "What is 10% simple interest on $200 for one year?",
+      "$20",
+      ["$10", "$30", "$40"],
+      "Simple interest is principal × rate, so 200 × 0.10 = 20.",
+    );
+  }
+  return make(
+    "A problem takes 4 steps, and each step has 3 possible choices. How many total paths are possible?",
+    "81",
+    ["12", "64", "27"],
+    "Multiply the choices for each step: 3 × 3 × 3 × 3 = 81.",
+  );
+}
+
 function fallbackCheckpointQuestion(data: {
   topic: string;
   lessonNumber: number;
   lessonTitle: string;
   language: Lang;
 }): LessonCheckpointQuestion {
+  if (isMathTopic(`${data.topic} ${data.lessonTitle}`)) {
+    return fallbackMathCheckpointQuestion(data);
+  }
   const isRu = data.language === "ru";
   const correct = isRu
     ? `Объяснить "${data.lessonTitle}" и применить его к теме "${data.topic}"`
@@ -753,6 +866,7 @@ function sanitizeCourse(raw: any): Course | null {
       return {
         lesson_number: typeof l.lesson_number === "number" ? l.lesson_number : i + 1,
         title: l.title,
+        format_version: l.explanation?.trim() ? COURSE_LESSON_FORMAT_VERSION : undefined,
         explanation: l.explanation,
         terms,
         formulas,
@@ -771,6 +885,7 @@ function emptyLesson(n: number, title: string): CourseLesson {
   return {
     lesson_number: n,
     title,
+    format_version: undefined,
     explanation: "",
     terms: [],
     formulas: [],
@@ -782,9 +897,9 @@ function emptyLesson(n: number, title: string): CourseLesson {
 }
 
 function fallbackCourse(topic: string, lang: Lang): Course {
-  const isMathTopic = /\b(math|mathematics|algebra|geometry|arithmetic)\b/i.test(topic);
+  const mathTopic = isMathTopic(topic);
   const titles =
-    isMathTopic && lang === "ru"
+    mathTopic && lang === "ru"
       ? [
           "Пропорции, проценты и дроби",
           "Быстрый счёт и оценка результата",
@@ -797,7 +912,7 @@ function fallbackCourse(topic: string, lang: Lang): Course {
           "Финансовая математика: проценты и кредиты",
           "Стратегии решения сложных задач",
         ]
-      : isMathTopic
+      : mathTopic
         ? [
             "Mastering Proportions, Percentages, Ratios, and Fractions",
             "Mental Math Shortcuts for Estimation and Scaling",
@@ -842,6 +957,229 @@ function fallbackCourse(topic: string, lang: Lang): Course {
   };
 }
 
+function fallbackMathLesson(data: {
+  topic: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  allTitles: string[];
+  wrongQuestions: string[];
+  language: Lang;
+}): CourseLesson | null {
+  if (data.language === "ru") return null;
+
+  const title =
+    data.lessonTitle || (data.lessonNumber === 1 ? "Mastering Proportions and Fractions" : "Math");
+  const normalizedTitle = normalizeKey(title);
+
+  if (data.lessonNumber === 1 || /(proportion|percentage|ratio|fraction)/i.test(normalizedTitle)) {
+    return {
+      lesson_number: data.lessonNumber,
+      title,
+      format_version: COURSE_LESSON_FORMAT_VERSION,
+      explanation: [
+        "## The Core Concept",
+        "A fraction shows part of a whole, like 3/4 meaning 3 equal parts out of 4. A ratio compares two quantities, like 2:3 meaning 2 of one thing for every 3 of another thing. A proportion says two fractions or ratios are equal.",
+        "The key rule is cross-multiplication: if a/b = c/d, then a × d = b × c. A percentage is a fraction out of 100, so 25% = 25/100 = 1/4.",
+        "## The Real-Life Anchor",
+        "Imagine a pancake recipe uses 2 cups of flour for 8 pancakes. If you want 20 pancakes, guessing can waste ingredients. A proportion keeps the recipe relationship the same while scaling it up.",
+        "## Step-by-Step Walkthrough",
+        "Problem: 2 cups of flour make 8 pancakes. How many cups make 20 pancakes?",
+        "1. Write the matching ratios: 2/8 = x/20.",
+        "2. Cross-multiply: 2 × 20 = 8 × x.",
+        "3. Simplify: 40 = 8x.",
+        "4. Divide both sides by 8: x = 5.",
+        "Answer: you need 5 cups of flour.",
+        "## Practice Before Answers",
+        "Try the practice problems below before opening the answers. They are numerical, and each one uses the same proportional reasoning in a slightly harder way.",
+      ].join("\n\n"),
+      terms: [
+        {
+          term: "Fraction",
+          definition: "A number that shows part of a whole, written as numerator/denominator.",
+        },
+        {
+          term: "Ratio",
+          definition: "A comparison between two quantities, such as 2:3 or 2/3.",
+        },
+        {
+          term: "Proportion",
+          definition: "An equation showing that two ratios or fractions are equal.",
+        },
+        {
+          term: "Percentage",
+          definition: "A fraction out of 100, such as 40% = 40/100.",
+        },
+      ],
+      formulas: [
+        {
+          formula: "a/b = c/d → a × d = b × c",
+          variables: [{ symbol: "a, b, c, d", meaning: "The four numbers in two equal ratios" }],
+          worked_example: "3/6 = x/10 → 3 × 10 = 6x → 30 = 6x → x = 5.",
+          explanation:
+            "Cross-multiplication lets you solve for a missing value when two ratios are equal.",
+        },
+        {
+          formula: "p% of total = p/100 × total",
+          variables: [
+            { symbol: "p", meaning: "The percentage number" },
+            { symbol: "total", meaning: "The whole amount you are taking a percent of" },
+          ],
+          worked_example: "25% of 80 = 25/100 × 80 = 20.",
+          explanation: "Convert the percent into a fraction out of 100, then multiply.",
+        },
+      ],
+      real_life_examples: [
+        "Cooking: scale 2 cups of flour for 8 pancakes up to 20 pancakes without changing the recipe balance.",
+        "Shopping: calculate a 25% discount on an $80 shirt by turning 25% into 25/100 and multiplying.",
+      ],
+      practice_problems: [
+        {
+          problem:
+            "Easy: A recipe uses 3 cups of rice to serve 6 people. How many cups are needed for 10 people?",
+          steps: [
+            "Set up the proportion: 3/6 = x/10.",
+            "Cross-multiply: 3 × 10 = 6x.",
+            "Simplify: 30 = 6x.",
+            "Divide by 6: x = 5.",
+          ],
+          final_answer: "5 cups of rice.",
+        },
+        {
+          problem:
+            "Medium: A jacket costs $120 and is discounted by 30%. How much is the discount, and what is the final price?",
+          steps: [
+            "Convert 30% to 30/100.",
+            "Find the discount: 30/100 × 120 = 36.",
+            "Subtract from the original price: 120 - 36 = 84.",
+          ],
+          final_answer: "$36 discount, final price $84.",
+        },
+        {
+          problem:
+            "Hard: A car travels 180 miles using 6 gallons of gas. At the same rate, how many gallons are needed for 450 miles?",
+          steps: [
+            "Set up miles per gallon as a proportion: 180/6 = 450/x.",
+            "Cross-multiply: 180x = 6 × 450.",
+            "Simplify: 180x = 2700.",
+            "Divide by 180: x = 15.",
+          ],
+          final_answer: "15 gallons.",
+        },
+      ],
+      checkpoint_question: fallbackMathCheckpointQuestion(data),
+      has_problems: true,
+    };
+  }
+
+  const checkpoint = fallbackMathCheckpointQuestion(data);
+  return {
+    lesson_number: data.lessonNumber,
+    title,
+    format_version: COURSE_LESSON_FORMAT_VERSION,
+    explanation: [
+      "## The Core Concept",
+      `This lesson teaches "${title}" as a practical math skill, not as a vocabulary topic. The goal is to identify the known values, choose the correct rule, calculate carefully, and check whether the answer makes sense.`,
+      "## The Real-Life Anchor",
+      "Picture a real decision with numbers: planning a budget, measuring a room, comparing risk, or checking whether a deal is actually good. The math matters because it turns a guess into a testable answer.",
+      "## Step-by-Step Walkthrough",
+      "Problem: A value changes from 40 to 50. What is the percent increase?",
+      "1. Find the change: 50 - 40 = 10.",
+      "2. Divide by the original value: 10/40 = 0.25.",
+      "3. Convert to a percent: 0.25 × 100 = 25%.",
+      "Answer: the value increased by 25%.",
+      "## Practice Before Answers",
+      "Use the same habit for each problem: write the known values, choose the rule, calculate, then check the result.",
+    ].join("\n\n"),
+    terms: [
+      { term: "Known value", definition: "A number given directly in the problem." },
+      { term: "Unknown value", definition: "The number you need to calculate." },
+      { term: "Equation", definition: "A mathematical statement that two expressions are equal." },
+    ],
+    formulas: [
+      {
+        formula: "percent change = change/original × 100",
+        variables: [
+          { symbol: "change", meaning: "New value minus original value" },
+          { symbol: "original", meaning: "The starting value" },
+        ],
+        worked_example: "From 40 to 50: change = 10, so 10/40 × 100 = 25%.",
+        explanation: "Percent change compares the size of the change to the starting amount.",
+      },
+    ],
+    real_life_examples: [
+      "A store raises a price from $40 to $50, so percent change tells you how large the increase really is.",
+      "A score improves from 24 to 30, so percent change compares the improvement to the original score.",
+    ],
+    practice_problems: [
+      {
+        problem: "Easy: A price rises from $20 to $25. What is the percent increase?",
+        steps: [
+          "Find the change: 25 - 20 = 5.",
+          "Divide by the original: 5/20 = 0.25.",
+          "Convert to a percent: 0.25 × 100 = 25%.",
+        ],
+        final_answer: "25% increase.",
+      },
+      {
+        problem: "Medium: A score drops from 80 to 68. What is the percent decrease?",
+        steps: [
+          "Find the change: 80 - 68 = 12.",
+          "Divide by the original: 12/80 = 0.15.",
+          "Convert to a percent: 0.15 × 100 = 15%.",
+        ],
+        final_answer: "15% decrease.",
+      },
+      {
+        problem:
+          "Hard: A business grows from 250 customers to 325 customers. What is the percent increase?",
+        steps: [
+          "Find the change: 325 - 250 = 75.",
+          "Divide by the original: 75/250 = 0.30.",
+          "Convert to a percent: 0.30 × 100 = 30%.",
+        ],
+        final_answer: "30% increase.",
+      },
+    ],
+    checkpoint_question: checkpoint,
+    has_problems: true,
+  };
+}
+
+function hasMathSignal(value: string): boolean {
+  return /[0-9=×÷+/%$²³⁴⁵⁶⁷⁸⁹]/.test(value);
+}
+
+function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
+  if (!isMathTopic(`${topic} ${lesson.title}`)) return false;
+  const explanation = lesson.explanation.toLowerCase();
+  const practiceText = lesson.practice_problems
+    .map((problem) => `${problem.problem} ${problem.steps.join(" ")} ${problem.final_answer}`)
+    .join(" ");
+  const checkpointText = `${lesson.checkpoint_question?.question ?? ""} ${
+    lesson.checkpoint_question?.correct_answer ?? ""
+  }`;
+  const forbiddenSoftPrompt =
+    /explain .*own words|in your own words|what best shows|understanding check|only memorize|skip the examples/i;
+
+  if (!explanation.includes("core concept")) return true;
+  if (!explanation.includes("real-life anchor")) return true;
+  if (!explanation.includes("step-by-step")) return true;
+  if (lesson.formulas.length === 0) return true;
+  if (lesson.practice_problems.length < 3) return true;
+  if (
+    lesson.practice_problems.some(
+      (problem) =>
+        !hasMathSignal(problem.problem) ||
+        problem.steps.length === 0 ||
+        !problem.final_answer.trim(),
+    )
+  ) {
+    return true;
+  }
+  if (!lesson.checkpoint_question || !hasMathSignal(checkpointText)) return true;
+  return forbiddenSoftPrompt.test(`${practiceText} ${checkpointText}`);
+}
+
 function fallbackLesson(data: {
   topic: string;
   lessonNumber: number;
@@ -857,9 +1195,15 @@ function fallbackLesson(data: {
   const title =
     data.lessonTitle || (isRu ? `Урок ${data.lessonNumber}` : `Lesson ${data.lessonNumber}`);
 
+  if (isMathTopic(`${data.topic} ${title}`)) {
+    const mathLesson = fallbackMathLesson(data);
+    if (mathLesson) return mathLesson;
+  }
+
   return {
     lesson_number: data.lessonNumber,
     title,
+    format_version: COURSE_LESSON_FORMAT_VERSION,
     explanation: isRu
       ? [
           `В этом уроке мы разбираем "${title}" в рамках темы "${data.topic}". Главная цель - понять идею простыми словами, а затем связать её с тем, что уже было в курсе.`,
@@ -1046,7 +1390,7 @@ Return ONLY valid JSON with this exact schema:
 {
   "lesson_number": ${data.lessonNumber},
   "title": "${data.lessonTitle}",
-  "explanation": "Markdown string. Use short paragraphs and bullet lists where useful. Simple language, one analogy, build step by step.",
+  "explanation": "Markdown string. For math, use these sections: The Core Concept, The Real-Life Anchor, Step-by-Step Walkthrough, Practice Before Answers.",
   "terms": [{ "term": "...", "definition": "..." }],
   "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
   "real_life_examples": ["example 1", "example 2"],
@@ -1056,13 +1400,24 @@ Return ONLY valid JSON with this exact schema:
 }
 
 Rules:
+- The lesson must be real educational content, not a study plan. Explain the concepts, rules, formulas, and methods directly.
+- Never generate placeholder lessons, generic templates, or repeated paragraphs that only swap the lesson title.
+- Never use fake practice problems such as "explain this in your own words" for math. Math practice must contain numbers, equations, measurements, prices, probabilities, graphs/data values, or other calculable quantities.
+- Never make the checkpoint test whether the student understands "understanding". The checkpoint must test the actual skill from this lesson.
 - Stay focused on THIS lesson's subtopic: "${data.lessonTitle}".
 - Use the full course outline to avoid repetition. Do not reteach earlier or later lessons except for one short connection sentence when useful.
 - Make the lesson progressively appropriate: early lessons should be simple and concrete, middle lessons should add tools and patterns, later lessons should combine ideas and use more complex examples.
-- Structure the explanation with Markdown headings or bold labels such as: Core idea, Why it matters, How to use it, Common mistake, Quick check.
+- Structure math lessons with these Markdown headings in this order:
+  1. The Core Concept - explain what the concept is in plain English and include the actual mathematical rules.
+  2. The Real-Life Anchor - give a concrete scenario such as cooking, scaling a business, splitting a bill, shopping, measuring, risk, or data.
+  3. Step-by-Step Walkthrough - solve one specific numerical problem and show the exact math steps.
+  4. Practice Before Answers - tell the student to try the practice problems below before opening answers.
+- For non-math lessons, still use concrete teaching sections, specific examples, and real application tasks.
 - Teach the specific skill named in the lesson title. Do not drift back to the general topic unless it directly supports this lesson.
-- Include 2-4 key terms, 0-3 formulas (empty for conceptual topics), 2 real-life examples, 1-2 practice problems.
+- Include 3-5 key terms, 1-3 formulas for math lessons (empty only for truly non-formula topics), 2 real-life examples, and 3 practice problems for math lessons from easy to hard.
+- Put practice problem solutions only in the steps and final_answer fields, not inside the explanation. The UI hides those answers.
 - Add exactly one checkpoint_question that tests only this lesson's subtopic. It must be multiple choice with exactly 4 options. The correct_answer must exactly match one option.
+- For math checkpoints, ask the student to calculate, simplify, choose the correct equation, interpret a numerical result, or identify the correct next step in a calculation.
 - If the student answers the checkpoint wrong, the app may ask for another checkpoint, so make the question clear and focused.
 - For each formula, include variables and a worked_example written in Markdown. Use numbered steps for worked examples.
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
@@ -1073,9 +1428,9 @@ Rules:
     try {
       const raw: any = await callGroqJson({
         prompt,
-        temperature: 0.7,
-        maxTokens: 3500,
-        timeoutMs: 30000,
+        temperature: 0.65,
+        maxTokens: 5000,
+        timeoutMs: 35000,
         retryCount: 1,
         queued: false,
       });
@@ -1087,6 +1442,9 @@ Rules:
       if (!lesson) throw new Error("Invalid lesson response");
       if (!lesson.checkpoint_question) {
         lesson.checkpoint_question = fallbackCheckpointQuestion(data);
+      }
+      if (isWeakMathLesson(lesson, data.topic)) {
+        throw new Error("Weak math lesson response");
       }
       return { lesson };
     } catch (error) {
@@ -1146,6 +1504,9 @@ Rules:
 - Test only this lesson's subtopic, not the whole course.
 - Use exactly 4 plausible multiple-choice options.
 - correct_answer must exactly match one option.
+- Do not test whether the student can define learning, understanding, or the lesson title. Test the actual lesson skill.
+- For math lessons, use a numerical calculation, equation, formula application, graph/data interpretation, or next-step-in-solution question.
+- For math lessons, include enough numbers in the question so there is one objectively correct answer.
 - Make the new question different from the obvious first question a student may have just missed.
 - For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
 - ${langInstruction(data.language)}`;

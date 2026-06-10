@@ -48,6 +48,7 @@ export interface LessonCheckpointQuestion extends QuizQuestion {
 export interface CourseLesson {
   lesson_number: number;
   title: string;
+  format_version?: string;
   explanation: string;
   terms: CourseTerm[];
   formulas: CourseFormula[];
@@ -78,6 +79,8 @@ export interface LearningState {
   completedLessons: number[];
   currentLesson: number;
 }
+
+export const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v3";
 
 const KEY = "knowgap:state";
 

@@ -11,7 +11,12 @@ import {
   generateCourseLesson,
   generateLessonCheckpoint,
 } from "@/lib/learning.functions";
-import { loadState, patchState, isAnswerCorrect } from "@/lib/learning-state";
+import {
+  COURSE_LESSON_FORMAT_VERSION,
+  loadState,
+  patchState,
+  isAnswerCorrect,
+} from "@/lib/learning-state";
 import type {
   Course,
   CourseLesson,
@@ -24,6 +29,14 @@ import { friendlyAiError } from "@/lib/ai-error";
 export const Route = createFileRoute("/course")({
   component: CoursePage,
 });
+
+function isPracticalLessonReady(lesson: CourseLesson | undefined): boolean {
+  return Boolean(
+    lesson &&
+    lesson.explanation.trim().length > 0 &&
+    lesson.format_version === COURSE_LESSON_FORMAT_VERSION,
+  );
+}
 
 function CoursePage() {
   const navigate = useNavigate();
@@ -71,7 +84,7 @@ function CoursePage() {
       if (!activeCourse || !topic) return;
       const target = activeCourse.lessons.find((l) => l.lesson_number === n);
       if (!target) return;
-      if (target.explanation && target.explanation.trim().length > 0) return;
+      if (isPracticalLessonReady(target)) return;
       if (lessonRequests.current.has(n)) return;
       lessonRequests.current.add(n);
       setLessonLoading((cur) => cur ?? n);
@@ -120,13 +133,22 @@ function CoursePage() {
       return;
     }
     setState(s);
-    setCompleted(s.completedLessons ?? []);
+    const savedCompleted = s.completedLessons ?? [];
+    const practicalCompleted = s.course?.lessons?.length
+      ? savedCompleted.filter((lessonNumber) =>
+          isPracticalLessonReady(s.course?.lessons.find((l) => l.lesson_number === lessonNumber)),
+        )
+      : savedCompleted;
+    setCompleted(practicalCompleted);
+    if (practicalCompleted.length !== savedCompleted.length) {
+      patchState({ completedLessons: practicalCompleted });
+    }
     const startAt = s.currentLesson || 1;
     setCurrentLesson(startAt);
     if (s.course && s.course.lessons?.length) {
       setCourse(s.course);
       const target = s.course.lessons.find((l) => l.lesson_number === startAt);
-      if (target && (!target.explanation || target.explanation.trim().length === 0)) {
+      if (!isPracticalLessonReady(target)) {
         loadLesson(startAt, s.course, s.topic);
       }
       return;
@@ -225,7 +247,7 @@ function CoursePage() {
     [generateCheckpoint],
   );
 
-  const lessonReady = !!lesson && lesson.explanation.trim().length > 0;
+  const lessonReady = isPracticalLessonReady(lesson);
   const isLessonLoading = !!lesson && !lessonReady && lessonLoading === lesson.lesson_number;
 
   if (error) {
