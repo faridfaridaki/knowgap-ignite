@@ -45,7 +45,7 @@ interface FlashcardSource {
 }
 
 const FLASHCARD_FORMAT_VERSION = "topic-rich-v2";
-const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v3";
+const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v4";
 const GENERIC_FLASHCARD_TERMS = new Set([
   "word",
   "definition",
@@ -784,33 +784,33 @@ function fallbackCheckpointQuestion(data: {
   }
   const isRu = data.language === "ru";
   const correct = isRu
-    ? `Объяснить "${data.lessonTitle}" и применить его к теме "${data.topic}"`
-    : `Explain "${data.lessonTitle}" and apply it to "${data.topic}"`;
+    ? "Выбрать конкретный пример, применить правило урока и проверить результат"
+    : "Choose a concrete example, apply the lesson rule, and check the result";
   return {
     id: data.lessonNumber,
     type: "multiple_choice",
     question: isRu
-      ? `Что лучше всего показывает понимание урока "${data.lessonTitle}"?`
-      : `What best shows that you understand the lesson "${data.lessonTitle}"?`,
+      ? `Какое действие лучше всего применяет урок "${data.lessonTitle}" на практике?`
+      : `Which action best applies the lesson "${data.lessonTitle}" in practice?`,
     options: shuffleOptions(
       isRu
         ? [
             correct,
-            "Запомнить только название урока",
-            "Пропустить примеры и перейти дальше",
-            "Выучить отдельный факт без связи с темой",
+            "Запомнить только название темы",
+            "Пропустить пример и перейти дальше",
+            "Выбрать ответ без проверки причины",
           ]
         : [
             correct,
-            "Only memorize the lesson title",
-            "Skip the examples and move on",
-            "Learn one isolated fact without connecting it to the topic",
+            "Only memorize the topic title",
+            "Skip the example and move on",
+            "Pick an answer without checking the reason",
           ],
     ),
     correct_answer: correct,
     explanation: isRu
-      ? "Понимание означает, что ты можешь объяснить идею и применить её в контексте темы."
-      : "Understanding means you can explain the idea and use it in the topic context.",
+      ? "Практическое применение требует конкретного примера, правила и проверки результата."
+      : "Practical application needs a concrete example, a rule, and a check of the result.",
   };
 }
 
@@ -935,28 +935,28 @@ function fallbackCourse(topic: string, lang: Lang): Course {
           ]
         : lang === "ru"
           ? [
-              `Основы темы: ${topic}`,
-              "Ключевые термины и идеи",
-              "Как устроена тема шаг за шагом",
-              "Типичные ошибки и заблуждения",
-              "Практические примеры",
-              "Связи между главными понятиями",
-              "Решение базовых задач",
-              "Решение более сложных задач",
-              "Как проверять своё понимание",
-              "Итоговое повторение и следующий шаг",
+              `Практические основы темы: ${topic}`,
+              "Ключевые термины и рабочие правила",
+              "Как работает главный процесс",
+              "Категории, признаки и типичные шаблоны",
+              "Разбор реального примера",
+              "Частые ошибки и как их находить",
+              "Применение правила к новым случаям",
+              "Сравнение и оценка двух решений",
+              "Практический чеклист для задач",
+              "Итоговая интеграция и применение в жизни",
             ]
           : [
-              `Foundations of ${topic}`,
-              "Key terms and core ideas",
-              "How the topic works step by step",
-              "Common mistakes and misconceptions",
-              "Practical examples",
-              "How the main ideas connect",
-              "Solving basic problems",
-              "Solving harder problems",
-              "How to check your understanding",
-              "Final review and next steps",
+              `Practical Foundations of ${topic}`,
+              "Key Terms and Working Rules",
+              "How the Main Process Works",
+              "Categories, Signals, and Patterns",
+              "Reading a Real Example",
+              "Common Mistakes and How to Catch Them",
+              "Applying the Rule to New Cases",
+              "Comparing and Evaluating Two Answers",
+              "A Practical Checklist for Tasks",
+              "Final Integration and Real-World Use",
             ];
 
   return {
@@ -1821,9 +1821,18 @@ function hasMathSignal(value: string): boolean {
   return /[0-9=×÷+/%$²³⁴⁵⁶⁷⁸⁹]/.test(value);
 }
 
+function hasPracticalLessonStructure(explanation: string): boolean {
+  const normalized = explanation.toLowerCase();
+  return (
+    (normalized.includes("core concept") || normalized.includes("главная идея")) &&
+    (normalized.includes("real-life anchor") || normalized.includes("пример из жизни")) &&
+    (normalized.includes("step-by-step") || normalized.includes("пошаг")) &&
+    (normalized.includes("practice before answers") || normalized.includes("практика"))
+  );
+}
+
 function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
   if (!isMathTopic(`${topic} ${lesson.title}`)) return false;
-  const explanation = lesson.explanation.toLowerCase();
   const practiceText = lesson.practice_problems
     .map((problem) => `${problem.problem} ${problem.steps.join(" ")} ${problem.final_answer}`)
     .join(" ");
@@ -1833,10 +1842,7 @@ function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
   const forbiddenSoftPrompt =
     /explain .*own words|in your own words|what best shows|understanding check|only memorize|skip the examples/i;
 
-  if (!explanation.includes("core concept")) return true;
-  if (!explanation.includes("real-life anchor")) return true;
-  if (!explanation.includes("step-by-step")) return true;
-  if (!explanation.includes("practice before answers")) return true;
+  if (!hasPracticalLessonStructure(lesson.explanation)) return true;
   if (lesson.formulas.length === 0) return true;
   if (lesson.practice_problems.length < 3) return true;
   if (
@@ -1853,6 +1859,34 @@ function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
   return forbiddenSoftPrompt.test(`${practiceText} ${checkpointText}`);
 }
 
+function isWeakPracticalLesson(lesson: CourseLesson, topic: string): boolean {
+  if (isWeakMathLesson(lesson, topic)) return true;
+  if (isMathTopic(`${topic} ${lesson.title}`)) return false;
+
+  const practiceText = lesson.practice_problems
+    .map((problem) => `${problem.problem} ${problem.steps.join(" ")} ${problem.final_answer}`)
+    .join(" ");
+  const checkpointText = `${lesson.checkpoint_question?.question ?? ""} ${
+    lesson.checkpoint_question?.correct_answer ?? ""
+  } ${lesson.checkpoint_question?.explanation ?? ""}`;
+  const forbiddenSoftPrompt =
+    /explain .*own words|in your own words|what best shows|understanding check|only memorize|skip the examples|learn one isolated fact/i;
+
+  if (!hasPracticalLessonStructure(lesson.explanation)) return true;
+  if (lesson.terms.length < 3) return true;
+  if (lesson.real_life_examples.length < 2) return true;
+  if (lesson.practice_problems.length < 3) return true;
+  if (
+    lesson.practice_problems.some(
+      (problem) => problem.steps.length === 0 || !problem.final_answer.trim(),
+    )
+  ) {
+    return true;
+  }
+  if (!lesson.checkpoint_question) return true;
+  return forbiddenSoftPrompt.test(`${practiceText} ${checkpointText}`);
+}
+
 function fallbackLesson(data: {
   topic: string;
   lessonNumber: number;
@@ -1862,9 +1896,6 @@ function fallbackLesson(data: {
   language: Lang;
 }): CourseLesson {
   const isRu = data.language === "ru";
-  const previous = data.allTitles.slice(0, Math.max(0, data.lessonNumber - 1)).join(", ");
-  const next = data.allTitles.slice(data.lessonNumber).join(", ");
-  const focus = data.wrongQuestions[0] || data.topic;
   const title =
     data.lessonTitle || (isRu ? `Урок ${data.lessonNumber}` : `Lesson ${data.lessonNumber}`);
 
@@ -1879,78 +1910,128 @@ function fallbackLesson(data: {
     format_version: COURSE_LESSON_FORMAT_VERSION,
     explanation: isRu
       ? [
-          `В этом уроке мы разбираем "${title}" в рамках темы "${data.topic}". Главная цель - понять идею простыми словами, а затем связать её с тем, что уже было в курсе.`,
-          previous
-            ? `Перед этим были темы: ${previous}. Используй их как основу: новое понятие должно объяснять, уточнять или применять то, что ты уже изучил.`
-            : `Начни с базового вопроса: что это такое, зачем это нужно и какую проблему помогает решить?`,
-          next
-            ? `Дальше курс перейдёт к: ${next}. Поэтому после урока попробуй сформулировать связь между этим уроком и следующими темами одним предложением.`
-            : `Это завершающий урок, поэтому собери всё в одну картину: определение, пример, типичная ошибка и способ проверить себя.`,
+          "## Главная идея",
+          `Урок "${title}" внутри темы "${data.topic}" должен научить конкретному действию, а не просто дать название. Главная идея: выделить ключевое правило урока, увидеть его в реальной ситуации и применить по шагам.`,
+          "## Пример из жизни",
+          `Представь, что тебе нужно использовать "${data.topic}" в реальной задаче: принять решение, разобрать текст, объяснить событие, проверить аргумент или выбрать правильный способ действия. Урок "${title}" даёт инструмент для этой задачи.`,
+          "## Пошаговый разбор",
+          `Задача: человек столкнулся с ситуацией по теме "${data.topic}" и должен применить "${title}".`,
+          "1. Определи конкретную ситуацию, а не только название темы.",
+          "2. Найди правило или принцип, который объясняет ситуацию.",
+          "3. Примени правило к примеру и проверь, не противоречит ли вывод фактам.",
+          "Итог: хороший ответ показывает не только определение, но и применение к конкретному случаю.",
+          "## Практика перед ответами",
+          "Выполни задания ниже как реальные мини-задачи: выбери пример, примени правило, проверь результат.",
         ].join("\n\n")
       : [
-          `In this lesson, we focus on "${title}" inside the broader topic of "${data.topic}". The goal is to understand the idea in plain language, then connect it to the rest of the course.`,
-          previous
-            ? `The earlier lessons were: ${previous}. Use those as the base: this lesson should extend, clarify, or apply what came before.`
-            : `Start with the basic question: what is it, why does it matter, and what problem does it help solve?`,
-          next
-            ? `Next, the course moves toward: ${next}. After this lesson, try to explain how this idea prepares you for those topics in one sentence.`
-            : `This is the final lesson, so pull everything together: definition, example, common mistake, and a quick self-check.`,
+          "## The Core Concept",
+          `The lesson "${title}" inside "${data.topic}" must teach a usable skill, not just a label. The core idea is to identify the lesson's rule, see it in a concrete situation, and apply it step by step.`,
+          "## The Real-Life Anchor",
+          `Imagine using "${data.topic}" in a real task: making a decision, analyzing a text, explaining an event, checking an argument, or choosing the right action. "${title}" gives you a tool for that task.`,
+          "## Step-by-Step Walkthrough",
+          `Scenario: someone faces a situation related to "${data.topic}" and needs to apply "${title}".`,
+          "1. Identify the concrete situation instead of stopping at the topic name.",
+          "2. Find the rule, pattern, or principle that explains the situation.",
+          "3. Apply that rule to the example and check whether the conclusion matches the facts.",
+          "Result: a strong answer shows the concept being used, not just defined.",
+          "## Practice Before Answers",
+          "Do the tasks below as real mini-problems: choose evidence, apply the rule, and check the result.",
         ].join("\n\n"),
     terms: isRu
       ? [
           {
-            term: "Главная идея",
-            definition: `Основной смысл урока "${title}" в теме "${data.topic}".`,
+            term: "Правило урока",
+            definition: `Конкретный принцип из урока "${title}", который можно применить в задаче.`,
           },
-          { term: "Пример", definition: "Конкретная ситуация, где идея становится понятной." },
+          { term: "Контекст", definition: "Конкретная ситуация, где правило получает смысл." },
           {
-            term: "Проверка понимания",
-            definition: "Способ объяснить тему своими словами без подсказок.",
+            term: "Проверка",
+            definition:
+              "Способ убедиться, что вывод подходит к фактам и не является случайной догадкой.",
           },
         ]
       : [
           {
-            term: "Core idea",
-            definition: `The main meaning of "${title}" within "${data.topic}".`,
+            term: "Lesson rule",
+            definition: `The specific principle from "${title}" that can be applied to a task.`,
           },
           {
-            term: "Example",
-            definition: "A concrete situation that makes the idea easier to understand.",
+            term: "Context",
+            definition: "The concrete situation where the rule becomes meaningful.",
           },
           {
-            term: "Understanding check",
-            definition: "A way to explain the topic in your own words without hints.",
+            term: "Check",
+            definition:
+              "A way to confirm that the conclusion fits the facts instead of being a guess.",
           },
         ],
     formulas: [],
     real_life_examples: isRu
       ? [
-          `Представь, что ты объясняешь "${title}" другу за одну минуту: сначала дай простое определение, потом пример.`,
-          `Свяжи урок с вопросом, который вызвал трудность: "${focus}". Это помогает превратить ошибку в ориентир для обучения.`,
+          `Анализ текста: найти пример "${title}" в абзаце и объяснить, какие детали это доказывают.`,
+          `Принятие решения: применить правило из "${title}" к реальной ситуации и проверить, что вывод следует из фактов.`,
         ]
       : [
-          `Imagine explaining "${title}" to a friend in one minute: start with a simple definition, then give one example.`,
-          `Connect the lesson to a question that was difficult: "${focus}". That turns a mistake into a guide for learning.`,
+          `Text analysis: find an example of "${title}" in a paragraph and identify which details prove it.`,
+          `Decision-making: apply the rule from "${title}" to a real situation and check that the conclusion follows from the facts.`,
         ],
     practice_problems: [
       {
         problem: isRu
-          ? `Объясни "${title}" своими словами и приведи один пример из реальной жизни.`
-          : `Explain "${title}" in your own words and give one real-life example.`,
+          ? `Лёгкое: выбери конкретный пример из темы "${data.topic}", где можно применить "${title}".`
+          : `Easy: Choose a concrete example from "${data.topic}" where "${title}" can be applied.`,
         steps: isRu
           ? [
-              "Шаг 1: Напиши короткое определение.",
-              "Шаг 2: Добавь пример.",
-              "Шаг 3: Проверь, связано ли объяснение с общей темой.",
+              "Назови ситуацию одним предложением.",
+              "Укажи правило урока, которое подходит к этой ситуации.",
+              "Проверь, есть ли в ситуации факты, подтверждающие выбор.",
             ]
           : [
-              "Step 1: Write a short definition.",
-              "Step 2: Add an example.",
-              "Step 3: Check whether the explanation connects to the bigger topic.",
+              "Name the situation in one sentence.",
+              "Identify the lesson rule that fits the situation.",
+              "Check which facts in the situation support that choice.",
             ],
         final_answer: isRu
-          ? "Хороший ответ содержит определение, пример и связь с темой."
-          : "A good answer includes a definition, an example, and a connection to the topic.",
+          ? `Ответ должен содержать ситуацию, правило из "${title}" и факт, который подтверждает применение.`
+          : `A complete answer includes the situation, the rule from "${title}", and the fact that supports the application.`,
+      },
+      {
+        problem: isRu
+          ? `Среднее: найди ошибку в применении "${title}", если человек сделал вывод без конкретного примера.`
+          : `Medium: Find the mistake when someone applies "${title}" without using a concrete example.`,
+        steps: isRu
+          ? [
+              "Определи, какой вывод человек сделал.",
+              "Проверь, есть ли конкретный пример или доказательство.",
+              "Исправь ответ, добавив пример и правило.",
+            ]
+          : [
+              "Identify the conclusion the person made.",
+              "Check whether they used a concrete example or evidence.",
+              "Fix the answer by adding the example and the rule.",
+            ],
+        final_answer: isRu
+          ? "Ошибка в том, что вывод без примера нельзя проверить; исправление должно связать правило с конкретными фактами."
+          : "The mistake is that a conclusion without an example cannot be checked; the fix must connect the rule to concrete facts.",
+      },
+      {
+        problem: isRu
+          ? `Сложное: сравни два возможных ответа по теме "${data.topic}" и выбери тот, который лучше применяет "${title}".`
+          : `Hard: Compare two possible answers about "${data.topic}" and choose the one that better applies "${title}".`,
+        steps: isRu
+          ? [
+              "Для каждого ответа найди правило, которое он использует.",
+              "Проверь, какой ответ опирается на более точные факты.",
+              "Выбери лучший ответ и объясни, почему другой слабее.",
+            ]
+          : [
+              "For each answer, identify the rule it uses.",
+              "Check which answer relies on more specific facts.",
+              "Choose the stronger answer and explain why the other one is weaker.",
+            ],
+        final_answer: isRu
+          ? "Лучший ответ применяет правило к конкретным фактам и показывает проверяемый вывод."
+          : "The stronger answer applies the rule to concrete facts and produces a checkable conclusion.",
       },
     ],
     checkpoint_question: fallbackCheckpointQuestion(data),
@@ -2063,7 +2144,7 @@ Return ONLY valid JSON with this exact schema:
 {
   "lesson_number": ${data.lessonNumber},
   "title": "${data.lessonTitle}",
-  "explanation": "Markdown string. For math, use these sections: The Core Concept, The Real-Life Anchor, Step-by-Step Walkthrough, Practice Before Answers.",
+  "explanation": "Markdown string. Use these sections: The Core Concept, The Real-Life Anchor, Step-by-Step Walkthrough, Practice Before Answers.",
   "terms": [{ "term": "...", "definition": "..." }],
   "formulas": [{ "formula": "...", "variables": [{ "symbol": "...", "meaning": "..." }], "worked_example": "...", "explanation": "..." }],
   "real_life_examples": ["example 1", "example 2"],
@@ -2075,27 +2156,30 @@ Return ONLY valid JSON with this exact schema:
 Rules:
 - The lesson must be real educational content, not a study plan. Explain the concepts, rules, formulas, and methods directly.
 - Never generate placeholder lessons, generic templates, or repeated paragraphs that only swap the lesson title.
-- Never use fake practice problems such as "explain this in your own words" for math. Math practice must contain numbers, equations, measurements, prices, probabilities, graphs/data values, or other calculable quantities.
+- Never use fake practice problems such as "explain this in your own words" for any subject. Practice must be a real task with a concrete input, required action, step-by-step solution, and final answer.
 - Never make the checkpoint test whether the student understands "understanding". The checkpoint must test the actual skill from this lesson.
-- Every math lesson must match the practical quality and structure of Lesson 1: direct concept explanation, actual rules/formulas, a real-world anchor, a solved numerical walkthrough, and 3 numerical practice problems. Do this for lesson ${data.lessonNumber}, not only for Lesson 1.
+- Every lesson in every subject must match the practical quality and structure of the math lessons: direct concept explanation, actual rules/methods, a real-world anchor, a solved walkthrough, and 3 practice tasks. Do this for lesson ${data.lessonNumber}, not only for math.
+- For non-math subjects, use concrete artifacts as practice inputs: a paragraph to analyze, a scenario to diagnose, a case to compare, a term to classify, a timeline to interpret, a claim to evaluate, or a decision to justify.
 - Stay focused on THIS lesson's subtopic: "${data.lessonTitle}".
 - Use the full course outline to avoid repetition. Do not reteach earlier or later lessons except for one short connection sentence when useful.
 - Make the lesson progressively appropriate: early lessons should be simple and concrete, middle lessons should add tools and patterns, later lessons should combine ideas and use more complex examples.
-- Structure math lessons with these Markdown headings in this order:
-  1. The Core Concept - explain what the concept is in plain English and include the actual mathematical rules.
-  2. The Real-Life Anchor - give a concrete scenario such as cooking, scaling a business, splitting a bill, shopping, measuring, risk, or data.
-  3. Step-by-Step Walkthrough - solve one specific numerical problem and show the exact math steps.
+- Structure every lesson with these Markdown headings in this order:
+  1. The Core Concept - explain what the concept is in plain English and include the actual rules, method, pattern, process, or criteria.
+  2. The Real-Life Anchor - give a concrete scenario where the concept is used.
+  3. Step-by-Step Walkthrough - solve or analyze one specific example and show the exact steps required.
   4. Practice Before Answers - tell the student to try the practice problems below before opening answers.
-- For non-math lessons, still use concrete teaching sections, specific examples, and real application tasks.
 - Teach the specific skill named in the lesson title. Do not drift back to the general topic unless it directly supports this lesson.
-- Include 3-5 key terms, 1-3 formulas for math lessons (empty only for truly non-formula topics), 2 real-life examples, and 3 practice problems for math lessons from easy to hard.
+- Include 3-5 key terms, 2 real-life examples, and exactly 3 practice problems from easy to hard.
+- Include 1-3 formulas for math or formula-based subjects. For non-formula subjects, formulas may be empty, but the explanation must still include concrete rules, criteria, or steps.
 - Put practice problem solutions only in the steps and final_answer fields, not inside the explanation. The UI hides those answers.
 - Add exactly one checkpoint_question that tests only this lesson's subtopic. It must be multiple choice with exactly 4 options. The correct_answer must exactly match one option.
 - For math checkpoints, ask the student to calculate, simplify, choose the correct equation, interpret a numerical result, or identify the correct next step in a calculation.
+- For non-math checkpoints, ask the student to apply the lesson skill to a concrete scenario, example, text, claim, case, or decision.
 - If the student answers the checkpoint wrong, the app may ask for another checkpoint, so make the question clear and focused.
 - For each formula, include variables and a worked_example written in Markdown. Use numbered steps for worked examples.
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
 - Each math practice problem must be tied to this lesson's exact subtopic. For example, a probability lesson should ask probability problems, a geometry lesson should ask area/volume/perimeter problems, and an algebra lesson should ask equation-solving problems.
+- Each non-math practice problem must be tied to this lesson's exact subtopic. For example, a history lesson should ask students to interpret a concrete event or source, a language lesson should ask students to classify or revise a specific sentence, and a biology lesson should ask students to diagnose a concrete process or organism example.
 - Use Markdown formatting inside explanation, formula explanations, worked_example, practice problem text, steps, and final_answer.
 - For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
 - Do not write long unformatted sequences like "First... Next... Now..." as one paragraph; use Markdown numbered lists or bullets instead.
@@ -2118,8 +2202,8 @@ Rules:
       if (!lesson.checkpoint_question) {
         lesson.checkpoint_question = fallbackCheckpointQuestion(data);
       }
-      if (isWeakMathLesson(lesson, data.topic)) {
-        throw new Error("Weak math lesson response");
+      if (isWeakPracticalLesson(lesson, data.topic)) {
+        throw new Error("Weak lesson response");
       }
       return { lesson };
     } catch (error) {
@@ -2182,6 +2266,8 @@ Rules:
 - Do not test whether the student can define learning, understanding, or the lesson title. Test the actual lesson skill.
 - For math lessons, use a numerical calculation, equation, formula application, graph/data interpretation, or next-step-in-solution question.
 - For math lessons, include enough numbers in the question so there is one objectively correct answer.
+- For non-math lessons, use a concrete scenario, short text, claim, case, term, timeline, process, or decision and ask the student to apply the lesson skill.
+- The correct answer must require using the lesson's rule, method, criteria, or process, not just recognizing a definition.
 - Make the new question different from the obvious first question a student may have just missed.
 - For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
 - ${langInstruction(data.language)}`;
