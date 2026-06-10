@@ -706,7 +706,7 @@ function fallbackMathCheckpointQuestion(data: {
       "Set 3/6 = x/10, then cross-multiply: 6x = 30, so x = 5.",
     );
   }
-  if (/(mental|estimation|scaling)/i.test(title)) {
+  if (/(mental|estimation|shortcut)/i.test(title)) {
     return make(
       "Estimate 19 × 51 by rounding to nearby friendly numbers. Which estimate is best?",
       "About 1,000",
@@ -755,6 +755,14 @@ function fallbackMathCheckpointQuestion(data: {
       "$20",
       ["$10", "$30", "$40"],
       "Simple interest is principal × rate, so 200 × 0.10 = 20.",
+    );
+  }
+  if (/(logic|truth|table|argument)/i.test(title)) {
+    return make(
+      "A rule says: access is allowed if age > 18 AND pass = yes. Age is 20 and pass = no. Is access allowed?",
+      "No",
+      ["Yes", "Only if age is 21", "Only if pass is maybe"],
+      "The age condition is true, but pass = yes is false. AND needs both conditions true.",
     );
   }
   return make(
@@ -971,6 +979,25 @@ function fallbackMathLesson(data: {
     data.lessonTitle || (data.lessonNumber === 1 ? "Mastering Proportions and Fractions" : "Math");
   const normalizedTitle = normalizeKey(title);
 
+  const makeMathLesson = (spec: {
+    explanation: string[];
+    terms: { term: string; definition: string }[];
+    formulas: CourseFormula[];
+    real_life_examples: string[];
+    practice_problems: CoursePracticeProblem[];
+  }): CourseLesson => ({
+    lesson_number: data.lessonNumber,
+    title,
+    format_version: COURSE_LESSON_FORMAT_VERSION,
+    explanation: spec.explanation.join("\n\n"),
+    terms: spec.terms,
+    formulas: spec.formulas,
+    real_life_examples: spec.real_life_examples,
+    practice_problems: spec.practice_problems,
+    checkpoint_question: fallbackMathCheckpointQuestion(data),
+    has_problems: true,
+  });
+
   if (data.lessonNumber === 1 || /(proportion|percentage|ratio|fraction)/i.test(normalizedTitle)) {
     return {
       lesson_number: data.lessonNumber,
@@ -1071,6 +1098,651 @@ function fallbackMathLesson(data: {
     };
   }
 
+  if (/(mental|estimation|shortcut)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Mental math is the skill of changing a calculation into easier pieces while keeping control of the value. The main tools are rounding, compensation, splitting numbers, and scaling.",
+        "The distributive rule lets you split multiplication: a × (b + c) = a × b + a × c. Compensation means if you round one number up, you subtract the extra amount later.",
+        "## The Real-Life Anchor",
+        "Imagine checking a grocery cart before paying. If items cost $19, $31, and $48, you can estimate $20 + $30 + $50 = $100 and immediately know whether the final bill is reasonable.",
+        "## Step-by-Step Walkthrough",
+        "Problem: Calculate 19 × 51 in your head.",
+        "1. Change 19 into 20 - 1.",
+        "2. Multiply the easy part: 20 × 51 = 1,020.",
+        "3. Subtract the extra group of 51: 1,020 - 51 = 969.",
+        "Answer: 19 × 51 = 969.",
+        "## Practice Before Answers",
+        "Try these without a calculator first. Use rounding, splitting, or compensation.",
+      ],
+      terms: [
+        { term: "Estimation", definition: "Finding a close answer quickly to check size." },
+        {
+          term: "Compensation",
+          definition: "Adjusting after rounding so the final answer stays correct.",
+        },
+        {
+          term: "Distributive rule",
+          definition: "Splitting multiplication across addition or subtraction.",
+        },
+      ],
+      formulas: [
+        {
+          formula: "a × (b + c) = a × b + a × c",
+          variables: [
+            { symbol: "a", meaning: "The number multiplying the grouped terms" },
+            { symbol: "b, c", meaning: "The pieces inside the group" },
+          ],
+          worked_example: "6 × 47 = 6 × (40 + 7) = 240 + 42 = 282.",
+          explanation: "Split an awkward number into friendly parts, multiply each part, then add.",
+        },
+        {
+          formula: "(a - 1) × b = a × b - b",
+          variables: [
+            { symbol: "a", meaning: "The rounded-up friendly number" },
+            { symbol: "b", meaning: "The other factor" },
+          ],
+          worked_example: "19 × 51 = 20 × 51 - 51 = 1,020 - 51 = 969.",
+          explanation: "Round up to an easy number, then remove the extra group.",
+        },
+      ],
+      real_life_examples: [
+        "Shopping: estimate $19 + $31 + $48 as about $100 before checkout.",
+        "Inventory: estimate 48 boxes with 21 items each as about 50 × 20 = 1,000 items.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: Calculate 6 × 47 using splitting.",
+          steps: [
+            "Split 47 into 40 + 7.",
+            "Calculate 6 × 40 = 240.",
+            "Calculate 6 × 7 = 42.",
+            "Add: 240 + 42 = 282.",
+          ],
+          final_answer: "282.",
+        },
+        {
+          problem: "Medium: Calculate 29 × 12 using compensation.",
+          steps: [
+            "Change 29 into 30 - 1.",
+            "Calculate 30 × 12 = 360.",
+            "Subtract 1 × 12 = 12.",
+            "Calculate 360 - 12 = 348.",
+          ],
+          final_answer: "348.",
+        },
+        {
+          problem: "Hard: Estimate 198 × 51, then calculate it exactly.",
+          steps: [
+            "Estimate with 200 × 50 = 10,000.",
+            "Exact: 198 × 51 = 198 × (50 + 1).",
+            "Calculate 198 × 50 = 9,900.",
+            "Add 198: 9,900 + 198 = 10,098.",
+          ],
+          final_answer: "Estimate about 10,000; exact answer 10,098.",
+        },
+      ],
+    });
+  }
+
+  if (/(algebra|unknown|variable|equation)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Algebra finds unknown numbers by keeping both sides of an equation balanced. A variable, such as x, stands for the number you do not know yet.",
+        "The main rule is: whatever you do to one side of an equation, you must do to the other side. Use inverse operations to undo the equation step by step.",
+        "## The Real-Life Anchor",
+        "Imagine a gym charges a $10 sign-up fee plus $8 per class. If the total is $58, algebra tells you how many classes were taken instead of guessing.",
+        "## Step-by-Step Walkthrough",
+        "Problem: Solve 8x + 10 = 58.",
+        "1. Subtract 10 from both sides: 8x = 48.",
+        "2. Divide both sides by 8: x = 6.",
+        "3. Check: 8 × 6 + 10 = 58.",
+        "Answer: x = 6 classes.",
+        "## Practice Before Answers",
+        "Solve each equation by undoing operations in reverse order.",
+      ],
+      terms: [
+        { term: "Variable", definition: "A symbol that represents an unknown or changing number." },
+        { term: "Equation", definition: "A statement that two expressions have equal value." },
+        { term: "Inverse operation", definition: "An operation that undoes another operation." },
+      ],
+      formulas: [
+        {
+          formula: "ax + b = c → x = (c - b) / a",
+          variables: [
+            { symbol: "a", meaning: "The multiplier attached to x" },
+            { symbol: "b", meaning: "The amount added or subtracted" },
+            { symbol: "c", meaning: "The total value" },
+          ],
+          worked_example: "3x + 6 = 24 → 3x = 18 → x = 6.",
+          explanation: "Remove the added amount first, then divide by the multiplier.",
+        },
+      ],
+      real_life_examples: [
+        "Budgeting: if a phone plan costs $15 plus $5 per GB and the bill is $45, solve 15 + 5x = 45.",
+        "Tickets: if 4 tickets plus a $6 fee cost $54, solve 4x + 6 = 54 to find one ticket price.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: Solve x + 7 = 19.",
+          steps: ["Subtract 7 from both sides.", "x = 19 - 7.", "x = 12."],
+          final_answer: "x = 12.",
+        },
+        {
+          problem: "Medium: Solve 5x - 4 = 31.",
+          steps: ["Add 4 to both sides: 5x = 35.", "Divide by 5: x = 7.", "Check: 5 × 7 - 4 = 31."],
+          final_answer: "x = 7.",
+        },
+        {
+          problem:
+            "Hard: A taxi charges $4 plus $2 per mile. The total fare is $26. How many miles was the trip?",
+          steps: [
+            "Write the equation: 4 + 2x = 26.",
+            "Subtract 4: 2x = 22.",
+            "Divide by 2: x = 11.",
+          ],
+          final_answer: "11 miles.",
+        },
+      ],
+    });
+  }
+
+  if (/(geometry|area|volume|space)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Geometry measures shapes. Area measures flat space inside a shape, perimeter measures distance around it, and volume measures the space inside a 3D object.",
+        "Always track units: area uses square units, and volume uses cubic units.",
+        "## The Real-Life Anchor",
+        "Imagine painting a wall or packing a box. You need area to buy enough paint and volume to know how much space fits inside the box.",
+        "## Step-by-Step Walkthrough",
+        "Problem: A rectangular garden is 12 meters long and 5 meters wide. Find its area and perimeter.",
+        "1. Area = length × width = 12 × 5 = 60.",
+        "2. Perimeter = 2 × (length + width) = 2 × (12 + 5).",
+        "3. Simplify: 2 × 17 = 34.",
+        "Answer: area is 60 square meters, perimeter is 34 meters.",
+        "## Practice Before Answers",
+        "Watch the units carefully: square units for area, cubic units for volume.",
+      ],
+      terms: [
+        { term: "Area", definition: "The amount of flat space inside a 2D shape." },
+        { term: "Perimeter", definition: "The distance around the outside of a 2D shape." },
+        { term: "Volume", definition: "The amount of 3D space inside an object." },
+      ],
+      formulas: [
+        {
+          formula: "rectangle area = length × width",
+          variables: [
+            { symbol: "length", meaning: "The longer side of the rectangle" },
+            { symbol: "width", meaning: "The shorter side of the rectangle" },
+          ],
+          worked_example: "Area = 12 × 5 = 60 square meters.",
+          explanation: "Multiply the two side lengths to count the square units inside.",
+        },
+        {
+          formula: "rectangular prism volume = length × width × height",
+          variables: [{ symbol: "height", meaning: "How tall the prism is" }],
+          worked_example: "Volume = 4 × 3 × 2 = 24 cubic units.",
+          explanation: "Volume stacks layers of area upward.",
+        },
+      ],
+      real_life_examples: [
+        "Painting: calculate wall area to know how much paint to buy.",
+        "Storage: calculate box volume to know whether items will fit.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: A rectangle is 8 cm long and 3 cm wide. Find its area.",
+          steps: ["Use area = length × width.", "Area = 8 × 3.", "Area = 24."],
+          final_answer: "24 square centimeters.",
+        },
+        {
+          problem: "Medium: A rectangle is 10 m long and 6 m wide. Find its perimeter.",
+          steps: [
+            "Use perimeter = 2 × (length + width).",
+            "Perimeter = 2 × (10 + 6).",
+            "Perimeter = 2 × 16 = 32.",
+          ],
+          final_answer: "32 meters.",
+        },
+        {
+          problem: "Hard: A box is 5 ft long, 4 ft wide, and 3 ft tall. Find its volume.",
+          steps: ["Use volume = length × width × height.", "Volume = 5 × 4 × 3.", "Volume = 60."],
+          final_answer: "60 cubic feet.",
+        },
+      ],
+    });
+  }
+
+  if (/(exponent|growth|large number)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "An exponent tells you how many times to multiply a number by itself. For example, 2³ means 2 × 2 × 2, which equals 8.",
+        "Exponents are used for repeated growth, powers of 10, scientific notation, and compound interest.",
+        "## The Real-Life Anchor",
+        "Imagine a video is shared by 3 people, and each person shares it with 3 more people. The number can grow very fast because multiplication repeats each round.",
+        "## Step-by-Step Walkthrough",
+        "Problem: A value doubles every day. It starts at 5 on day 0. What is it after 4 days?",
+        "1. Doubling means multiply by 2 each day.",
+        "2. After 4 days, use 5 × 2⁴.",
+        "3. Calculate 2⁴ = 2 × 2 × 2 × 2 = 16.",
+        "4. Multiply: 5 × 16 = 80.",
+        "Answer: the value is 80.",
+        "## Practice Before Answers",
+        "Expand the exponent first, then multiply carefully.",
+      ],
+      terms: [
+        { term: "Base", definition: "The number being repeatedly multiplied." },
+        {
+          term: "Exponent",
+          definition: "The small raised number showing how many times to multiply.",
+        },
+        {
+          term: "Exponential growth",
+          definition: "Growth by repeated multiplication instead of repeated addition.",
+        },
+      ],
+      formulas: [
+        {
+          formula: "aⁿ = a multiplied by itself n times",
+          variables: [
+            { symbol: "a", meaning: "The base" },
+            { symbol: "n", meaning: "The exponent" },
+          ],
+          worked_example: "3⁴ = 3 × 3 × 3 × 3 = 81.",
+          explanation: "The exponent controls how many copies of the base are multiplied.",
+        },
+        {
+          formula: "new value = starting value × growth factorⁿ",
+          variables: [{ symbol: "n", meaning: "The number of growth periods" }],
+          worked_example: "5 × 2⁴ = 5 × 16 = 80.",
+          explanation: "Repeated growth uses the same multiplier again and again.",
+        },
+      ],
+      real_life_examples: [
+        "Population growth: bacteria doubling every hour follows exponential growth.",
+        "Technology: file sizes and memory often use powers of 2 or powers of 10.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: Calculate 4³.",
+          steps: ["Expand: 4³ = 4 × 4 × 4.", "Calculate 4 × 4 = 16.", "Calculate 16 × 4 = 64."],
+          final_answer: "64.",
+        },
+        {
+          problem: "Medium: A value starts at 7 and doubles for 3 rounds. What is the final value?",
+          steps: ["Use 7 × 2³.", "Calculate 2³ = 8.", "Multiply 7 × 8 = 56."],
+          final_answer: "56.",
+        },
+        {
+          problem: "Hard: Write 60,000 using scientific notation.",
+          steps: [
+            "Move the decimal so the first number is between 1 and 10: 6.0.",
+            "Count 4 decimal moves.",
+            "Use 10⁴.",
+          ],
+          final_answer: "6 × 10⁴.",
+        },
+      ],
+    });
+  }
+
+  if (/(probability|odds|risk)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Probability measures how likely something is. It is written as favorable outcomes divided by total possible outcomes.",
+        "A probability of 0 means impossible, 1 means certain, and values between 0 and 1 describe uncertainty.",
+        "## The Real-Life Anchor",
+        "Imagine choosing a marble from a bag without looking. Probability tells you how likely each color is before you pick.",
+        "## Step-by-Step Walkthrough",
+        "Problem: A bag has 3 red marbles, 5 blue marbles, and 2 green marbles. What is the probability of red?",
+        "1. Count favorable outcomes: 3 red marbles.",
+        "2. Count total outcomes: 3 + 5 + 2 = 10 marbles.",
+        "3. Write the probability: 3/10.",
+        "Answer: probability of red is 3/10, or 30%.",
+        "## Practice Before Answers",
+        "Always count the favorable outcomes and total outcomes before calculating.",
+      ],
+      terms: [
+        { term: "Outcome", definition: "One possible result of an event." },
+        {
+          term: "Favorable outcome",
+          definition: "A result that matches what you are looking for.",
+        },
+        { term: "Probability", definition: "Favorable outcomes divided by total outcomes." },
+      ],
+      formulas: [
+        {
+          formula: "probability = favorable outcomes / total outcomes",
+          variables: [
+            { symbol: "favorable outcomes", meaning: "The outcomes that count as success" },
+            { symbol: "total outcomes", meaning: "All possible outcomes" },
+          ],
+          worked_example: "3 red out of 10 total gives probability 3/10.",
+          explanation: "Probability compares the target outcomes to all possible outcomes.",
+        },
+      ],
+      real_life_examples: [
+        "Weather: a 30% chance of rain means rain is possible but not more likely than no rain.",
+        "Games: dice and cards use probability to measure risk and expected outcomes.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: A coin has 2 sides. What is the probability of heads?",
+          steps: ["Favorable outcomes: 1 head.", "Total outcomes: 2 sides.", "Probability = 1/2."],
+          final_answer: "1/2 or 50%.",
+        },
+        {
+          problem:
+            "Medium: A die has numbers 1 to 6. What is the probability of rolling an even number?",
+          steps: [
+            "Even outcomes: 2, 4, 6.",
+            "There are 3 favorable outcomes.",
+            "Total outcomes: 6.",
+            "Probability = 3/6 = 1/2.",
+          ],
+          final_answer: "1/2 or 50%.",
+        },
+        {
+          problem:
+            "Hard: A bag has 4 red, 6 blue, and 10 yellow tokens. What is the probability of not picking yellow?",
+          steps: [
+            "Not yellow means red or blue: 4 + 6 = 10.",
+            "Total tokens: 4 + 6 + 10 = 20.",
+            "Probability = 10/20 = 1/2.",
+          ],
+          final_answer: "1/2 or 50%.",
+        },
+      ],
+    });
+  }
+
+  if (/(data|average|median|graph)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Data is information you can measure or count. Mean, median, and range summarize a list of numbers, but each tells a different story.",
+        "The mean is the arithmetic average. The median is the middle value after sorting. The range is the largest value minus the smallest value.",
+        "## The Real-Life Anchor",
+        "Imagine comparing test scores. One very high or very low score can pull the mean, while the median shows the middle student more directly.",
+        "## Step-by-Step Walkthrough",
+        "Problem: Find the mean and median of 4, 7, 9, 10, and 20.",
+        "1. Mean: add the values: 4 + 7 + 9 + 10 + 20 = 50.",
+        "2. Divide by count: 50 / 5 = 10.",
+        "3. Median: the list is already sorted, and the middle value is 9.",
+        "Answer: mean is 10, median is 9.",
+        "## Practice Before Answers",
+        "Sort the data before finding the median. Add carefully before finding the mean.",
+      ],
+      terms: [
+        { term: "Mean", definition: "The sum of values divided by the number of values." },
+        { term: "Median", definition: "The middle value after the data is sorted." },
+        { term: "Range", definition: "The largest value minus the smallest value." },
+      ],
+      formulas: [
+        {
+          formula: "mean = sum of values / number of values",
+          variables: [
+            { symbol: "sum of values", meaning: "All data values added together" },
+            { symbol: "number of values", meaning: "How many data points are in the list" },
+          ],
+          worked_example: "For 4, 7, 9, 10, 20: mean = 50 / 5 = 10.",
+          explanation: "Mean balances the whole data set into one average value.",
+        },
+        {
+          formula: "range = largest value - smallest value",
+          variables: [
+            { symbol: "largest value", meaning: "The maximum data value" },
+            { symbol: "smallest value", meaning: "The minimum data value" },
+          ],
+          worked_example: "Range = 20 - 4 = 16.",
+          explanation: "Range measures spread.",
+        },
+      ],
+      real_life_examples: [
+        "Grades: mean score shows class average, while median score shows the middle result.",
+        "Business: a few huge purchases can make average spending look higher than typical spending.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: Find the mean of 2, 4, and 9.",
+          steps: ["Add: 2 + 4 + 9 = 15.", "Count: 3 values.", "Divide: 15 / 3 = 5."],
+          final_answer: "Mean = 5.",
+        },
+        {
+          problem: "Medium: Find the median of 12, 5, 9, 20, and 7.",
+          steps: ["Sort: 5, 7, 9, 12, 20.", "Find the middle value.", "The middle value is 9."],
+          final_answer: "Median = 9.",
+        },
+        {
+          problem: "Hard: For 6, 8, 8, 10, 18, find the mean, median, and range.",
+          steps: [
+            "Mean: 6 + 8 + 8 + 10 + 18 = 50, then 50 / 5 = 10.",
+            "Median: middle value is 8.",
+            "Range: 18 - 6 = 12.",
+          ],
+          final_answer: "Mean = 10, median = 8, range = 12.",
+        },
+      ],
+    });
+  }
+
+  if (/(logic|truth|table|argument)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Logic studies whether statements are true or false and how statements combine. A truth table lists every possible true/false case so you can check a rule without guessing.",
+        "For AND, the combined statement is true only when both parts are true. For OR, the combined statement is true when at least one part is true.",
+        "## The Real-Life Anchor",
+        "Imagine an app discount rule: a customer gets free shipping if the order is over $50 AND the account is verified. Both conditions must be true.",
+        "## Step-by-Step Walkthrough",
+        "Problem: A discount applies if price > 50 AND coupon = yes. Does it apply when price = 60 and coupon = no?",
+        "1. Check condition A: price > 50 is true because 60 > 50.",
+        "2. Check condition B: coupon = yes is false because coupon = no.",
+        "3. AND needs both true, but one condition is false.",
+        "Answer: the discount does not apply.",
+        "## Practice Before Answers",
+        "Evaluate each condition separately first, then apply AND or OR.",
+      ],
+      terms: [
+        { term: "Statement", definition: "A sentence or condition that can be true or false." },
+        {
+          term: "AND",
+          definition: "A logical connector that is true only when both parts are true.",
+        },
+        {
+          term: "OR",
+          definition: "A logical connector that is true when at least one part is true.",
+        },
+      ],
+      formulas: [
+        {
+          formula: "A AND B is true only if A = true and B = true",
+          variables: [
+            { symbol: "A", meaning: "The first condition" },
+            { symbol: "B", meaning: "The second condition" },
+          ],
+          worked_example: "60 > 50 is true, coupon = yes is false, so true AND false = false.",
+          explanation: "AND is strict because every condition must pass.",
+        },
+        {
+          formula: "A OR B is true if at least one condition is true",
+          variables: [{ symbol: "A, B", meaning: "Two logical conditions" }],
+          worked_example: "age > 18 is true OR member = yes is false gives true.",
+          explanation: "OR passes when at least one condition passes.",
+        },
+      ],
+      real_life_examples: [
+        "Programming: login works if email is correct AND password is correct.",
+        "Rules: entry is allowed if age is over 18 OR a guardian is present.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: A = true and B = false. What is A AND B?",
+          steps: ["AND requires both values to be true.", "B is false.", "So A AND B is false."],
+          final_answer: "False.",
+        },
+        {
+          problem: "Medium: A = false and B = true. What is A OR B?",
+          steps: ["OR requires at least one true value.", "B is true.", "So A OR B is true."],
+          final_answer: "True.",
+        },
+        {
+          problem:
+            "Hard: A store gives a discount if total > 100 OR member = yes. Total is 80 and member = yes. Does the discount apply?",
+          steps: [
+            "Check total > 100: 80 > 100 is false.",
+            "Check member = yes: true.",
+            "OR needs at least one true condition.",
+          ],
+          final_answer: "Yes, the discount applies.",
+        },
+      ],
+    });
+  }
+
+  if (/(financial|interest|loan|inflation)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Financial math uses percentages to measure money changing over time. Interest is money paid for borrowing or earned for saving. Inflation means prices rise, so the same money buys less.",
+        "Simple interest grows only on the original amount. Compound interest grows on the original amount plus previous interest.",
+        "## The Real-Life Anchor",
+        "Imagine putting $500 in a savings account at 6% annual interest. Financial math tells you how much extra money you earn and whether inflation reduces its real value.",
+        "## Step-by-Step Walkthrough",
+        "Problem: Find the simple interest on $500 at 6% for 2 years.",
+        "1. Convert 6% to 0.06.",
+        "2. Use interest = principal × rate × time.",
+        "3. Calculate 500 × 0.06 × 2 = 60.",
+        "Answer: the interest is $60, so the final amount is $560.",
+        "## Practice Before Answers",
+        "Convert percentages to decimals before multiplying.",
+      ],
+      terms: [
+        { term: "Principal", definition: "The starting amount of money." },
+        { term: "Interest rate", definition: "The percent charged or earned over a period." },
+        { term: "Inflation", definition: "A rise in prices that reduces buying power." },
+      ],
+      formulas: [
+        {
+          formula: "simple interest = principal × rate × time",
+          variables: [
+            { symbol: "principal", meaning: "Starting money amount" },
+            { symbol: "rate", meaning: "Interest rate as a decimal" },
+            { symbol: "time", meaning: "Number of time periods" },
+          ],
+          worked_example: "500 × 0.06 × 2 = 60.",
+          explanation: "Simple interest applies the rate to the original amount only.",
+        },
+        {
+          formula: "final amount = principal × (1 + rate)ⁿ",
+          variables: [{ symbol: "n", meaning: "Number of compounding periods" }],
+          worked_example: "100 × (1 + 0.10)² = 100 × 1.21 = 121.",
+          explanation: "Compound interest applies growth repeatedly.",
+        },
+      ],
+      real_life_examples: [
+        "Loans: a higher interest rate means borrowing costs more.",
+        "Savings: compound interest helps money grow faster over longer periods.",
+      ],
+      practice_problems: [
+        {
+          problem: "Easy: What is 10% simple interest on $200 for 1 year?",
+          steps: ["Convert 10% to 0.10.", "Use 200 × 0.10 × 1.", "Calculate 20."],
+          final_answer: "$20 interest.",
+        },
+        {
+          problem: "Medium: Find the final amount for $300 at 5% simple interest for 2 years.",
+          steps: ["Interest = 300 × 0.05 × 2.", "Interest = 30.", "Final amount = 300 + 30."],
+          final_answer: "$330.",
+        },
+        {
+          problem:
+            "Hard: $100 grows by 10% each year for 2 years. What is the compound final amount?",
+          steps: [
+            "Use 100 × (1 + 0.10)².",
+            "Calculate 1.10² = 1.21.",
+            "Calculate 100 × 1.21 = 121.",
+          ],
+          final_answer: "$121.",
+        },
+      ],
+    });
+  }
+
+  if (/(problem|framework|strategy|unfamiliar)/i.test(normalizedTitle)) {
+    return makeMathLesson({
+      explanation: [
+        "## The Core Concept",
+        "Problem-solving frameworks help you turn an unfamiliar math problem into clear moves. You identify what is known, define the unknown, choose a rule, solve, and check.",
+        "A strong framework prevents random guessing because every step has a job.",
+        "## The Real-Life Anchor",
+        "Imagine planning a school event with a fixed budget. You need to combine prices, quantities, and constraints without losing track of what the question asks.",
+        "## Step-by-Step Walkthrough",
+        "Problem: You have $120. Tickets cost $15 each, and snacks cost $30 total. How many tickets can you buy?",
+        "1. Subtract the fixed snack cost: 120 - 30 = 90.",
+        "2. Divide the remaining budget by ticket price: 90 / 15 = 6.",
+        "3. Check: 6 tickets cost 6 × 15 = 90, plus $30 snacks gives $120.",
+        "Answer: you can buy 6 tickets.",
+        "## Practice Before Answers",
+        "For each problem, write what is known, what is unknown, and which operation connects them.",
+      ],
+      terms: [
+        { term: "Known value", definition: "A number or condition given directly in the problem." },
+        { term: "Unknown value", definition: "The value the problem asks you to find." },
+        { term: "Constraint", definition: "A limit or rule that the answer must satisfy." },
+      ],
+      formulas: [
+        {
+          formula: "remaining amount = total amount - fixed cost",
+          variables: [
+            { symbol: "total amount", meaning: "The full amount available" },
+            { symbol: "fixed cost", meaning: "A cost that must be paid first" },
+          ],
+          worked_example: "120 - 30 = 90.",
+          explanation: "Remove fixed costs before dividing the rest into equal parts.",
+        },
+        {
+          formula: "number of items = remaining amount / cost per item",
+          variables: [{ symbol: "cost per item", meaning: "The price of one repeated item" }],
+          worked_example: "90 / 15 = 6 tickets.",
+          explanation: "Division tells how many equal-cost items fit into the remaining amount.",
+        },
+      ],
+      real_life_examples: [
+        "Event planning: subtract venue cost before deciding how many guests fit the food budget.",
+        "Shopping: subtract tax or delivery fee before calculating how many items you can buy.",
+      ],
+      practice_problems: [
+        {
+          problem:
+            "Easy: You have $50. A delivery fee is $5. Each notebook costs $9. How many notebooks can you buy?",
+          steps: ["Subtract the fee: 50 - 5 = 45.", "Divide by notebook cost: 45 / 9 = 5."],
+          final_answer: "5 notebooks.",
+        },
+        {
+          problem:
+            "Medium: A class has $200. Bus rental costs $80, and each museum ticket costs $12. How many tickets can they buy?",
+          steps: ["Subtract bus rental: 200 - 80 = 120.", "Divide by ticket cost: 120 / 12 = 10."],
+          final_answer: "10 tickets.",
+        },
+        {
+          problem:
+            "Hard: You have $500. Equipment costs $140, and each participant costs $18. What is the maximum number of participants?",
+          steps: [
+            "Subtract equipment cost: 500 - 140 = 360.",
+            "Divide by participant cost: 360 / 18 = 20.",
+            "Check: 20 × 18 + 140 = 500.",
+          ],
+          final_answer: "20 participants.",
+        },
+      ],
+    });
+  }
+
   const checkpoint = fallbackMathCheckpointQuestion(data);
   return {
     lesson_number: data.lessonNumber,
@@ -1164,6 +1836,7 @@ function isWeakMathLesson(lesson: CourseLesson, topic: string): boolean {
   if (!explanation.includes("core concept")) return true;
   if (!explanation.includes("real-life anchor")) return true;
   if (!explanation.includes("step-by-step")) return true;
+  if (!explanation.includes("practice before answers")) return true;
   if (lesson.formulas.length === 0) return true;
   if (lesson.practice_problems.length < 3) return true;
   if (
@@ -1404,6 +2077,7 @@ Rules:
 - Never generate placeholder lessons, generic templates, or repeated paragraphs that only swap the lesson title.
 - Never use fake practice problems such as "explain this in your own words" for math. Math practice must contain numbers, equations, measurements, prices, probabilities, graphs/data values, or other calculable quantities.
 - Never make the checkpoint test whether the student understands "understanding". The checkpoint must test the actual skill from this lesson.
+- Every math lesson must match the practical quality and structure of Lesson 1: direct concept explanation, actual rules/formulas, a real-world anchor, a solved numerical walkthrough, and 3 numerical practice problems. Do this for lesson ${data.lessonNumber}, not only for Lesson 1.
 - Stay focused on THIS lesson's subtopic: "${data.lessonTitle}".
 - Use the full course outline to avoid repetition. Do not reteach earlier or later lessons except for one short connection sentence when useful.
 - Make the lesson progressively appropriate: early lessons should be simple and concrete, middle lessons should add tools and patterns, later lessons should combine ideas and use more complex examples.
@@ -1421,6 +2095,7 @@ Rules:
 - If the student answers the checkpoint wrong, the app may ask for another checkpoint, so make the question clear and focused.
 - For each formula, include variables and a worked_example written in Markdown. Use numbered steps for worked examples.
 - For each practice_problem, provide steps as an array and final_answer as a separate string.
+- Each math practice problem must be tied to this lesson's exact subtopic. For example, a probability lesson should ask probability problems, a geometry lesson should ask area/volume/perimeter problems, and an algebra lesson should ask equation-solving problems.
 - Use Markdown formatting inside explanation, formula explanations, worked_example, practice problem text, steps, and final_answer.
 - For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
 - Do not write long unformatted sequences like "First... Next... Now..." as one paragraph; use Markdown numbered lists or bullets instead.
