@@ -79,19 +79,19 @@ function FinalTestPage() {
   }
 
   return (
-    <main className="relative min-h-screen w-full bg-background px-4 pb-8 pt-28 animate-fade-in sm:px-6 sm:py-14 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+    <main className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background px-4 pb-4 pt-24 animate-fade-in sm:px-6 sm:pb-6 sm:pt-28">
       <AppHeader />
-      <div className="mx-auto mb-6 w-full max-w-[680px] text-center sm:mb-8 lg:shrink-0">
+      <div className="mx-auto mb-3 w-full max-w-[680px] shrink-0 text-center sm:mb-4">
         <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
           {t("stage5")}
         </span>
-        <h1 className="mt-4 text-xl font-bold text-foreground sm:text-3xl">
+        <h1 className="mt-2 text-lg font-bold text-foreground sm:mt-3 sm:text-2xl">
           {t("finalTestTitle")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{topic}</p>
       </div>
 
-      <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+      <div className="min-h-0 flex-1">
         <QuizPlayer
           questions={questions}
           onSubmit={handleSubmit}

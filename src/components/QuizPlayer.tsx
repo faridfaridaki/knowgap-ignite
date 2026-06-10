@@ -56,9 +56,9 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
   }, [allowedOptions, idx, q.options]);
 
   return (
-    <div className="mx-auto w-full max-w-[680px] animate-fade-in">
-      <div className="mb-5 sm:mb-6">
-        <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[680px] animate-fade-in flex-col">
+      <div className="mb-3 shrink-0 sm:mb-4">
+        <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
           <span>
             {t("question")} {idx + 1} {t("of")} {total}
           </span>
@@ -75,71 +75,76 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-surface-border bg-surface p-4 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] sm:p-7">
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-xs font-medium text-[#7C6AF7] uppercase tracking-wider">
-            {t("question")} {idx + 1}
+      <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-surface-border bg-surface p-4 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)] sm:p-6">
+        <div className="shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-xs font-medium text-[#7C6AF7] uppercase tracking-wider">
+              {t("question")} {idx + 1}
+            </div>
+            {!hintUsed && q.options && q.options.length === 4 && (
+              <button
+                type="button"
+                onClick={useHint}
+                className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-400/15"
+              >
+                <Lightbulb size={13} />
+                {t("useHint")}
+              </button>
+            )}
           </div>
-          {!hintUsed && q.options && q.options.length === 4 && (
-            <button
-              type="button"
-              onClick={useHint}
-              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-400/15"
-            >
-              <Lightbulb size={13} />
-              {t("useHint")}
-            </button>
-          )}
         </div>
-        <h2 className="mt-3 text-lg font-semibold leading-snug text-foreground sm:text-2xl">
-          {q.question}
-        </h2>
 
-        {q.options && q.options.length > 0 ? (
-          <div className="mt-6 space-y-2.5">
-            {q.options.map((opt) => {
-              const selected = currentAnswer === opt;
-              const disabled = !allowedForCurrent.includes(opt);
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => !disabled && setAnswer(opt)}
-                  disabled={disabled}
-                  className={`w-full rounded-xl border px-3.5 py-4 text-left text-sm transition-all sm:px-4 sm:py-3.5 ${
-                    disabled
-                      ? "border-surface-border bg-background/20 text-muted-foreground/50 line-through cursor-not-allowed"
-                      : selected
-                        ? "border-[#7C6AF7] bg-[#7C6AF7]/10 text-foreground shadow-[0_0_0_3px_rgba(124,106,247,0.15)]"
-                        : "border-surface-border bg-background/40 text-foreground hover:border-[#7C6AF7]/50 hover:bg-[#7C6AF7]/5"
-                  }`}
-                >
-                  <span className="inline-flex items-start gap-3">
-                    <span
-                      className={`inline-flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                        selected ? "border-[#7C6AF7] bg-[#7C6AF7]" : "border-muted-foreground/40"
-                      }`}
-                    >
-                      {selected && <span className="h-2 w-2 rounded-full bg-white" />}
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+          <h2 className="text-base font-semibold leading-snug text-foreground sm:text-xl">
+            {q.question}
+          </h2>
+
+          {q.options && q.options.length > 0 ? (
+            <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-2.5">
+              {q.options.map((opt) => {
+                const selected = currentAnswer === opt;
+                const disabled = !allowedForCurrent.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => !disabled && setAnswer(opt)}
+                    disabled={disabled}
+                    className={`w-full rounded-xl border px-3.5 py-3 text-left text-sm transition-all sm:px-4 sm:py-3.5 ${
+                      disabled
+                        ? "border-surface-border bg-background/20 text-muted-foreground/50 line-through cursor-not-allowed"
+                        : selected
+                          ? "border-[#7C6AF7] bg-[#7C6AF7]/10 text-foreground shadow-[0_0_0_3px_rgba(124,106,247,0.15)]"
+                          : "border-surface-border bg-background/40 text-foreground hover:border-[#7C6AF7]/50 hover:bg-[#7C6AF7]/5"
+                    }`}
+                  >
+                    <span className="inline-flex items-start gap-3">
+                      <span
+                        className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                          selected ? "border-[#7C6AF7] bg-[#7C6AF7]" : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {selected && <span className="h-2 w-2 rounded-full bg-white" />}
+                      </span>
+                      <span className="min-w-0 flex-1 leading-relaxed break-words">{opt}</span>
                     </span>
-                    <span className="min-w-0 flex-1 leading-relaxed break-words">{opt}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
-        {hintUsed && <p className="mt-4 text-xs text-amber-300 italic">{t("hintUsedNote")}</p>}
+          {hintUsed && <p className="mt-4 text-xs text-amber-300 italic">{t("hintUsedNote")}</p>}
+        </div>
       </div>
 
       {!canAdvance && (
-        <p className="mt-3 text-center text-xs text-muted-foreground italic">
+        <p className="mt-2 shrink-0 text-center text-xs text-muted-foreground italic sm:mt-3">
           {t("selectAnswerFirst")}
         </p>
       )}
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:flex sm:items-center sm:justify-between">
+      <div className="mt-3 grid shrink-0 grid-cols-2 gap-3 sm:mt-4 sm:flex sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={() => setIdx((i) => Math.max(0, i - 1))}
