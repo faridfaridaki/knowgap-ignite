@@ -22,6 +22,7 @@ import { formatScore } from "@/lib/learning-state";
 interface DashboardRow extends HistorySession {
   courseLessonsTotal: number;
   courseLessonsDone: number;
+  hasSavedCourse: boolean;
 }
 
 export const Route = createFileRoute("/dashboard")({
@@ -64,30 +65,16 @@ function DashboardPage() {
     let cancelled = false;
     void (async () => {
       if (user) {
-        // Fetch the standard session list plus course_content for progress
-        const { data, error } = await supabase
-          .from("conversations")
-          .select("id, course_content")
-          .eq("user_id", user.id);
-        const courseMap = new Map<string, { total: number; done: number }>();
-        if (!error && data) {
-          for (const row of data as Array<{ id: string; course_content: any }>) {
-            const lessons = Array.isArray(row.course_content?.lessons)
-              ? row.course_content.lessons.length
-              : 0;
-            // Assume all lessons completed if a final analysis was saved.
-            courseMap.set(row.id, { total: lessons || 10, done: lessons || 10 });
-          }
-        }
         const rows = await fetchConversationsForUser(user.id);
         if (cancelled) return;
         setSessions(
           rows.map((r) => {
-            const c = courseMap.get(r.id);
+            const lessons = Array.isArray(r.course?.lessons) ? r.course.lessons.length : 0;
             return {
               ...r,
-              courseLessonsTotal: c?.total ?? 10,
-              courseLessonsDone: c?.done ?? 10,
+              courseLessonsTotal: lessons || 10,
+              courseLessonsDone: lessons || 10,
+              hasSavedCourse: lessons > 0 || Boolean(r.flashcards?.length),
             };
           }),
         );
@@ -95,7 +82,15 @@ function DashboardPage() {
         const rows = loadHistory();
         if (!cancelled) {
           setSessions(
-            rows.map((r) => ({ ...r, courseLessonsTotal: 10, courseLessonsDone: 10 })),
+            rows.map((r) => {
+              const lessons = Array.isArray(r.course?.lessons) ? r.course.lessons.length : 0;
+              return {
+                ...r,
+                courseLessonsTotal: lessons || 10,
+                courseLessonsDone: lessons || 10,
+                hasSavedCourse: lessons > 0 || Boolean(r.flashcards?.length),
+              };
+            }),
           );
         }
       }
@@ -271,16 +266,18 @@ function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
                       <Link
-                        to="/final-analysis/$id"
+                        to="/saved-course/$id"
                         params={{ id: s.id }}
-                        className="flex-1 text-center rounded-lg px-3 py-2 text-xs font-semibold text-white"
+                        className={`text-center rounded-lg px-3 py-2 text-xs font-semibold text-white ${
+                          s.hasSavedCourse ? "" : "pointer-events-none opacity-50"
+                        }`}
                         style={{
                           backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)",
                         }}
                       >
-                        {t("viewFullAnalysis")}
+                        {t("viewCourse")}
                       </Link>
                       <button
                         type="button"
@@ -290,6 +287,13 @@ function DashboardPage() {
                         <RotateCw size={12} /> {t("retakeCourse")}
                       </button>
                     </div>
+                    <Link
+                      to="/final-analysis/$id"
+                      params={{ id: s.id }}
+                      className="mt-2 inline-flex text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      {t("viewFullAnalysis")}
+                    </Link>
                   </div>
                 );
               })}
@@ -312,8 +316,7 @@ function DashboardPage() {
                     {a.kind === "scored" && a.session.finalTest
                       ? t("activityScored", {
                           score: formatScore(a.session.finalTest.score),
-                          total:
-                            a.session.finalTest.total ?? a.session.finalTest.questions.length,
+                          total: a.session.finalTest.total ?? a.session.finalTest.questions.length,
                           topic: a.session.topic,
                         })
                       : t("activityStarted", { topic: a.session.topic })}

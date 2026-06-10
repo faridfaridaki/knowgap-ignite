@@ -8,6 +8,7 @@ import type {
   HistoryFlashcard,
   HistoryKnowledgeGap,
 } from "@/lib/history";
+import type { Course } from "@/lib/learning-state";
 
 interface ConversationRow {
   id: string;
@@ -26,6 +27,7 @@ interface ConversationRow {
   final_test_score: number | string | null;
   final_test_total: number | null;
   lesson_content: HistoryLessonConcept[] | null;
+  course_content: Course | null;
   flashcards: HistoryFlashcard[] | null;
   improvement: number | null;
   knowledge_gaps: HistoryKnowledgeGap[] | null;
@@ -33,7 +35,7 @@ interface ConversationRow {
 }
 
 const SELECT_COLS =
-  "id, topic, created_at, subtopics, messages, questions_count, duration_minutes, pre_test_questions, pre_test_answers, pre_test_score, pre_test_total, final_test_questions, final_test_answers, final_test_score, final_test_total, lesson_content, flashcards, improvement, knowledge_gaps, suggested_topics";
+  "id, topic, created_at, subtopics, messages, questions_count, duration_minutes, pre_test_questions, pre_test_answers, pre_test_score, pre_test_total, final_test_questions, final_test_answers, final_test_score, final_test_total, lesson_content, course_content, flashcards, improvement, knowledge_gaps, suggested_topics";
 
 function numOrZero(v: number | string | null | undefined): number {
   if (v === null || v === undefined) return 0;
@@ -71,6 +73,12 @@ function rowToSession(row: ConversationRow): HistorySession {
         }
       : undefined,
     lesson: Array.isArray(row.lesson_content) ? row.lesson_content : [],
+    course:
+      row.course_content &&
+      typeof row.course_content === "object" &&
+      Array.isArray(row.course_content.lessons)
+        ? row.course_content
+        : null,
     flashcards: Array.isArray(row.flashcards) ? row.flashcards : [],
     improvement: row.improvement ?? undefined,
     knowledgeGaps: Array.isArray(row.knowledge_gaps) ? row.knowledge_gaps : [],
@@ -78,9 +86,7 @@ function rowToSession(row: ConversationRow): HistorySession {
   };
 }
 
-export async function fetchConversationsForUser(
-  userId: string,
-): Promise<HistorySession[]> {
+export async function fetchConversationsForUser(userId: string): Promise<HistorySession[]> {
   const { data, error } = await supabase
     .from("conversations")
     .select(SELECT_COLS)

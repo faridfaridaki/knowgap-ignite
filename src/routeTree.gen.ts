@@ -23,6 +23,7 @@ import { Route as CourseRouteImport } from './routes/course'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SavedCourseIdRouteImport } from './routes/saved-course.$id'
 import { Route as HistoryIdRouteImport } from './routes/history.$id'
 import { Route as FinalAnalysisIdRouteImport } from './routes/final-analysis.$id'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -97,6 +98,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SavedCourseIdRoute = SavedCourseIdRouteImport.update({
+  id: '/saved-course/$id',
+  path: '/saved-course/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HistoryIdRoute = HistoryIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/final-analysis/$id': typeof FinalAnalysisIdRoute
   '/history/$id': typeof HistoryIdRoute
+  '/saved-course/$id': typeof SavedCourseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/final-analysis/$id': typeof FinalAnalysisIdRoute
   '/history/$id': typeof HistoryIdRoute
+  '/saved-course/$id': typeof SavedCourseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/final-analysis/$id': typeof FinalAnalysisIdRoute
   '/history/$id': typeof HistoryIdRoute
+  '/saved-course/$id': typeof SavedCourseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/final-analysis/$id'
     | '/history/$id'
+    | '/saved-course/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/final-analysis/$id'
     | '/history/$id'
+    | '/saved-course/$id'
   id:
     | '__root__'
     | '/'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/final-analysis/$id'
     | '/history/$id'
+    | '/saved-course/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -247,6 +259,7 @@ export interface RootRouteChildren {
   PretestResultsRoute: typeof PretestResultsRoute
   SummaryRoute: typeof SummaryRoute
   ApiChatRoute: typeof ApiChatRoute
+  SavedCourseIdRoute: typeof SavedCourseIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/saved-course/$id': {
+      id: '/saved-course/$id'
+      path: '/saved-course/$id'
+      fullPath: '/saved-course/$id'
+      preLoaderRoute: typeof SavedCourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/history/$id': {
       id: '/history/$id'
       path: '/$id'
@@ -412,6 +432,7 @@ const rootRouteChildren: RootRouteChildren = {
   PretestResultsRoute: PretestResultsRoute,
   SummaryRoute: SummaryRoute,
   ApiChatRoute: ApiChatRoute,
+  SavedCourseIdRoute: SavedCourseIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

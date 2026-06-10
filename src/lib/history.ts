@@ -1,3 +1,5 @@
+import type { Course } from "@/lib/learning-state";
+
 export type Status = "Likely Clear" | "Partially Clear" | "Likely Missing";
 
 export interface HistorySubtopic {
@@ -65,6 +67,7 @@ export interface HistorySession {
     total?: number;
   };
   lesson?: HistoryLessonConcept[];
+  course?: Course | null;
   flashcards?: HistoryFlashcard[];
   improvement?: number;
   knowledgeGaps?: HistoryKnowledgeGap[];

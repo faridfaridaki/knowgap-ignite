@@ -66,6 +66,7 @@ function buildHistorySession({
       total: finalTotal,
     },
     lesson: state.lesson,
+    course: state.course,
     flashcards: state.flashcards,
     improvement,
     knowledgeGaps,
