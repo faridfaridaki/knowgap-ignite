@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, X, Lightbulb } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   loadState,
   patchState,
@@ -13,8 +14,17 @@ import type { LearningState } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/pretest-results")({
-  component: PreTestResults,
+  component: PreTestResultsRoute,
 });
+
+function PreTestResultsRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard preserveTopicForAuth loadingTitle={t("pleaseWait")}>
+      <PreTestResults />
+    </AuthGuard>
+  );
+}
 
 function PreTestResults() {
   const navigate = useNavigate();

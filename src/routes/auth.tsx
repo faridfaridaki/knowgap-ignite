@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -29,9 +29,26 @@ function AuthScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const finishAuthRedirect = useCallback(() => {
+    let pendingTopic = "";
+    try {
+      pendingTopic = sessionStorage.getItem("knowgap:pendingTopic")?.trim() ?? "";
+      if (pendingTopic) {
+        sessionStorage.removeItem("knowgap:subtopics");
+        sessionStorage.removeItem("knowgap:messages");
+        sessionStorage.removeItem("knowgap:startedAt");
+        sessionStorage.removeItem("knowgap:pendingTopic");
+        sessionStorage.removeItem("knowgap:state");
+        sessionStorage.setItem("knowgap:topic", pendingTopic);
+      }
+    } catch {}
+
+    navigate({ to: pendingTopic ? "/pretest" : "/" });
+  }, [navigate]);
+
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/" });
-  }, [user, loading, navigate]);
+    if (!loading && user) finishAuthRedirect();
+  }, [user, loading, finishAuthRedirect]);
 
   const handleGoogle = async () => {
     setError(null);
@@ -66,7 +83,7 @@ function AuthScreen() {
         });
         if (err) throw err;
         if (data.session) {
-          navigate({ to: "/" });
+          finishAuthRedirect();
         } else {
           setInfo(t("checkEmail"));
           setMode("signin");
@@ -77,7 +94,7 @@ function AuthScreen() {
           password,
         });
         if (err) throw err;
-        navigate({ to: "/" });
+        finishAuthRedirect();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

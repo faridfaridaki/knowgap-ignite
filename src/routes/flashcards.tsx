@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight, RotateCw, Shuffle, Sparkles } from "lucide-react";
 import { AiErrorState } from "@/components/AiErrorState";
 import { AppHeader } from "@/components/AppHeader";
+import { AuthGuard } from "@/components/AuthGuard";
 import { MarkdownText } from "@/components/MarkdownText";
 import { generateFlashcards } from "@/lib/learning.functions";
 import { loadState, patchState } from "@/lib/learning-state";
@@ -12,8 +13,17 @@ import { friendlyAiError } from "@/lib/ai-error";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/flashcards")({
-  component: FlashcardsPage,
+  component: FlashcardsRoute,
 });
+
+function FlashcardsRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard preserveTopicForAuth loadingTitle={t("pleaseWait")}>
+      <FlashcardsPage />
+    </AuthGuard>
+  );
+}
 
 const FLASHCARD_FORMAT_VERSION = "topic-rich-v2";
 

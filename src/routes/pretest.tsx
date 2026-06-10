@@ -5,6 +5,7 @@ import { QuizPlayer } from "@/components/QuizPlayer";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
 import { AppHeader } from "@/components/AppHeader";
+import { AuthGuard } from "@/components/AuthGuard";
 import { generatePreTest } from "@/lib/learning.functions";
 import { initState, loadState, patchState } from "@/lib/learning-state";
 import type { QuizQuestion } from "@/lib/learning-state";
@@ -12,8 +13,17 @@ import { useT } from "@/lib/i18n";
 import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/pretest")({
-  component: PreTestPage,
+  component: PreTestRoute,
 });
+
+function PreTestRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard preserveTopicForAuth loadingTitle={t("pleaseWait")}>
+      <PreTestPage />
+    </AuthGuard>
+  );
+}
 
 function PreTestPage() {
   const navigate = useNavigate();

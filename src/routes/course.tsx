@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock, CheckCircle2, ChevronLeft, ChevronRight, PartyPopper, BookOpen } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
+import { AuthGuard } from "@/components/AuthGuard";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
 import { MarkdownText } from "@/components/MarkdownText";
@@ -27,8 +28,17 @@ import { useT } from "@/lib/i18n";
 import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/course")({
-  component: CoursePage,
+  component: CourseRoute,
 });
+
+function CourseRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard preserveTopicForAuth loadingTitle={t("pleaseWait")}>
+      <CoursePage />
+    </AuthGuard>
+  );
+}
 
 function isPracticalLessonReady(lesson: CourseLesson | undefined): boolean {
   return Boolean(

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, X, TrendingUp, AlertTriangle, ArrowRight, Lightbulb } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
+import { AuthGuard } from "@/components/AuthGuard";
 import {
   loadState,
   patchState,
@@ -20,8 +21,17 @@ import type { HistorySession } from "@/lib/history";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/final-analysis")({
-  component: FinalAnalysisRoute,
+  component: ProtectedFinalAnalysisRoute,
 });
+
+function ProtectedFinalAnalysisRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard preserveTopicForAuth loadingTitle={t("pleaseWait")}>
+      <FinalAnalysisRoute />
+    </AuthGuard>
+  );
+}
 
 function FinalAnalysisRoute() {
   const location = useLocation();

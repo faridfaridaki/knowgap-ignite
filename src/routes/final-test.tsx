@@ -5,6 +5,7 @@ import { QuizPlayer } from "@/components/QuizPlayer";
 import { FullScreenLoader } from "@/components/FullScreenLoader";
 import { AiErrorState } from "@/components/AiErrorState";
 import { AppHeader } from "@/components/AppHeader";
+import { AuthGuard } from "@/components/AuthGuard";
 import { generateFinalTest } from "@/lib/learning.functions";
 import { loadState, patchState } from "@/lib/learning-state";
 import type { QuizQuestion } from "@/lib/learning-state";
@@ -12,8 +13,17 @@ import { useT } from "@/lib/i18n";
 import { friendlyAiError } from "@/lib/ai-error";
 
 export const Route = createFileRoute("/final-test")({
-  component: FinalTestPage,
+  component: FinalTestRoute,
 });
+
+function FinalTestRoute() {
+  const { t } = useT();
+  return (
+    <AuthGuard preserveTopicForAuth loadingTitle={t("pleaseWait")}>
+      <FinalTestPage />
+    </AuthGuard>
+  );
+}
 
 function FinalTestPage() {
   const navigate = useNavigate();

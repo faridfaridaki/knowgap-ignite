@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, Sparkles, Brain } from "lucide-react";
 import { AppHeader } from "@/components/AppHeader";
+import { useAuth } from "@/hooks/use-auth";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
@@ -28,19 +29,42 @@ const MAX_CHARS = 5000;
 
 function Index() {
   const { t } = useT();
+  const { user, loading: authLoading } = useAuth();
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    try {
-      const pending = sessionStorage.getItem("knowgap:pendingTopic");
-      if (pending) {
-        setValue(pending);
+  const startAnalyzeTopic = useCallback(
+    (fresh: string) => {
+      try {
+        sessionStorage.removeItem("knowgap:subtopics");
+        sessionStorage.removeItem("knowgap:messages");
+        sessionStorage.removeItem("knowgap:startedAt");
         sessionStorage.removeItem("knowgap:pendingTopic");
-      }
+        sessionStorage.removeItem("knowgap:state");
+        sessionStorage.setItem("knowgap:topic", fresh);
+      } catch {}
+      navigate({ to: "/pretest" });
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    if (authLoading) return;
+    let pending = "";
+    try {
+      pending = sessionStorage.getItem("knowgap:pendingTopic")?.trim() ?? "";
     } catch {}
-  }, []);
+    if (!pending) return;
+    if (user) {
+      startAnalyzeTopic(pending);
+      return;
+    }
+    setValue(pending);
+    try {
+      sessionStorage.removeItem("knowgap:pendingTopic");
+    } catch {}
+  }, [authLoading, user, startAnalyzeTopic]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -49,20 +73,20 @@ function Index() {
     el.style.height = `${Math.max(120, el.scrollHeight)}px`;
   }, [value]);
 
-  const disabled = value.trim().length === 0;
+  const topicMissing = value.trim().length === 0;
+  const disabled = topicMissing || authLoading;
 
   const handleAnalyze = () => {
-    if (disabled) return;
+    if (topicMissing || authLoading) return;
     const fresh = value.trim();
-    try {
-      sessionStorage.removeItem("knowgap:subtopics");
-      sessionStorage.removeItem("knowgap:messages");
-      sessionStorage.removeItem("knowgap:startedAt");
-      sessionStorage.removeItem("knowgap:pendingTopic");
-      sessionStorage.removeItem("knowgap:state");
-      sessionStorage.setItem("knowgap:topic", fresh);
-    } catch {}
-    navigate({ to: "/pretest" });
+    if (!user) {
+      try {
+        sessionStorage.setItem("knowgap:pendingTopic", fresh);
+      } catch {}
+      navigate({ to: "/auth" });
+      return;
+    }
+    startAnalyzeTopic(fresh);
   };
 
   return (
@@ -107,7 +131,7 @@ function Index() {
               backgroundImage: "linear-gradient(135deg, #7C6AF7 0%, #5B4FD4 100%)",
             }}
           >
-            {t("analyzeBtn")}
+            {authLoading ? t("pleaseWait") : user ? t("analyzeBtn") : t("signInToAnalyze")}
           </button>
         </div>
 
