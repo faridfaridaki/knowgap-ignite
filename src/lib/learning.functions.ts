@@ -6,7 +6,7 @@ type Lang = "en" | "ru" | "kk";
 
 function langInstruction(lang: Lang): string {
   const name = lang === "ru" ? "Russian" : lang === "kk" ? "Kazakh" : "English";
-  return `Respond entirely in ${name}. ALL questions, options, explanations, lesson text, examples, terms, problems, and answers must be in ${name}.`;
+  return `Respond entirely in ${name}. Keep required JSON keys exactly as specified, but ALL user-visible string values must be in ${name}: course titles, lesson titles, Markdown headings, questions, options, explanations, examples, terms, problems, answers, formulas explanations, and checkpoint text.`;
 }
 
 function normLang(input: unknown): Lang {
@@ -407,118 +407,175 @@ function fallbackFlashcards(
   lang: Lang,
 ): Flashcard[] {
   const isRu = lang === "ru";
+  const isKk = lang === "kk";
   const sourceCards = uniqueFlashcards(
     sources.map((source) => ({
       term: source.term,
       definition: source.definition,
       simple_definition: source.definition,
-      expanded_explanation: isRu
-        ? `Это понятие относится к теме "${topic}" и помогает точнее понимать материал. Оно задает смысл термина и показывает, где его использовать.`
-        : `This concept belongs to "${topic}" and helps explain the topic more precisely. It gives the term a clear meaning and shows where it should be used.`,
-      how_it_works: isRu
-        ? `Сначала определи, что обозначает термин, затем найди его роль в задаче, примере или объяснении.`
-        : `First identify what the term names, then connect it to its role in a problem, example, or explanation.`,
-      example: isRu
-        ? `В теме "${topic}" термин "${source.term}" используется для объяснения конкретной части материала.`
-        : `In "${topic}", "${source.term}" is used to explain a specific part of the material.`,
+      expanded_explanation: isKk
+        ? `Бұл ұғым "${topic}" тақырыбына жатады және материалды дәлірек түсінуге көмектеседі. Ол терминнің мағынасын анықтап, қай жерде қолданылатынын көрсетеді.`
+        : isRu
+          ? `Это понятие относится к теме "${topic}" и помогает точнее понимать материал. Оно задает смысл термина и показывает, где его использовать.`
+          : `This concept belongs to "${topic}" and helps explain the topic more precisely. It gives the term a clear meaning and shows where it should be used.`,
+      how_it_works: isKk
+        ? `Алдымен термин нені білдіретінін анықта, содан кейін оны есептегі, мысалдағы немесе түсіндірудегі рөлімен байланыстыр.`
+        : isRu
+          ? `Сначала определи, что обозначает термин, затем найди его роль в задаче, примере или объяснении.`
+          : `First identify what the term names, then connect it to its role in a problem, example, or explanation.`,
+      example: isKk
+        ? `"${topic}" тақырыбында "${source.term}" термині материалдың нақты бөлігін түсіндіру үшін қолданылады.`
+        : isRu
+          ? `В теме "${topic}" термин "${source.term}" используется для объяснения конкретной части материала.`
+          : `In "${topic}", "${source.term}" is used to explain a specific part of the material.`,
     })),
   );
 
   const baseTerms = lessonTitles.length
     ? lessonTitles
-    : isRu
-      ? [`Основная идея ${topic}`, "Ключевые понятия", "Практическое применение", "Пример"]
-      : [`Core idea of ${topic}`, "Key concepts", "Practical application", "Example"];
+    : isKk
+      ? [`${topic} негізгі идеясы`, "Негізгі ұғымдар", "Практикалық қолдану", "Мысал"]
+      : isRu
+        ? [`Основная идея ${topic}`, "Ключевые понятия", "Практическое применение", "Пример"]
+        : [`Core idea of ${topic}`, "Key concepts", "Practical application", "Example"];
   const lessonCards = baseTerms.map((term) => ({
     ...buildFlashcard(
       term,
-      isRu ? `Важное понятие из темы "${topic}".` : `An important concept from "${topic}".`,
-      isRu
-        ? `Это понятие обозначает одну из центральных идей темы и помогает связать отдельные факты в понятную систему.`
-        : `This concept names one of the central ideas in the topic and helps connect separate facts into a clearer system.`,
-      isRu
-        ? `Когда ты встречаешь это понятие, спроси, какую роль оно играет: описывает объект, процесс, правило, причину или результат.`
-        : `When you see this concept, ask what role it plays: object, process, rule, cause, or result.`,
-      isRu
-        ? `Например, в теме "${topic}" это понятие может использоваться для объяснения шага в решении.`
-        : `For example, in "${topic}", this concept can explain one step in solving a problem.`,
+      isKk
+        ? `"${topic}" тақырыбындағы маңызды ұғым.`
+        : isRu
+          ? `Важное понятие из темы "${topic}".`
+          : `An important concept from "${topic}".`,
+      isKk
+        ? "Бұл ұғым тақырыптың негізгі идеяларының бірін атайды және бөлек фактілерді түсінікті жүйеге біріктіруге көмектеседі."
+        : isRu
+          ? `Это понятие обозначает одну из центральных идей темы и помогает связать отдельные факты в понятную систему.`
+          : `This concept names one of the central ideas in the topic and helps connect separate facts into a clearer system.`,
+      isKk
+        ? "Бұл ұғымды көргенде оның рөлін сұра: объектіні, процесті, ережені, себепті немесе нәтижені сипаттай ма?"
+        : isRu
+          ? `Когда ты встречаешь это понятие, спроси, какую роль оно играет: описывает объект, процесс, правило, причину или результат.`
+          : `When you see this concept, ask what role it plays: object, process, rule, cause, or result.`,
+      isKk
+        ? `Мысалы, "${topic}" тақырыбында бұл ұғым есеп шығарудың бір қадамын түсіндіруі мүмкін.`
+        : isRu
+          ? `Например, в теме "${topic}" это понятие может использоваться для объяснения шага в решении.`
+          : `For example, in "${topic}", this concept can explain one step in solving a problem.`,
     ),
   }));
-  const extras = isRu
+  const extras = isKk
     ? [
         buildFlashcard(
-          `${topic}: определение`,
-          `Краткое объяснение значения темы "${topic}".`,
-          `Определение устанавливает границы понятия: что входит в него и что не входит.`,
-          `Оно обычно называет общий класс понятия и добавляет признаки, которые делают его отличимым.`,
-          `Например, определение помогает понять, какие идеи действительно относятся к теме "${topic}".`,
+          `${topic}: анықтама`,
+          `"${topic}" нені білдіретінін қысқаша түсіндіру.`,
+          "Анықтама ұғымның шекарасын белгілейді: оған не кіреді және не кірмейді.",
+          "Әдетте ол алдымен жалпы санатты атайды, содан кейін ұғымды ерекшелендіретін белгілерді қосады.",
+          `Мысалы, анықтама "${topic}" тақырыбына қай идеялар шынымен жататынын ажыратуға көмектеседі.`,
         ),
         buildFlashcard(
-          `${topic}: ключевой принцип`,
-          `Главное правило или идея темы "${topic}".`,
-          `Ключевой принцип показывает, на чем строится понимание материала и почему отдельные шаги работают.`,
-          `Он связывает термины, примеры и задачи в одно объяснение.`,
-          `Например, при решении задачи принцип подсказывает, какой метод выбрать.`,
+          `${topic}: негізгі принцип`,
+          `"${topic}" тақырыбының басты ережесі немесе идеясы.`,
+          "Негізгі принцип материалдың неге жұмыс істейтінін түсіндіріп, тақырыптың логикасын береді.",
+          "Ол терминдерді, мысалдарды және тапсырмаларды бір қолданылатын түсіндіруге байланыстырады.",
+          "Мысалы, есеп шығарғанда принцип қай әдісті таңдау керегін көрсетеді.",
         ),
         buildFlashcard(
-          `${topic}: применение`,
-          `Использование знаний по теме "${topic}" на практике.`,
-          `Применение показывает, как идея переходит из объяснения в действие, решение или вывод.`,
-          `Ты выбираешь нужное понятие, проверяешь условия и используешь его для конкретной цели.`,
-          `Например, понятие можно применить, чтобы решить задачу или объяснить ситуацию.`,
+          `${topic}: қолдану`,
+          `"${topic}" бойынша білімді практикада пайдалану.`,
+          "Қолдану идеяның түсіндіруден әрекетке, шешімге немесе қорытындыға қалай өтетінін көрсетеді.",
+          "Сен қажетті ұғымды таңдап, шарттарды тексеріп, оны нақты мақсатқа пайдаланасың.",
+          "Мысалы, ұғымды есеп шығару немесе жағдайды түсіндіру үшін қолдануға болады.",
         ),
         buildFlashcard(
-          `${topic}: связь понятий`,
-          `Отношение между несколькими терминами темы "${topic}".`,
-          `Связи показывают, как одно понятие поддерживает, ограничивает или объясняет другое.`,
-          `Чтобы найти связь, сравни роли терминов и посмотри, зависят ли они друг от друга.`,
-          `Например, причина может быть связана с результатом через процесс.`,
+          `${topic}: ұғымдар байланысы`,
+          `"${topic}" тақырыбындағы бірнеше терминнің арасындағы қатынас.`,
+          "Байланыстар бір ұғымның екіншісін қалай қолдайтынын, шектейтінін немесе түсіндіретінін көрсетеді.",
+          "Байланысты табу үшін терминдердің рөлін салыстырып, біреуі екіншісіне тәуелді ме, қара.",
+          "Мысалы, себеп процес арқылы нәтижемен байланысуы мүмкін.",
         ),
         buildFlashcard(
           `${topic}: процесс`,
-          `Последовательность шагов или изменений в теме "${topic}".`,
-          `Процесс объясняет, как что-то развивается от начального состояния к результату.`,
-          `Он работает через порядок действий, условий или причин, которые следуют друг за другом.`,
-          `Например, процесс можно описать как шаг 1, шаг 2 и итог.`,
+          `"${topic}" ішіндегі қадамдар немесе өзгерістер тізбегі.`,
+          "Процесс бір нәрсенің бастапқы күйден нәтижеге қалай дамитынын түсіндіреді.",
+          "Ол бірінен кейін бірі жүретін әрекеттер, шарттар немесе себептер арқылы жұмыс істейді.",
+          "Мысалы, процесті 1-қадам, 2-қадам және нәтиже деп сипаттауға болады.",
         ),
       ]
-    : [
-        buildFlashcard(
-          `${topic}: definition`,
-          `A short explanation of what "${topic}" means.`,
-          `A definition sets the boundaries of a concept: what belongs to it and what does not.`,
-          `It usually names the general category first, then adds the specific features that make the concept different.`,
-          `For example, a definition helps decide which ideas really belong to "${topic}".`,
-        ),
-        buildFlashcard(
-          `${topic}: key principle`,
-          `The main rule or idea behind "${topic}".`,
-          `A key principle explains why the material works and gives the topic its basic logic.`,
-          `It connects terms, examples, and problems into one usable explanation.`,
-          `For example, the principle can tell you which method to use in a problem.`,
-        ),
-        buildFlashcard(
-          `${topic}: application`,
-          `Using knowledge of "${topic}" in practice.`,
-          `Application shows how an idea moves from explanation into action, problem solving, or interpretation.`,
-          `You choose the right concept, check the conditions, and use it for a specific goal.`,
-          `For example, you can apply a concept to solve a task or explain a situation.`,
-        ),
-        buildFlashcard(
-          `${topic}: concept relationship`,
-          `A connection between terms in "${topic}".`,
-          `Concept relationships show how one idea supports, limits, causes, or explains another.`,
-          `To find a relationship, compare the roles of two terms and check whether one depends on the other.`,
-          `For example, a cause can connect to an outcome through a process.`,
-        ),
-        buildFlashcard(
-          `${topic}: process`,
-          `A sequence of steps or changes in "${topic}".`,
-          `A process explains how something develops from a starting point to a result.`,
-          `It works through ordered actions, causes, or conditions that follow one another.`,
-          `For example, a process can be described as step 1, step 2, then the result.`,
-        ),
-      ];
+    : isRu
+      ? [
+          buildFlashcard(
+            `${topic}: определение`,
+            `Краткое объяснение значения темы "${topic}".`,
+            `Определение устанавливает границы понятия: что входит в него и что не входит.`,
+            `Оно обычно называет общий класс понятия и добавляет признаки, которые делают его отличимым.`,
+            `Например, определение помогает понять, какие идеи действительно относятся к теме "${topic}".`,
+          ),
+          buildFlashcard(
+            `${topic}: ключевой принцип`,
+            `Главное правило или идея темы "${topic}".`,
+            `Ключевой принцип показывает, на чем строится понимание материала и почему отдельные шаги работают.`,
+            `Он связывает термины, примеры и задачи в одно объяснение.`,
+            `Например, при решении задачи принцип подсказывает, какой метод выбрать.`,
+          ),
+          buildFlashcard(
+            `${topic}: применение`,
+            `Использование знаний по теме "${topic}" на практике.`,
+            `Применение показывает, как идея переходит из объяснения в действие, решение или вывод.`,
+            `Ты выбираешь нужное понятие, проверяешь условия и используешь его для конкретной цели.`,
+            `Например, понятие можно применить, чтобы решить задачу или объяснить ситуацию.`,
+          ),
+          buildFlashcard(
+            `${topic}: связь понятий`,
+            `Отношение между несколькими терминами темы "${topic}".`,
+            `Связи показывают, как одно понятие поддерживает, ограничивает или объясняет другое.`,
+            `Чтобы найти связь, сравни роли терминов и посмотри, зависят ли они друг от друга.`,
+            `Например, причина может быть связана с результатом через процесс.`,
+          ),
+          buildFlashcard(
+            `${topic}: процесс`,
+            `Последовательность шагов или изменений в теме "${topic}".`,
+            `Процесс объясняет, как что-то развивается от начального состояния к результату.`,
+            `Он работает через порядок действий, условий или причин, которые следуют друг за другом.`,
+            `Например, процесс можно описать как шаг 1, шаг 2 и итог.`,
+          ),
+        ]
+      : [
+          buildFlashcard(
+            `${topic}: definition`,
+            `A short explanation of what "${topic}" means.`,
+            `A definition sets the boundaries of a concept: what belongs to it and what does not.`,
+            `It usually names the general category first, then adds the specific features that make the concept different.`,
+            `For example, a definition helps decide which ideas really belong to "${topic}".`,
+          ),
+          buildFlashcard(
+            `${topic}: key principle`,
+            `The main rule or idea behind "${topic}".`,
+            `A key principle explains why the material works and gives the topic its basic logic.`,
+            `It connects terms, examples, and problems into one usable explanation.`,
+            `For example, the principle can tell you which method to use in a problem.`,
+          ),
+          buildFlashcard(
+            `${topic}: application`,
+            `Using knowledge of "${topic}" in practice.`,
+            `Application shows how an idea moves from explanation into action, problem solving, or interpretation.`,
+            `You choose the right concept, check the conditions, and use it for a specific goal.`,
+            `For example, you can apply a concept to solve a task or explain a situation.`,
+          ),
+          buildFlashcard(
+            `${topic}: concept relationship`,
+            `A connection between terms in "${topic}".`,
+            `Concept relationships show how one idea supports, limits, causes, or explains another.`,
+            `To find a relationship, compare the roles of two terms and check whether one depends on the other.`,
+            `For example, a cause can connect to an outcome through a process.`,
+          ),
+          buildFlashcard(
+            `${topic}: process`,
+            `A sequence of steps or changes in "${topic}".`,
+            `A process explains how something develops from a starting point to a result.`,
+            `It works through ordered actions, causes, or conditions that follow one another.`,
+            `For example, a process can be described as step 1, step 2, then the result.`,
+          ),
+        ];
 
   return uniqueFlashcards([...sourceCards, ...lessonCards, ...extras]).slice(0, 10);
 }
@@ -790,6 +847,7 @@ function fallbackMathCheckpointQuestion(data: {
   language: Lang;
 }): LessonCheckpointQuestion {
   const isRu = data.language === "ru";
+  const isKk = data.language === "kk";
   const title = normalizeKey(data.lessonTitle);
   const make = (
     question: string,
@@ -798,6 +856,75 @@ function fallbackMathCheckpointQuestion(data: {
     explanation: string,
   ): LessonCheckpointQuestion =>
     makeCheckpointQuestion(data, question, correct, wrong, explanation);
+
+  if (isKk) {
+    const kkMathFallbacks = [
+      {
+        question:
+          "Рецепт 6 адамға 3 кесе күріш қолданады. Сол қатынаспен 10 адамға қанша кесе күріш керек?",
+        correct: "5 кесе",
+        wrong: ["4 кесе", "6 кесе", "9 кесе"],
+        explanation: "3/6 = x/10 пропорциясын құрамыз: 6x = 30, сондықтан x = 5.",
+      },
+      {
+        question: "19 × 51 көбейтіндісін жылдам бағалау үшін ең жақсы жуық жауап қайсы?",
+        correct: "Шамамен 1 000",
+        wrong: ["Шамамен 100", "Шамамен 500", "Шамамен 2 000"],
+        explanation: "19 ≈ 20 және 51 ≈ 50, сондықтан 20 × 50 = 1 000.",
+      },
+      {
+        question: "Теңдеуді шеш: 3x + 6 = 24.",
+        correct: "x = 6",
+        wrong: ["x = 5", "x = 8", "x = 10"],
+        explanation: "Алдымен 6-ны азайтамыз: 3x = 18. Содан кейін 3-ке бөлеміз: x = 6.",
+      },
+      {
+        question: "Тіктөртбұрыштың ұзындығы 8 м, ені 5 м. Оның ауданы қанша?",
+        correct: "40 м²",
+        wrong: ["13 м²", "26 м²", "80 м²"],
+        explanation: "Тіктөртбұрыш ауданы = ұзындық × ені, яғни 8 × 5 = 40.",
+      },
+      {
+        question: "2³ неге тең?",
+        correct: "8",
+        wrong: ["5", "6", "9"],
+        explanation: "2³ дегеніміз 2 × 2 × 2, бұл 8-ге тең.",
+      },
+      {
+        question: "Қапта 3 қызыл және 7 көк шар бар. Қызыл шар алу ықтималдығы қандай?",
+        correct: "3/10",
+        wrong: ["3/7", "7/10", "1/3"],
+        explanation: "Барлығы 10 шар, оның 3-еуі қызыл. Сондықтан ықтималдық 3/10.",
+      },
+      {
+        question: "4, 9, 2, 11 және 7 сандарының медианасын тап.",
+        correct: "7",
+        wrong: ["4", "6.6", "9"],
+        explanation: "Өсу ретімен: 2, 4, 7, 9, 11. Ортадағы сан — 7.",
+      },
+      {
+        question:
+          "Ереже: кіруге рұқсат, егер жас > 18 ЖӘНЕ рұқсат = иә. Жас 20, рұқсат = жоқ. Кіруге бола ма?",
+        correct: "Жоқ",
+        wrong: ["Иә", "Тек жас 21 болса", "Тек рұқсат мүмкін болса"],
+        explanation: "ЖӘНЕ шарты үшін екі шарт та дұрыс болуы керек, бірақ рұқсат «иә» емес.",
+      },
+      {
+        question: "$200 сомасына бір жылға 10% қарапайым пайыз қанша болады?",
+        correct: "$20",
+        wrong: ["$10", "$30", "$40"],
+        explanation: "Қарапайым пайыз: 200 × 0.10 = 20.",
+      },
+      {
+        question: "Есепте 4 қадам бар, әр қадамда 3 таңдау бар. Барлығы қанша жол болады?",
+        correct: "81",
+        wrong: ["12", "64", "27"],
+        explanation: "Әр қадамдағы таңдауларды көбейтеміз: 3 × 3 × 3 × 3 = 81.",
+      },
+    ];
+    const fallback = kkMathFallbacks[(data.lessonNumber - 1) % kkMathFallbacks.length];
+    return make(fallback.question, fallback.correct, fallback.wrong, fallback.explanation);
+  }
 
   if (isRu) {
     const ruMathFallbacks = [
@@ -1016,230 +1143,347 @@ function fallbackCheckpointQuestion(data: {
     return fallbackMathCheckpointQuestion(data);
   }
   const isRu = data.language === "ru";
-  const topic = data.topic || (isRu ? "темы" : "the topic");
+  const isKk = data.language === "kk";
+  const topic = data.topic || (isKk ? "тақырып" : isRu ? "темы" : "the topic");
   const title =
-    data.lessonTitle || (isRu ? `Урок ${data.lessonNumber}` : `Lesson ${data.lessonNumber}`);
-  const templates = isRu
+    data.lessonTitle ||
+    (isKk
+      ? `${data.lessonNumber}-сабақ`
+      : isRu
+        ? `Урок ${data.lessonNumber}`
+        : `Lesson ${data.lessonNumber}`);
+  const templates = isKk
     ? [
         {
-          question: `Ученик начинает задание по уроку "${title}" в теме "${topic}". Какой первый шаг самый сильный?`,
-          correct: `Назвать конкретный случай и правило из урока "${title}", которое к нему подходит`,
+          question: `Оқушы "${topic}" тақырыбындағы "${title}" сабағы бойынша тапсырма бастады. Ең күшті бірінші қадам қандай?`,
+          correct: `Нақты жағдайды атап, оған сай "${title}" сабағының ережесін айту`,
           wrong: [
-            `Дать общий пересказ темы "${topic}" и остановиться`,
-            "Выбрать самый длинный вариант ответа",
-            "Начать с правила из другого урока",
+            `"${topic}" тақырыбын жалпы қайталап, сол жерде тоқтау`,
+            "Ең ұзын жауапты таңдау",
+            "Басқа сабақтағы ережеден бастау",
           ],
           explanation:
-            "Сильный ответ начинается с конкретного случая и применимого правила, а не с общего пересказа.",
+            "Күшті жауап жалпы мазмұннан емес, нақты жағдай мен оған сәйкес ережеден басталады.",
         },
         {
-          question: `В примере есть две детали, которые помогают применить "${title}". Какой ответ лучше использует доказательства?`,
-          correct: "Указать обе важные детали и связать их с критерием урока",
+          question: `Мысалда "${title}" қолдануға көмектесетін екі белгі бар. Қай жауап дәлелді жақсы қолданады?`,
+          correct: "Екі маңызды белгіні көрсетіп, оларды сабақ критерийімен байланыстыру",
           wrong: [
-            "Упомянуть одну деталь без объяснения",
-            "Игнорировать детали и опираться на интуицию",
-            "Повторить название урока как ответ",
+            "Бір белгіні айтып, неге маңызды екенін түсіндірмеу",
+            "Белгілерді елемей, ішкі сезімге сүйену",
+            "Жауап ретінде сабақ атауын ғана қайталау",
           ],
           explanation:
-            "Доказательство работает только тогда, когда детали связаны с правилом или критерием.",
+            "Дәлел белгілер ережемен немесе критериймен байланысқанда ғана жұмыс істейді.",
         },
         {
-          question: `Кто-то применяет "${title}", но пропускает порядок действий. Что нужно добавить?`,
-          correct: "Пошаговый метод и проверку каждого шага на примере",
+          question: `Біреу "${title}" қолданады, бірақ әрекет ретін өткізіп жібереді. Не қосу керек?`,
+          correct: "Қадамдық әдіс пен әр қадамды мысал арқылы тексеру",
           wrong: [
-            "Более длинное определение без примера",
-            "Ответ без объяснения процесса",
-            "Список несвязанных фактов",
+            "Мысалсыз ұзақ анықтама",
+            "Процесті түсіндірмейтін жауап",
+            "Байланысы жоқ фактілер тізімі",
+          ],
+          explanation: "Сабақ әдісті қолдануды тексереді, сондықтан қадамдар мен тексеру қажет.",
+        },
+        {
+          question: `"${topic}" тақырыбындағы мысалды "${title}" бойынша жіктеу керек. Дұрыс тәсіл қандай?`,
+          correct: "Мысал белгілерін сабақтағы санат белгілерімен салыстыру",
+          wrong: [
+            "Санатты мысалдың бірінші сөзіне қарап таңдау",
+            "Санатты жеке пікір бойынша анықтау",
+            "Мысалдың нақты белгілеріне қарамау",
+          ],
+          explanation: "Жіктеу атаудан болжауды емес, белгілерді салыстыруды талап етеді.",
+        },
+        {
+          question: `"${title}" бойынша екі мүмкін жауап берілген. Қайсысы күштірек екенін қалай таңдайсың?`,
+          correct: "Екі жауапты бірдей критериймен тексеріп, дәлелі мықтысын таңдау",
+          wrong: [
+            "Сенімдірек естілетін жауапты таңдау",
+            "Салыстырмай бірінші жауапты таңдау",
+            "Әр жауапқа бөлек ереже қолдану",
           ],
           explanation:
-            "Урок проверяет применение метода, поэтому нужен порядок действий и проверка.",
+            "Әділ салыстыру бірдей критерийді қолданып, қай жауап жақсы дәлелденгенін қарайды.",
         },
         {
-          question: `Нужно классифицировать пример из темы "${topic}" по уроку "${title}". Какой подход правильный?`,
-          correct: "Сравнить признаки примера с признаками категории из урока",
+          question: `"${title}" бойынша шешімде қате бар. Оны не жақсы түзетеді?`,
+          correct: "Қате қадамды тауып, неге әлсіз екенін түсіндіріп, сабақ ережесімен ауыстыру",
           wrong: [
-            "Выбрать категорию по первому слову в примере",
-            "Определить категорию по личному мнению",
-            "Не смотреть на признаки примера",
+            "Қорытынды жақсы естілсе, қатені қалдыру",
+            "Түзетпей бүкіл мысалды өшіру",
+            "Ойды тексерудің орнына жаңа термин қосу",
           ],
-          explanation: "Классификация требует признаков, а не догадки по названию.",
+          explanation: "Нақты түзету әлсіз қадамды тауып, оны дұрыс қолданумен алмастырады.",
         },
         {
-          question: `Даны два возможных ответа по уроку "${title}". Как выбрать более сильный?`,
-          correct: "Проверить оба ответа по одинаковым критериям и выбрать лучше подтверждённый",
+          question: `"${topic}" бойынша жаңа жағдай шықты. "${title}" оған қалай қолданылуы керек?`,
+          correct: "Ұқсас үлгіні тауып, ережені қолданып, қорытындыны фактілермен тексеру",
           wrong: [
-            "Выбрать ответ, который звучит увереннее",
-            "Выбрать первый ответ без сравнения",
-            "Сравнивать ответы по разным правилам",
+            "Жаңа жағдайды кездейсоқ деп қабылдау",
+            "Ескі жауапты өзгеріссіз қолдану",
+            "Тек тақырып атауына қарау",
           ],
-          explanation:
-            "Честное сравнение использует одинаковые критерии и смотрит на подтверждение.",
+          explanation: "Дағдыны көшіру үлгіні танып, ереженің фактілерге сай келуін тексереді.",
         },
         {
-          question: `В решении по "${title}" есть ошибка. Что лучше всего её исправляет?`,
-          correct: "Найти неверный шаг, объяснить почему он слабый и заменить его правилом урока",
+          question: `"${title}" арқылы бір тұжырымды бағалау керек. Таңдамас бұрын не істеу керек?`,
+          correct: "Факт пен интерпретацияны бөліп, қорытындының фактілерден шығатынын тексеру",
           wrong: [
-            "Оставить ошибку, если итог звучит красиво",
-            "Удалить весь пример без исправления",
-            "Добавить новый термин вместо проверки",
-          ],
-          explanation:
-            "Исправление должно найти причину ошибки и заменить её правильным применением.",
-        },
-        {
-          question: `Появился новый случай по теме "${topic}". Как применить "${title}" к новой ситуации?`,
-          correct: "Найти похожий шаблон, применить правило и проверить вывод по фактам",
-          wrong: [
-            "Считать, что новый случай решается случайно",
-            "Использовать старый ответ без изменений",
-            "Смотреть только на название темы",
+            "Әр интерпретацияны факт деп қабылдау",
+            "Ең эмоциялық нұсқаны таңдау",
+            "Дәлел тексеруді өткізіп жіберу",
           ],
           explanation:
-            "Перенос навыка требует распознать шаблон и проверить, подходит ли правило к фактам.",
+            "Тұжырымды бағалау шешім алдында факт пен интерпретацияны ажыратуды қажет етеді.",
         },
         {
-          question: `Нужно оценить утверждение по уроку "${title}". Что следует сделать перед выбором ответа?`,
-          correct: "Отделить факты от интерпретации и проверить, что вывод следует из фактов",
+          question: `"${title}" сабағындағы чеклистті қалай дұрыс қолданған жөн?`,
+          correct: "Жауапты әр тармақпен тексеріп, жетіспейтін дәлелді табу",
           wrong: [
-            "Считать любую интерпретацию фактом",
-            "Выбрать самый эмоциональный вариант",
-            "Пропустить проверку доказательств",
+            "Чеклистті бір рет оқып, қолданбау",
+            "Тек соңғы тармақты қолдану",
+            "Дәлелдің орнына сенімділікке сүйену",
+          ],
+          explanation: "Чеклист әр тармақ жауапты нақты тексергенде ғана пайдалы.",
+        },
+        {
+          question: `Қорытынды тапсырма "${title}" пен "${topic}" тақырыбын біріктіреді. Қай жауап толық?`,
+          correct: "Курстың негізгі идеяларын біріктіріп, қорытындыны нақты бөлшектермен қорғау",
+          wrong: [
+            "Қолданбай бір терминді ғана атау",
+            "Бөлшексіз жалпы қорытынды жасау",
+            "Тақырыпқа қатысы жоқ мысал қолдану",
           ],
           explanation:
-            "Оценка утверждений требует отделять факты от интерпретации и проверять вывод.",
-        },
-        {
-          question: `Как лучше использовать чеклист из урока "${title}"?`,
-          correct: "Проверить ответ по каждому пункту и найти недостающие доказательства",
-          wrong: [
-            "Прочитать чеклист один раз и не применять его",
-            "Использовать только последний пункт",
-            "Заменить доказательства уверенностью",
-          ],
-          explanation: "Чеклист полезен только тогда, когда каждый пункт реально проверяет ответ.",
-        },
-        {
-          question: `Финальная задача объединяет "${title}" с темой "${topic}". Какой ответ самый полный?`,
-          correct: "Объединить главные идеи курса и подтвердить вывод конкретными деталями",
-          wrong: [
-            "Назвать только один термин без применения",
-            "Сделать общий вывод без деталей",
-            "Использовать пример, не связанный с темой",
-          ],
-          explanation:
-            "Финальный ответ должен объединять идеи и доказывать вывод конкретными деталями.",
+            "Қорытынды жауап идеяларды байланыстырып, нақты бөлшектермен дәлелдеуі керек.",
         },
       ]
-    : [
-        {
-          question: `A student starts a task about "${title}" in "${topic}". What is the strongest first move?`,
-          correct: `Name the concrete case, then state the "${title}" rule that fits it`,
-          wrong: [
-            `Give a broad summary of "${topic}" and stop there`,
-            "Choose the longest answer because it sounds detailed",
-            "Start with a rule from a different lesson",
-          ],
-          explanation:
-            "A strong answer starts with the specific case and the matching lesson rule.",
-        },
-        {
-          question: `An example contains two details that support "${title}". Which response uses evidence best?`,
-          correct: "Point to both relevant details and connect them to the lesson criterion",
-          wrong: [
-            "Mention one detail without explaining why it matters",
-            "Ignore the details and rely on intuition",
-            "Repeat the lesson title as the answer",
-          ],
-          explanation:
-            "Evidence works only when the details are connected to the rule or criterion.",
-        },
-        {
-          question: `Someone applies "${title}" but skips the method. What should they add?`,
-          correct: "The ordered steps and a check of each step against the example",
-          wrong: [
-            "A longer definition without an example",
-            "An answer with no process explanation",
-            "A list of unrelated facts",
-          ],
-          explanation: "The checkpoint tests applying the method, so the steps and checks matter.",
-        },
-        {
-          question: `You need to classify an example from "${topic}" using "${title}". What is the right approach?`,
-          correct: "Compare the example's features with the category features from the lesson",
-          wrong: [
-            "Choose the category based on the first word in the example",
-            "Classify it by personal opinion",
-            "Ignore the example's specific features",
-          ],
-          explanation: "Classification requires matching features, not guessing from a label.",
-        },
-        {
-          question: `You have two possible answers for "${title}". How should you choose the stronger one?`,
-          correct:
-            "Test both answers against the same criteria and choose the better-supported one",
-          wrong: [
-            "Choose the answer that sounds more confident",
-            "Pick the first answer without comparing",
-            "Use different rules for each answer",
-          ],
-          explanation:
-            "A fair comparison uses the same criteria and checks which answer has stronger support.",
-        },
-        {
-          question: `A solution for "${title}" contains a mistake. What best fixes it?`,
-          correct: "Find the wrong step, explain why it fails, and replace it with the lesson rule",
-          wrong: [
-            "Keep the mistake if the conclusion sounds good",
-            "Delete the whole example without correcting it",
-            "Add a new term instead of checking the reasoning",
-          ],
-          explanation:
-            "A real correction identifies the weak step and replaces it with the correct application.",
-        },
-        {
-          question: `A new case appears in "${topic}". How should "${title}" be applied to it?`,
-          correct: "Find the matching pattern, apply the rule, and verify the result with facts",
-          wrong: [
-            "Treat the new case as random",
-            "Reuse an old answer without changing anything",
-            "Look only at the topic title",
-          ],
-          explanation:
-            "Transfer means recognizing the pattern and checking whether the rule fits the facts.",
-        },
-        {
-          question: `You need to evaluate a claim using "${title}". What should happen before choosing?`,
-          correct: "Separate facts from interpretation and check whether the conclusion follows",
-          wrong: [
-            "Treat every interpretation as a fact",
-            "Choose the most emotional option",
-            "Skip the evidence check",
-          ],
-          explanation:
-            "Evaluating a claim requires separating facts from interpretation before deciding.",
-        },
-        {
-          question: `What is the best way to use the checklist from "${title}"?`,
-          correct: "Check the answer against every item and identify missing evidence",
-          wrong: [
-            "Read the checklist once without applying it",
-            "Use only the final item",
-            "Replace evidence with confidence",
-          ],
-          explanation: "A checklist works only when each item actively tests the answer.",
-        },
-        {
-          question: `A final task combines "${title}" with the wider topic "${topic}". Which answer is most complete?`,
-          correct: "Combine the course ideas and defend the conclusion with concrete details",
-          wrong: [
-            "Name one term without applying it",
-            "Make a broad conclusion with no details",
-            "Use an example unrelated to the topic",
-          ],
-          explanation:
-            "A final answer should connect the ideas and prove the conclusion with specific details.",
-        },
-      ];
+    : isRu
+      ? [
+          {
+            question: `Ученик начинает задание по уроку "${title}" в теме "${topic}". Какой первый шаг самый сильный?`,
+            correct: `Назвать конкретный случай и правило из урока "${title}", которое к нему подходит`,
+            wrong: [
+              `Дать общий пересказ темы "${topic}" и остановиться`,
+              "Выбрать самый длинный вариант ответа",
+              "Начать с правила из другого урока",
+            ],
+            explanation:
+              "Сильный ответ начинается с конкретного случая и применимого правила, а не с общего пересказа.",
+          },
+          {
+            question: `В примере есть две детали, которые помогают применить "${title}". Какой ответ лучше использует доказательства?`,
+            correct: "Указать обе важные детали и связать их с критерием урока",
+            wrong: [
+              "Упомянуть одну деталь без объяснения",
+              "Игнорировать детали и опираться на интуицию",
+              "Повторить название урока как ответ",
+            ],
+            explanation:
+              "Доказательство работает только тогда, когда детали связаны с правилом или критерием.",
+          },
+          {
+            question: `Кто-то применяет "${title}", но пропускает порядок действий. Что нужно добавить?`,
+            correct: "Пошаговый метод и проверку каждого шага на примере",
+            wrong: [
+              "Более длинное определение без примера",
+              "Ответ без объяснения процесса",
+              "Список несвязанных фактов",
+            ],
+            explanation:
+              "Урок проверяет применение метода, поэтому нужен порядок действий и проверка.",
+          },
+          {
+            question: `Нужно классифицировать пример из темы "${topic}" по уроку "${title}". Какой подход правильный?`,
+            correct: "Сравнить признаки примера с признаками категории из урока",
+            wrong: [
+              "Выбрать категорию по первому слову в примере",
+              "Определить категорию по личному мнению",
+              "Не смотреть на признаки примера",
+            ],
+            explanation: "Классификация требует признаков, а не догадки по названию.",
+          },
+          {
+            question: `Даны два возможных ответа по уроку "${title}". Как выбрать более сильный?`,
+            correct: "Проверить оба ответа по одинаковым критериям и выбрать лучше подтверждённый",
+            wrong: [
+              "Выбрать ответ, который звучит увереннее",
+              "Выбрать первый ответ без сравнения",
+              "Сравнивать ответы по разным правилам",
+            ],
+            explanation:
+              "Честное сравнение использует одинаковые критерии и смотрит на подтверждение.",
+          },
+          {
+            question: `В решении по "${title}" есть ошибка. Что лучше всего её исправляет?`,
+            correct: "Найти неверный шаг, объяснить почему он слабый и заменить его правилом урока",
+            wrong: [
+              "Оставить ошибку, если итог звучит красиво",
+              "Удалить весь пример без исправления",
+              "Добавить новый термин вместо проверки",
+            ],
+            explanation:
+              "Исправление должно найти причину ошибки и заменить её правильным применением.",
+          },
+          {
+            question: `Появился новый случай по теме "${topic}". Как применить "${title}" к новой ситуации?`,
+            correct: "Найти похожий шаблон, применить правило и проверить вывод по фактам",
+            wrong: [
+              "Считать, что новый случай решается случайно",
+              "Использовать старый ответ без изменений",
+              "Смотреть только на название темы",
+            ],
+            explanation:
+              "Перенос навыка требует распознать шаблон и проверить, подходит ли правило к фактам.",
+          },
+          {
+            question: `Нужно оценить утверждение по уроку "${title}". Что следует сделать перед выбором ответа?`,
+            correct: "Отделить факты от интерпретации и проверить, что вывод следует из фактов",
+            wrong: [
+              "Считать любую интерпретацию фактом",
+              "Выбрать самый эмоциональный вариант",
+              "Пропустить проверку доказательств",
+            ],
+            explanation:
+              "Оценка утверждений требует отделять факты от интерпретации и проверять вывод.",
+          },
+          {
+            question: `Как лучше использовать чеклист из урока "${title}"?`,
+            correct: "Проверить ответ по каждому пункту и найти недостающие доказательства",
+            wrong: [
+              "Прочитать чеклист один раз и не применять его",
+              "Использовать только последний пункт",
+              "Заменить доказательства уверенностью",
+            ],
+            explanation:
+              "Чеклист полезен только тогда, когда каждый пункт реально проверяет ответ.",
+          },
+          {
+            question: `Финальная задача объединяет "${title}" с темой "${topic}". Какой ответ самый полный?`,
+            correct: "Объединить главные идеи курса и подтвердить вывод конкретными деталями",
+            wrong: [
+              "Назвать только один термин без применения",
+              "Сделать общий вывод без деталей",
+              "Использовать пример, не связанный с темой",
+            ],
+            explanation:
+              "Финальный ответ должен объединять идеи и доказывать вывод конкретными деталями.",
+          },
+        ]
+      : [
+          {
+            question: `A student starts a task about "${title}" in "${topic}". What is the strongest first move?`,
+            correct: `Name the concrete case, then state the "${title}" rule that fits it`,
+            wrong: [
+              `Give a broad summary of "${topic}" and stop there`,
+              "Choose the longest answer because it sounds detailed",
+              "Start with a rule from a different lesson",
+            ],
+            explanation:
+              "A strong answer starts with the specific case and the matching lesson rule.",
+          },
+          {
+            question: `An example contains two details that support "${title}". Which response uses evidence best?`,
+            correct: "Point to both relevant details and connect them to the lesson criterion",
+            wrong: [
+              "Mention one detail without explaining why it matters",
+              "Ignore the details and rely on intuition",
+              "Repeat the lesson title as the answer",
+            ],
+            explanation:
+              "Evidence works only when the details are connected to the rule or criterion.",
+          },
+          {
+            question: `Someone applies "${title}" but skips the method. What should they add?`,
+            correct: "The ordered steps and a check of each step against the example",
+            wrong: [
+              "A longer definition without an example",
+              "An answer with no process explanation",
+              "A list of unrelated facts",
+            ],
+            explanation:
+              "The checkpoint tests applying the method, so the steps and checks matter.",
+          },
+          {
+            question: `You need to classify an example from "${topic}" using "${title}". What is the right approach?`,
+            correct: "Compare the example's features with the category features from the lesson",
+            wrong: [
+              "Choose the category based on the first word in the example",
+              "Classify it by personal opinion",
+              "Ignore the example's specific features",
+            ],
+            explanation: "Classification requires matching features, not guessing from a label.",
+          },
+          {
+            question: `You have two possible answers for "${title}". How should you choose the stronger one?`,
+            correct:
+              "Test both answers against the same criteria and choose the better-supported one",
+            wrong: [
+              "Choose the answer that sounds more confident",
+              "Pick the first answer without comparing",
+              "Use different rules for each answer",
+            ],
+            explanation:
+              "A fair comparison uses the same criteria and checks which answer has stronger support.",
+          },
+          {
+            question: `A solution for "${title}" contains a mistake. What best fixes it?`,
+            correct:
+              "Find the wrong step, explain why it fails, and replace it with the lesson rule",
+            wrong: [
+              "Keep the mistake if the conclusion sounds good",
+              "Delete the whole example without correcting it",
+              "Add a new term instead of checking the reasoning",
+            ],
+            explanation:
+              "A real correction identifies the weak step and replaces it with the correct application.",
+          },
+          {
+            question: `A new case appears in "${topic}". How should "${title}" be applied to it?`,
+            correct: "Find the matching pattern, apply the rule, and verify the result with facts",
+            wrong: [
+              "Treat the new case as random",
+              "Reuse an old answer without changing anything",
+              "Look only at the topic title",
+            ],
+            explanation:
+              "Transfer means recognizing the pattern and checking whether the rule fits the facts.",
+          },
+          {
+            question: `You need to evaluate a claim using "${title}". What should happen before choosing?`,
+            correct: "Separate facts from interpretation and check whether the conclusion follows",
+            wrong: [
+              "Treat every interpretation as a fact",
+              "Choose the most emotional option",
+              "Skip the evidence check",
+            ],
+            explanation:
+              "Evaluating a claim requires separating facts from interpretation before deciding.",
+          },
+          {
+            question: `What is the best way to use the checklist from "${title}"?`,
+            correct: "Check the answer against every item and identify missing evidence",
+            wrong: [
+              "Read the checklist once without applying it",
+              "Use only the final item",
+              "Replace evidence with confidence",
+            ],
+            explanation: "A checklist works only when each item actively tests the answer.",
+          },
+          {
+            question: `A final task combines "${title}" with the wider topic "${topic}". Which answer is most complete?`,
+            correct: "Combine the course ideas and defend the conclusion with concrete details",
+            wrong: [
+              "Name one term without applying it",
+              "Make a broad conclusion with no details",
+              "Use an example unrelated to the topic",
+            ],
+            explanation:
+              "A final answer should connect the ideas and prove the conclusion with specific details.",
+          },
+        ];
   const template = templates[(data.lessonNumber - 1) % templates.length];
   return makeCheckpointQuestion(
     data,
@@ -1432,6 +1676,18 @@ function fallbackCourse(topic: string, lang: Lang): Course {
   };
 }
 
+function defaultCourseTitle(topic: string, lang: Lang): string {
+  if (lang === "kk") return `${topic} тақырыбы бойынша курс`;
+  if (lang === "ru") return `Курс по теме: ${topic}`;
+  return `Course on ${topic}`;
+}
+
+function defaultLessonTitle(lessonNumber: number, lang: Lang): string {
+  if (lang === "kk") return `${lessonNumber}-сабақ`;
+  if (lang === "ru") return `Урок ${lessonNumber}`;
+  return `Lesson ${lessonNumber}`;
+}
+
 function fallbackMathLesson(data: {
   topic: string;
   lessonNumber: number;
@@ -1440,7 +1696,7 @@ function fallbackMathLesson(data: {
   wrongQuestions: string[];
   language: Lang;
 }): CourseLesson | null {
-  if (data.language === "ru") return null;
+  if (data.language !== "en") return null;
 
   const title =
     data.lessonTitle || (data.lessonNumber === 1 ? "Mastering Proportions and Fractions" : "Math");
@@ -2398,12 +2654,93 @@ function fallbackLesson(data: {
   language: Lang;
 }): CourseLesson {
   const isRu = data.language === "ru";
+  const isKk = data.language === "kk";
   const title =
-    data.lessonTitle || (isRu ? `Урок ${data.lessonNumber}` : `Lesson ${data.lessonNumber}`);
+    data.lessonTitle ||
+    (isKk
+      ? `${data.lessonNumber}-сабақ`
+      : isRu
+        ? `Урок ${data.lessonNumber}`
+        : `Lesson ${data.lessonNumber}`);
 
   if (isMathTopic(`${data.topic} ${title}`)) {
     const mathLesson = fallbackMathLesson(data);
     if (mathLesson) return mathLesson;
+  }
+
+  if (isKk) {
+    return {
+      lesson_number: data.lessonNumber,
+      title,
+      format_version: COURSE_LESSON_FORMAT_VERSION,
+      explanation: [
+        "## Негізгі ұғым",
+        `"${data.topic}" тақырыбындағы "${title}" сабағы тек атауды жаттатпай, нақты қолданылатын дағдыны үйретуі керек. Негізгі идея: сабақ ережесін бөліп алу, оны нақты жағдайда көру және қадаммен қолдану.`,
+        "## Өмірлік мысал",
+        `"${data.topic}" тақырыбын нақты тапсырмада қолдануың керек деп елестет: шешім қабылдау, мәтінді талдау, оқиғаны түсіндіру, аргументті тексеру немесе дұрыс әрекетті таңдау. "${title}" осы тапсырмаға құрал береді.`,
+        "## Қадамдық талдау",
+        `Жағдай: адам "${data.topic}" тақырыбына байланысты жағдайға тап болды және "${title}" сабағын қолдануы керек.`,
+        "1. Тек тақырып атауымен тоқтамай, нақты жағдайды анықта.",
+        "2. Жағдайды түсіндіретін ережені, үлгіні немесе принципті тап.",
+        "3. Сол ережені мысалға қолдан және қорытынды фактілерге сай келе ме, тексер.",
+        "Қорытынды: мықты жауап ұғымды жай анықтамайды, оны нақты жағдайда қолданады.",
+        "## Жауаптарға дейінгі практика",
+        "Төмендегі тапсырмаларды нақты шағын есеп сияқты орында: дәлелді таңда, ережені қолдан, нәтижені тексер.",
+      ].join("\n\n"),
+      terms: [
+        {
+          term: "Сабақ ережесі",
+          definition: `"${title}" сабағындағы тапсырмаға қолдануға болатын нақты принцип.`,
+        },
+        {
+          term: "Контекст",
+          definition: "Ереже мағына алатын нақты жағдай немесе мысал.",
+        },
+        {
+          term: "Тексеру",
+          definition:
+            "Қорытынды фактілерге сай екенін және кездейсоқ болжам емес екенін анықтау тәсілі.",
+        },
+      ],
+      formulas: [],
+      real_life_examples: [
+        `Мәтін талдау: абзацтан "${title}" мысалын тауып, оны дәлелдейтін бөлшектерді көрсету.`,
+        `Шешім қабылдау: "${title}" ережесін нақты жағдайға қолданып, қорытындының фактілерден шығатынын тексеру.`,
+      ],
+      practice_problems: [
+        {
+          problem: `Оңай: "${data.topic}" тақырыбынан "${title}" қолдануға болатын нақты мысал таңда.`,
+          steps: [
+            "Жағдайды бір сөйлеммен ата.",
+            "Осы жағдайға сәйкес сабақ ережесін көрсет.",
+            "Таңдауыңды растайтын факті бар ма, тексер.",
+          ],
+          final_answer: `Толық жауапта жағдай, "${title}" ережесі және қолдануды растайтын факт болуы керек.`,
+        },
+        {
+          problem: `Орташа: адам "${title}" сабағын нақты мысалсыз қолданса, қатені тап.`,
+          steps: [
+            "Адам қандай қорытынды жасағанын анықта.",
+            "Нақты мысал немесе дәлел қолданылғанын тексер.",
+            "Жауапты мысал мен ережені қосып түзет.",
+          ],
+          final_answer:
+            "Қате: мысалсыз қорытындыны тексеру қиын; түзету ережені нақты фактілермен байланыстыруы керек.",
+        },
+        {
+          problem: `Қиын: "${data.topic}" бойынша екі мүмкін жауапты салыстырып, "${title}" сабағын жақсырақ қолданғанын таңда.`,
+          steps: [
+            "Әр жауап қандай ережені қолданатынын тап.",
+            "Қай жауап нақтырақ фактілерге сүйенетінін тексер.",
+            "Күштірек жауапты таңдап, екіншісі неге әлсіз екенін түсіндір.",
+          ],
+          final_answer:
+            "Күштірек жауап ережені нақты фактілерге қолданады және тексерілетін қорытынды береді.",
+        },
+      ],
+      checkpoint_question: fallbackCheckpointQuestion(data),
+      has_problems: true,
+    };
   }
 
   return {
@@ -2588,13 +2925,14 @@ Rules:
       const title =
         typeof raw?.course_title === "string" && raw.course_title.trim()
           ? raw.course_title
-          : `Course on ${data.topic}`;
+          : defaultCourseTitle(data.topic, data.language);
       const lessonsRaw = Array.isArray(raw?.lessons) ? raw.lessons : [];
       const lessons: CourseLesson[] = [];
       for (let i = 1; i <= 10; i += 1) {
         const found = lessonsRaw.find((l: any) => Number(l?.lesson_number) === i);
         const lessonTitle =
-          (found && typeof found.title === "string" && found.title.trim()) || `Lesson ${i}`;
+          (found && typeof found.title === "string" && found.title.trim()) ||
+          defaultLessonTitle(i, data.language);
         lessons.push(emptyLesson(i, lessonTitle));
       }
       return { course: { course_title: title, lessons } };

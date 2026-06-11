@@ -47,7 +47,10 @@ function PreTestPage() {
     }
     setTopic(topicNow);
     const existing = loadState();
-    const state = existing && existing.topic === topicNow ? existing : initState(topicNow);
+    const state =
+      existing && existing.topic === topicNow && existing.language === lang
+        ? existing
+        : initState(topicNow, lang);
     if (state.preTestQuestions.length > 0) {
       setQuestions(state.preTestQuestions);
       return;
@@ -66,7 +69,7 @@ function PreTestPage() {
           setError(res.error ?? friendlyAiError(new Error("busy")));
           return;
         }
-        patchState({ preTestQuestions: res.questions });
+        patchState({ language: lang, preTestQuestions: res.questions });
         setQuestions(res.questions);
       })
       .catch((e) => {

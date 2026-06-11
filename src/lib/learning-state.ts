@@ -7,6 +7,8 @@ export interface QuizQuestion {
   explanation: string;
 }
 
+export type LearningLanguage = "en" | "ru" | "kk";
+
 export interface LessonConcept {
   concept: string;
   simple_explanation: string;
@@ -64,6 +66,7 @@ export interface Course {
 
 export interface LearningState {
   topic: string;
+  language: LearningLanguage;
   startedAt: string;
   preTestQuestions: QuizQuestion[];
   preTestAnswers: string[];
@@ -83,6 +86,20 @@ export interface LearningState {
 export const COURSE_LESSON_FORMAT_VERSION = "practical-lesson-v5";
 
 const KEY = "knowgap:state";
+const LANG_KEY = "knowgap:lang";
+
+function normalizeLanguage(value: unknown, fallback: LearningLanguage = "en"): LearningLanguage {
+  return value === "ru" || value === "kk" || value === "en" ? value : fallback;
+}
+
+function getStoredLanguage(): LearningLanguage {
+  if (typeof window === "undefined") return "en";
+  try {
+    return normalizeLanguage(localStorage.getItem(LANG_KEY));
+  } catch {
+    return "en";
+  }
+}
 
 export function loadState(): LearningState | null {
   if (typeof window === "undefined") return null;
@@ -91,6 +108,7 @@ export function loadState(): LearningState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LearningState;
     // backward-compat for older saved state without hints arrays
+    parsed.language = normalizeLanguage(parsed.language, getStoredLanguage());
     if (!Array.isArray(parsed.preTestHints)) parsed.preTestHints = [];
     if (!Array.isArray(parsed.finalTestHints)) parsed.finalTestHints = [];
     return parsed;
@@ -121,9 +139,13 @@ export function clearState(): void {
   } catch {}
 }
 
-export function initState(topic: string): LearningState {
+export function initState(
+  topic: string,
+  language: LearningLanguage = getStoredLanguage(),
+): LearningState {
   const state: LearningState = {
     topic,
+    language,
     startedAt: new Date().toISOString(),
     preTestQuestions: [],
     preTestAnswers: [],

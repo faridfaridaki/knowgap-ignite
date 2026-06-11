@@ -68,7 +68,7 @@ function CoursePage() {
   // (which previously caused an infinite useEffect loop).
   const courseRef = useRef<Course | null>(null);
   const stateRef = useRef<LearningState | null>(null);
-  const langRef = useRef(lang);
+  const sessionLangRef = useRef(lang);
   const wrongQuestionsRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -83,8 +83,8 @@ function CoursePage() {
       : [];
   }, [state]);
   useEffect(() => {
-    langRef.current = lang;
-  }, [lang]);
+    if (state?.language) sessionLangRef.current = state.language;
+  }, [state?.language]);
 
   // Stable: reads everything from refs.
   const loadLesson = useCallback(
@@ -107,7 +107,7 @@ function CoursePage() {
           lessonTitle: target.title,
           allTitles: titles,
           wrongQuestions: wrongQuestionsRef.current,
-          language: langRef.current,
+          language: sessionLangRef.current,
         },
       })
         .then((res) => {
@@ -143,6 +143,7 @@ function CoursePage() {
       return;
     }
     setState(s);
+    sessionLangRef.current = s.language;
     const savedCompleted = s.completedLessons ?? [];
     const practicalCompleted = s.course?.lessons?.length
       ? savedCompleted.filter((lessonNumber) =>
@@ -169,7 +170,7 @@ function CoursePage() {
     const wrong = s.preTestQuestions
       .filter((q, i) => !isAnswerCorrect(q, s.preTestAnswers[i] ?? ""))
       .map((q) => q.question);
-    generate({ data: { topic: s.topic, wrongQuestions: wrong, language: lang } })
+    generate({ data: { topic: s.topic, wrongQuestions: wrong, language: s.language } })
       .then((res) => {
         if (res.error || !res.course) {
           setError(res.error ?? friendlyAiError(new Error("AI response unavailable")));
@@ -185,7 +186,7 @@ function CoursePage() {
       .finally(() => {
         generationInFlight.current = false;
       });
-  }, [navigate, lang, hydrated, generate, loadLesson]);
+  }, [navigate, hydrated, generate, loadLesson]);
 
   // Run once on hydration. Do NOT depend on loadCourse — that caused the
   // previous "Maximum update depth exceeded" loop.
@@ -237,7 +238,7 @@ function CoursePage() {
           lessonTitle: targetLesson.title,
           explanation: targetLesson.explanation,
           terms: targetLesson.terms,
-          language: langRef.current,
+          language: sessionLangRef.current,
         },
       });
       const question = res.question;
@@ -346,7 +347,7 @@ function CoursePage() {
                 className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
                 style={{ backgroundImage: "linear-gradient(135deg, #7C6AF7, #5B4FD4)" }}
               >
-                Practice Flashcards →
+                {t("practiceFlashcards")} →
               </button>
             )}
           </aside>
@@ -386,7 +387,7 @@ function CoursePage() {
                   </div>
                   <h2 className="mt-2 text-2xl font-bold text-foreground">{lesson.title}</h2>
                   <p className="mt-4 text-sm text-muted-foreground">
-                    {isLessonLoading ? t("buildingCourse") : "Preparing lesson…"}
+                    {isLessonLoading ? t("buildingCourse") : t("preparingLesson")}
                   </p>
                 </div>
               )
@@ -571,7 +572,7 @@ function LessonView({
             className="inline-flex items-center justify-center gap-1.5 rounded-lg px-5 py-3 text-sm font-semibold text-white sm:py-2.5"
             style={{ backgroundImage: "linear-gradient(135deg, #10b981, #059669)" }}
           >
-            <PartyPopper size={16} /> Practice Flashcards →
+            <PartyPopper size={16} /> {t("practiceFlashcards")} →
           </button>
         ) : (
           <button

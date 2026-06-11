@@ -47,11 +47,12 @@ function hasRichBack(card: Flashcard): boolean {
 }
 
 function FlashcardBack({ card }: { card: Flashcard }) {
+  const { t } = useT();
   const sections = [
-    ["Simple Definition", card.simple_definition || card.definition],
-    ["Expanded Explanation", card.expanded_explanation],
-    ["How it Works", card.how_it_works],
-    ["Example", card.example],
+    [t("simpleDefinition"), card.simple_definition || card.definition],
+    [t("expandedExplanation"), card.expanded_explanation],
+    [t("howItWorks"), card.how_it_works],
+    [t("example"), card.example],
   ].filter(([, value]) => typeof value === "string" && value.trim());
 
   return (
@@ -73,7 +74,7 @@ function FlashcardBack({ card }: { card: Flashcard }) {
 
 function FlashcardsPage() {
   const navigate = useNavigate();
-  const { lang, hydrated } = useT();
+  const { t, hydrated } = useT();
   const generate = useServerFn(generateFlashcards);
   const [cards, setCards] = useState<Flashcard[] | null>(null);
   const [idx, setIdx] = useState(0);
@@ -108,7 +109,7 @@ function FlashcardsPage() {
       cancelled = true;
       setError(friendlyAiError(new Error("AI service is busy")));
     }, 30000);
-    generate({ data: { topic: s.topic, lessonTitles, sources, language: lang } })
+    generate({ data: { topic: s.topic, lessonTitles, sources, language: s.language } })
       .then((res) => {
         if (cancelled) return;
         clearTimeout(timeoutId);
@@ -128,7 +129,7 @@ function FlashcardsPage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [navigate, lang, hydrated]);
+  }, [navigate, hydrated]);
 
   useEffect(() => loadFlashcards(), [loadFlashcards]);
 
@@ -210,7 +211,7 @@ function FlashcardsPage() {
       <div className="mx-auto w-full max-w-[720px]">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 sm:mb-6">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4FC4CF]/40 bg-[#4FC4CF]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#4FC4CF]">
-            <Sparkles size={12} /> Practice Flashcards
+            <Sparkles size={12} /> {t("practiceFlashcards")}
           </span>
           <Link
             to="/final-test"

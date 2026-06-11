@@ -27,7 +27,7 @@ function FinalTestRoute() {
 
 function FinalTestPage() {
   const navigate = useNavigate();
-  const { t, lang, hydrated } = useT();
+  const { t, hydrated } = useT();
   const generate = useServerFn(generateFinalTest);
   const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +52,7 @@ function FinalTestPage() {
       data: {
         topic: s.topic,
         previousQuestions: s.preTestQuestions.map((q) => q.question),
-        language: lang,
+        language: s.language,
       },
     })
       .then((res) => {
@@ -71,7 +71,7 @@ function FinalTestPage() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, lang, hydrated]);
+  }, [navigate, hydrated]);
 
   useEffect(() => loadQuestions(), [loadQuestions]);
 
