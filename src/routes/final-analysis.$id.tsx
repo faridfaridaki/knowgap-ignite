@@ -1,13 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  X,
-  TrendingUp,
-  AlertTriangle,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, X, TrendingUp, AlertTriangle } from "lucide-react";
 import {
   getSession,
   formatDate,
@@ -18,6 +11,7 @@ import { fetchConversation } from "@/lib/history-db";
 import { AppHeader } from "@/components/AppHeader";
 import { AuthGuard } from "@/components/AuthGuard";
 import { useAuth } from "@/hooks/use-auth";
+import { normalizeMathText } from "@/lib/math-format";
 
 export const Route = createFileRoute("/final-analysis/$id")({
   head: () => ({
@@ -34,7 +28,11 @@ export const Route = createFileRoute("/final-analysis/$id")({
 });
 
 function normalize(s: string) {
-  return (s ?? "").trim().toLowerCase().replace(/\s+/g, " ").replace(/[.!?;:,"']/g, "");
+  return (s ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?;:,"']/g, "");
 }
 function isCorrect(q: HistoryQuizQuestion, a: string) {
   if (!a) return false;
@@ -74,9 +72,7 @@ function ScoreCell({
       <div className="mt-2 text-3xl font-bold text-foreground tabular-nums">
         {score}/{total}
       </div>
-      <div
-        className={`mt-1 text-sm ${highlight ? "text-[#7C6AF7]" : "text-muted-foreground"}`}
-      >
+      <div className={`mt-1 text-sm ${highlight ? "text-[#7C6AF7]" : "text-muted-foreground"}`}>
         {pct}%
       </div>
     </div>
@@ -125,14 +121,16 @@ function SavedFinalAnalysis() {
 
   if (session === undefined) {
     return (
-      <main className="min-h-screen w-full bg-background px-6 py-10 relative"><AppHeader />
+      <main className="min-h-screen w-full bg-background px-6 py-10 relative">
+        <AppHeader />
         <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
   }
   if (session === null) {
     return (
-      <main className="min-h-screen w-full bg-background px-6 py-10 relative"><AppHeader />
+      <main className="min-h-screen w-full bg-background px-6 py-10 relative">
+        <AppHeader />
         <div className="mx-auto w-full max-w-[820px]">
           <Link
             to="/dashboard"
@@ -187,7 +185,8 @@ function SavedFinalAnalysis() {
           : "Be honest with yourself — this topic needs more work.";
 
   return (
-    <main className="min-h-screen w-full bg-background px-6 py-10 relative"><AppHeader />
+    <main className="min-h-screen w-full bg-background px-6 py-10 relative">
+      <AppHeader />
       <div className="mx-auto w-full max-w-[820px]">
         <Link
           to="/dashboard"
@@ -201,29 +200,18 @@ function SavedFinalAnalysis() {
           <span className="inline-flex items-center rounded-full border border-[#7C6AF7]/40 bg-[#7C6AF7]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C6AF7]">
             Final Analysis
           </span>
-          <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-foreground">
-            {session.topic}
-          </h1>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-bold text-foreground">{session.topic}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {formatDate(session.date)}
-            {session.stats.durationMinutes
-              ? ` · ${session.stats.durationMinutes} min`
-              : ""}
+            {session.stats.durationMinutes ? ` · ${session.stats.durationMinutes} min` : ""}
           </p>
         </div>
 
         {(preTotal > 0 || finalTotal > 0) && (
           <section className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-foreground mb-5">
-              Score Comparison
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground mb-5">Score Comparison</h2>
             <div className="grid grid-cols-3 gap-4 text-center">
-              <ScoreCell
-                label="Pre-Test"
-                score={preScore}
-                total={preTotal}
-                pct={prePct}
-              />
+              <ScoreCell label="Pre-Test" score={preScore} total={preTotal} pct={prePct} />
               <div className="flex flex-col items-center justify-center">
                 <ArrowRight size={22} className="text-muted-foreground" />
                 <div
@@ -252,9 +240,7 @@ function SavedFinalAnalysis() {
 
         {(preRows.length > 0 || finalRows.length > 0) && (
           <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-foreground mb-1">
-              Question by question
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground mb-1">Question by question</h2>
             <p className="text-sm text-muted-foreground mb-5">
               Your answers versus the correct answers, across both tests.
             </p>
@@ -277,7 +263,7 @@ function SavedFinalAnalysis() {
                         Q{i + 1}
                       </span>
                       <div className="flex-1 text-sm font-medium text-foreground">
-                        {label}
+                        {normalizeMathText(label)}
                       </div>
                     </div>
                     <div className="mt-3 grid sm:grid-cols-2 gap-3">
@@ -292,13 +278,13 @@ function SavedFinalAnalysis() {
                           <div className="mt-2 text-xs text-muted-foreground">
                             Your answer:{" "}
                             <span className="text-foreground">
-                              {preAns[i] || "—"}
+                              {preAns[i] ? normalizeMathText(preAns[i]) : "—"}
                             </span>
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">
                             Correct:{" "}
                             <span className="text-emerald-300">
-                              {pq.correct_answer}
+                              {normalizeMathText(pq.correct_answer)}
                             </span>
                           </div>
                         </div>
@@ -314,13 +300,13 @@ function SavedFinalAnalysis() {
                           <div className="mt-2 text-xs text-muted-foreground">
                             Your answer:{" "}
                             <span className="text-foreground">
-                              {finalAns[i] || "—"}
+                              {finalAns[i] ? normalizeMathText(finalAns[i]) : "—"}
                             </span>
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">
                             Correct:{" "}
                             <span className="text-emerald-300">
-                              {fq.correct_answer}
+                              {normalizeMathText(fq.correct_answer)}
                             </span>
                           </div>
                         </div>
@@ -338,9 +324,7 @@ function SavedFinalAnalysis() {
             <div className="flex items-start gap-3">
               <AlertTriangle size={20} className="mt-0.5 text-amber-300 shrink-0" />
               <div className="flex-1">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Knowledge Gaps
-                </h2>
+                <h2 className="text-lg font-semibold text-foreground">Knowledge Gaps</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{overallTone}</p>
                 {gaps.length === 0 ? (
                   <p className="mt-4 text-sm text-emerald-300">
@@ -354,11 +338,13 @@ function SavedFinalAnalysis() {
                         className="rounded-lg border border-red-500/25 bg-red-500/[0.05] p-3"
                       >
                         <div className="text-sm font-medium text-foreground">
-                          {g.question}
+                          {normalizeMathText(g.question)}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                           Correct answer:{" "}
-                          <span className="text-emerald-300">{g.correct_answer}</span>
+                          <span className="text-emerald-300">
+                            {normalizeMathText(g.correct_answer)}
+                          </span>
                         </div>
                       </li>
                     ))}
@@ -371,9 +357,7 @@ function SavedFinalAnalysis() {
 
         {suggested.length > 0 && (
           <section className="mt-6 rounded-2xl border border-surface-border bg-surface p-6 sm:p-7">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Suggested next topics
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Suggested next topics</h2>
             <div className="grid sm:grid-cols-3 gap-3">
               {suggested.map((t) => (
                 <button

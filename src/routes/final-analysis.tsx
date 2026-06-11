@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { saveSession } from "@/lib/history";
 import type { HistorySession } from "@/lib/history";
 import { useT } from "@/lib/i18n";
+import { normalizeMathText } from "@/lib/math-format";
 
 export const Route = createFileRoute("/final-analysis")({
   component: ProtectedFinalAnalysisRoute,
@@ -305,9 +306,9 @@ function FinalAnalysisPage() {
                       <span className="text-xs text-muted-foreground tabular-nums">Q{i + 1}</span>
                       <div
                         className="text-sm text-foreground truncate"
-                        title={b?.label || a?.label || ""}
+                        title={normalizeMathText(b?.label || a?.label || "")}
                       >
-                        {b?.label || a?.label || ""}
+                        {normalizeMathText(b?.label || a?.label || "")}
                       </div>
                       <ResultBadge ok={a?.correct} hint={a?.hint} />
                       <ResultBadge ok={b?.correct} hint={b?.hint} />
@@ -332,10 +333,14 @@ function FinalAnalysisPage() {
                         key={i}
                         className="rounded-lg border border-red-500/25 bg-red-500/[0.05] p-3"
                       >
-                        <div className="text-sm font-medium text-foreground">{g.q.question}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {normalizeMathText(g.q.question)}
+                        </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {t("correctLabel")}{" "}
-                          <span className="text-emerald-300">{g.q.correct_answer}</span>
+                          <span className="text-emerald-300">
+                            {normalizeMathText(g.q.correct_answer)}
+                          </span>
                         </div>
                       </li>
                     ))}

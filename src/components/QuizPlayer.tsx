@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Lightbulb } from "lucide-react";
 import type { QuizQuestion } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
+import { normalizeMathText } from "@/lib/math-format";
 
 interface Props {
   questions: QuizQuestion[];
@@ -96,7 +97,7 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
 
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
           <h2 className="text-base font-semibold leading-snug text-foreground sm:text-xl">
-            {q.question}
+            {normalizeMathText(q.question)}
           </h2>
 
           {q.options && q.options.length > 0 ? (
@@ -126,7 +127,9 @@ export function QuizPlayer({ questions, onSubmit, submitLabel }: Props) {
                       >
                         {selected && <span className="h-2 w-2 rounded-full bg-white" />}
                       </span>
-                      <span className="min-w-0 flex-1 leading-relaxed break-words">{opt}</span>
+                      <span className="min-w-0 flex-1 leading-relaxed break-words">
+                        {normalizeMathText(opt)}
+                      </span>
                     </span>
                   </button>
                 );

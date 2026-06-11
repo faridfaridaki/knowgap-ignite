@@ -26,6 +26,7 @@ import type {
 } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
 import { friendlyAiError } from "@/lib/ai-error";
+import { normalizeMathText } from "@/lib/math-format";
 
 export const Route = createFileRoute("/course")({
   component: CourseRoute,
@@ -443,7 +444,7 @@ function LessonView({
       </div>
 
       <h2 className="text-xl font-bold leading-tight text-foreground sm:text-3xl">
-        {lesson.title}
+        {normalizeMathText(lesson.title)}
       </h2>
 
       <Section title={t("explanation")}>
@@ -458,8 +459,12 @@ function LessonView({
           <div className="grid sm:grid-cols-2 gap-3">
             {lesson.terms.map((tm, i) => (
               <div key={i} className="rounded-xl border border-surface-border bg-background/40 p-4">
-                <div className="text-sm font-semibold text-[#7C6AF7]">{tm.term}</div>
-                <div className="mt-1 text-sm text-foreground leading-relaxed">{tm.definition}</div>
+                <div className="text-sm font-semibold text-[#7C6AF7]">
+                  {normalizeMathText(tm.term)}
+                </div>
+                <div className="mt-1 text-sm text-foreground leading-relaxed">
+                  {normalizeMathText(tm.definition)}
+                </div>
               </div>
             ))}
           </div>
@@ -475,14 +480,19 @@ function LessonView({
                 className="rounded-xl border border-[#4FC4CF]/30 bg-[#4FC4CF]/[0.06] p-4"
               >
                 <div className="overflow-x-auto rounded-lg bg-background/50 p-3 font-mono text-sm text-foreground sm:text-base">
-                  {f.formula}
+                  {normalizeMathText(f.formula)}
                 </div>
                 {f.variables && f.variables.length > 0 && (
                   <div className="mt-3 grid gap-1.5">
                     {f.variables.map((v, j) => (
                       <div key={j} className="text-sm">
-                        <span className="font-mono font-semibold text-[#4FC4CF]">{v.symbol}</span>
-                        <span className="text-muted-foreground"> — {v.meaning}</span>
+                        <span className="font-mono font-semibold text-[#4FC4CF]">
+                          {normalizeMathText(v.symbol)}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          — {normalizeMathText(v.meaning)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -515,7 +525,7 @@ function LessonView({
                     "linear-gradient(135deg, rgba(124,106,247,0.14) 0%, rgba(79,196,207,0.08) 100%)",
                 }}
               >
-                {ex}
+                {normalizeMathText(ex)}
               </div>
             ))}
           </div>
@@ -692,7 +702,7 @@ function LessonCheckpoint({
                     : "border-surface-border bg-background/40 text-foreground hover:border-[#7C6AF7]/50"
                 }`}
               >
-                {option}
+                {normalizeMathText(option)}
               </button>
             );
           })}

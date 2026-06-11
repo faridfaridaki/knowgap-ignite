@@ -12,6 +12,7 @@ import {
 } from "@/lib/learning-state";
 import type { LearningState } from "@/lib/learning-state";
 import { useT } from "@/lib/i18n";
+import { normalizeMathText } from "@/lib/math-format";
 
 export const Route = createFileRoute("/pretest-results")({
   component: PreTestResultsRoute,
@@ -134,13 +135,15 @@ function PreTestResults() {
                           </span>
                         )}
                       </div>
-                      <p className="text-base font-medium text-foreground">{q.question}</p>
+                      <p className="text-base font-medium text-foreground">
+                        {normalizeMathText(q.question)}
+                      </p>
 
                       <div className="mt-3 space-y-1.5 text-sm">
                         <div>
                           <span className="text-muted-foreground">{t("yourAnswer")} </span>
                           <span className={answerCls}>
-                            {given || <em className="opacity-60">—</em>}
+                            {given ? normalizeMathText(given) : <em className="opacity-60">—</em>}
                           </span>
                         </div>
                         {!correct && (
@@ -148,11 +151,15 @@ function PreTestResults() {
                             <span className="text-emerald-300 font-medium">
                               {t("correctLabel")}{" "}
                             </span>
-                            <span className="text-foreground">{q.correct_answer}</span>
+                            <span className="text-foreground">
+                              {normalizeMathText(q.correct_answer)}
+                            </span>
                           </div>
                         )}
                         {q.explanation && (
-                          <p className="text-muted-foreground italic mt-2">{q.explanation}</p>
+                          <p className="text-muted-foreground italic mt-2">
+                            {normalizeMathText(q.explanation)}
+                          </p>
                         )}
                       </div>
                     </div>

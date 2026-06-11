@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { callGroqJson } from "./groq";
 import { AI_BUSY_MESSAGE } from "./ai-error";
+import { MATH_FORMAT_RULE, normalizeMathText } from "./math-format";
 
 type Lang = "en" | "ru" | "kk";
 
@@ -89,9 +90,9 @@ function uniqueFlashcards(cards: Flashcard[]): Flashcard[] {
   const seen = new Set<string>();
   const out: Flashcard[] = [];
   for (const card of cards) {
-    const term = card.term.trim();
-    const simple_definition = (card.simple_definition || card.definition).trim();
-    const definition = (card.definition || simple_definition).trim();
+    const term = normalizeMathText(card.term.trim());
+    const simple_definition = normalizeMathText((card.simple_definition || card.definition).trim());
+    const definition = normalizeMathText((card.definition || simple_definition).trim());
     if (!term || !definition) continue;
     const key = normalizeKey(term);
     if (seen.has(key)) continue;
@@ -101,9 +102,11 @@ function uniqueFlashcards(cards: Flashcard[]): Flashcard[] {
       definition,
       format_version: FLASHCARD_FORMAT_VERSION,
       simple_definition,
-      expanded_explanation: card.expanded_explanation?.trim(),
-      how_it_works: card.how_it_works?.trim(),
-      example: card.example?.trim(),
+      expanded_explanation: card.expanded_explanation
+        ? normalizeMathText(card.expanded_explanation.trim())
+        : undefined,
+      how_it_works: card.how_it_works ? normalizeMathText(card.how_it_works.trim()) : undefined,
+      example: card.example ? normalizeMathText(card.example.trim()) : undefined,
     });
   }
   return out;
@@ -117,13 +120,13 @@ function buildFlashcard(
   example: string,
 ): Flashcard {
   return {
-    term,
-    definition: simple_definition,
+    term: normalizeMathText(term),
+    definition: normalizeMathText(simple_definition),
     format_version: FLASHCARD_FORMAT_VERSION,
-    simple_definition,
-    expanded_explanation,
-    how_it_works,
-    example,
+    simple_definition: normalizeMathText(simple_definition),
+    expanded_explanation: normalizeMathText(expanded_explanation),
+    how_it_works: normalizeMathText(how_it_works),
+    example: normalizeMathText(example),
   };
 }
 
@@ -169,20 +172,25 @@ function sanitizeQuestions(raw: any): QuizQuestion[] {
   const out: QuizQuestion[] = [];
   arr.slice(0, 5).forEach((q: any, i: number) => {
     if (!q || typeof q.question !== "string" || typeof q.correct_answer !== "string") return;
+    const correct = normalizeMathText(q.correct_answer.trim());
     const options = Array.isArray(q.options)
-      ? q.options.filter((o: any) => typeof o === "string").slice(0, 4)
+      ? uniqueOptionStrings(
+          q.options
+            .filter((o: any) => typeof o === "string")
+            .map((option: string) => normalizeMathText(option)),
+        ).slice(0, 4)
       : null;
     if (!options || options.length !== 4) return;
     // Ensure correct_answer is one of the options
-    if (!options.includes(q.correct_answer)) return;
+    if (!options.includes(correct)) return;
     const shuffledOptions = shuffleOptions(options);
     out.push({
       id: i + 1,
       type: "multiple_choice",
-      question: q.question,
+      question: normalizeMathText(q.question.trim()),
       options: shuffledOptions,
-      correct_answer: q.correct_answer,
-      explanation: typeof q.explanation === "string" ? q.explanation : "",
+      correct_answer: correct,
+      explanation: typeof q.explanation === "string" ? normalizeMathText(q.explanation) : "",
     });
   });
   return out;
@@ -195,7 +203,8 @@ Rules:
 - Each question MUST have exactly 4 options.
 - correct_answer MUST exactly match one of the four options (string equality).
 - The 3 wrong options must be PLAUSIBLE distractors based on common misconceptions — never silly or obviously wrong.
-- explanation is one clear sentence explaining why the correct answer is right.`;
+- explanation is one clear sentence explaining why the correct answer is right.
+- ${MATH_FORMAT_RULE}`;
 
 function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): QuizQuestion[] {
   const isRu = lang === "ru";
@@ -716,7 +725,7 @@ Each card must use a different important term or concept. The front must be ONLY
 - example: one concrete example that uses the term in the context of "${data.topic}"
 
 Do not include formulas-only cards, study strategies, questions, examples-only cards, lesson-title-only cards, or generic filler cards.
-For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
+${MATH_FORMAT_RULE}
 Do not write long unformatted step-by-step prose.
 
 Lessons:
@@ -784,18 +793,22 @@ function sanitizeCheckpointQuestion(raw: any, id: number): LessonCheckpointQuest
   if (!q || typeof q.question !== "string" || typeof q.correct_answer !== "string") {
     return undefined;
   }
-  const correct = q.correct_answer.trim();
+  const correct = normalizeMathText(q.correct_answer.trim());
   const options = Array.isArray(q.options)
-    ? uniqueOptionStrings(q.options.filter((o: any) => typeof o === "string")).slice(0, 4)
+    ? uniqueOptionStrings(
+        q.options
+          .filter((o: any) => typeof o === "string")
+          .map((option: string) => normalizeMathText(option)),
+      ).slice(0, 4)
     : [];
   if (options.length !== 4 || !options.includes(correct)) return undefined;
   return {
     id,
     type: "multiple_choice",
-    question: q.question.trim(),
+    question: normalizeMathText(q.question.trim()),
     options: shuffleOptions(options),
     correct_answer: correct,
-    explanation: typeof q.explanation === "string" ? q.explanation : "",
+    explanation: typeof q.explanation === "string" ? normalizeMathText(q.explanation) : "",
   };
 }
 
@@ -808,7 +821,7 @@ function makeCheckpointQuestion(
 ): LessonCheckpointQuestion {
   const isRu = data.language === "ru";
   const isKk = data.language === "kk";
-  const correctAnswer = correct.trim();
+  const correctAnswer = normalizeMathText(correct.trim());
   const fillOptions = isKk
     ? [
         "Мысалды тексермей, тек сабақ атауына сүйену",
@@ -829,14 +842,16 @@ function makeCheckpointQuestion(
           "Ignore the details in the situation",
           "Use a rule from a different lesson",
         ];
-  const options = uniqueOptionStrings([correctAnswer, ...wrong, ...fillOptions]).slice(0, 4);
+  const options = uniqueOptionStrings(
+    [correctAnswer, ...wrong, ...fillOptions].map((option) => normalizeMathText(option)),
+  ).slice(0, 4);
   return {
     id: data.lessonNumber,
     type: "multiple_choice",
-    question: question.trim(),
+    question: normalizeMathText(question.trim()),
     options: shuffleOptions(options),
     correct_answer: correctAnswer,
-    explanation: explanation.trim(),
+    explanation: normalizeMathText(explanation.trim()),
   };
 }
 
@@ -1504,7 +1519,10 @@ function sanitizeCourse(raw: any): Course | null {
       const terms = Array.isArray(l.terms)
         ? l.terms
             .filter((t: any) => t && typeof t.term === "string" && typeof t.definition === "string")
-            .map((t: any) => ({ term: t.term, definition: t.definition }))
+            .map((t: any) => ({
+              term: normalizeMathText(t.term),
+              definition: normalizeMathText(t.definition),
+            }))
         : [];
       const formulas: CourseFormula[] = Array.isArray(l.formulas)
         ? l.formulas
@@ -1512,21 +1530,29 @@ function sanitizeCourse(raw: any): Course | null {
               (f: any) => f && typeof f.formula === "string" && typeof f.explanation === "string",
             )
             .map((f: any) => ({
-              formula: f.formula,
-              explanation: f.explanation,
+              formula: normalizeMathText(f.formula),
+              explanation: normalizeMathText(f.explanation),
               variables: Array.isArray(f.variables)
                 ? f.variables
                     .filter(
                       (v: any) =>
                         v && typeof v.symbol === "string" && typeof v.meaning === "string",
                     )
-                    .map((v: any) => ({ symbol: v.symbol, meaning: v.meaning }))
+                    .map((v: any) => ({
+                      symbol: normalizeMathText(v.symbol),
+                      meaning: normalizeMathText(v.meaning),
+                    }))
                 : [],
-              worked_example: typeof f.worked_example === "string" ? f.worked_example : undefined,
+              worked_example:
+                typeof f.worked_example === "string"
+                  ? normalizeMathText(f.worked_example)
+                  : undefined,
             }))
         : [];
       const examples = Array.isArray(l.real_life_examples)
-        ? l.real_life_examples.filter((e: any) => typeof e === "string")
+        ? l.real_life_examples
+            .filter((e: any) => typeof e === "string")
+            .map((example: string) => normalizeMathText(example))
         : [];
       const problems: CoursePracticeProblem[] = Array.isArray(l.practice_problems)
         ? l.practice_problems
@@ -1535,11 +1561,14 @@ function sanitizeCourse(raw: any): Course | null {
               // accept either {steps:[], final_answer} or legacy {solution_steps, answer}
               let steps: string[] = [];
               if (Array.isArray(p.steps)) {
-                steps = p.steps.filter((s: any) => typeof s === "string");
+                steps = p.steps
+                  .filter((s: any) => typeof s === "string")
+                  .map((step: string) => normalizeMathText(step));
               } else if (typeof p.solution_steps === "string") {
                 steps = p.solution_steps
                   .split(/\n+/)
                   .map((s: string) => s.replace(/^\s*\d+[.)]\s*/, "").trim())
+                  .map((step: string) => normalizeMathText(step))
                   .filter(Boolean);
               }
               const final_answer =
@@ -1548,14 +1577,18 @@ function sanitizeCourse(raw: any): Course | null {
                   : typeof p.answer === "string"
                     ? p.answer
                     : "";
-              return { problem: p.problem, steps, final_answer };
+              return {
+                problem: normalizeMathText(p.problem),
+                steps,
+                final_answer: normalizeMathText(final_answer),
+              };
             })
         : [];
       return {
         lesson_number: typeof l.lesson_number === "number" ? l.lesson_number : i + 1,
-        title: l.title,
+        title: normalizeMathText(l.title),
         format_version: l.explanation?.trim() ? COURSE_LESSON_FORMAT_VERSION : undefined,
-        explanation: l.explanation,
+        explanation: normalizeMathText(l.explanation),
         terms,
         formulas,
         real_life_examples: examples,
@@ -1566,13 +1599,16 @@ function sanitizeCourse(raw: any): Course | null {
     })
     .filter(Boolean) as CourseLesson[];
   if (lessons.length === 0) return null;
-  return { course_title: title || "Your Course", lessons: lessons.slice(0, 10) };
+  return {
+    course_title: normalizeMathText(title || "Your Course"),
+    lessons: lessons.slice(0, 10),
+  };
 }
 
 function emptyLesson(n: number, title: string): CourseLesson {
   return {
     lesson_number: n,
-    title,
+    title: normalizeMathText(title),
     format_version: undefined,
     explanation: "",
     terms: [],
@@ -2924,7 +2960,7 @@ Rules:
       });
       const title =
         typeof raw?.course_title === "string" && raw.course_title.trim()
-          ? raw.course_title
+          ? normalizeMathText(raw.course_title)
           : defaultCourseTitle(data.topic, data.language);
       const lessonsRaw = Array.isArray(raw?.lessons) ? raw.lessons : [];
       const lessons: CourseLesson[] = [];
@@ -2933,7 +2969,7 @@ Rules:
         const lessonTitle =
           (found && typeof found.title === "string" && found.title.trim()) ||
           defaultLessonTitle(i, data.language);
-        lessons.push(emptyLesson(i, lessonTitle));
+        lessons.push(emptyLesson(i, normalizeMathText(lessonTitle)));
       }
       return { course: { course_title: title, lessons } };
     } catch (error) {
@@ -3024,7 +3060,7 @@ Rules:
 - Each math practice problem must be tied to this lesson's exact subtopic. For example, a probability lesson should ask probability problems, a geometry lesson should ask area/volume/perimeter problems, and an algebra lesson should ask equation-solving problems.
 - Each non-math practice problem must be tied to this lesson's exact subtopic. For example, a history lesson should ask students to interpret a concrete event or source, a language lesson should ask students to classify or revise a specific sentence, and a biology lesson should ask students to diagnose a concrete process or organism example.
 - Use Markdown formatting inside explanation, formula explanations, worked_example, practice problem text, steps, and final_answer.
-- For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
+- ${MATH_FORMAT_RULE}
 - Do not write long unformatted sequences like "First... Next... Now..." as one paragraph; use Markdown numbered lists or bullets instead.
 - ${langInstruction(data.language)}`;
     try {
@@ -3115,7 +3151,7 @@ Rules:
 - The correct answer must require using the lesson's rule, method, criteria, or process, not just recognizing a definition.
 - For non-math lessons, every option must describe a specific action or conclusion tied to "${data.lessonTitle}", not a generic study habit.
 - Make the new question different from the obvious first question a student may have just missed.
-- For math, use proper superscript characters for powers, such as x², y³, 10⁵, and 5x⁴. Never use the caret symbol for exponents.
+- ${MATH_FORMAT_RULE}
 - ${langInstruction(data.language)}`;
     try {
       const raw = await callGroqJson({

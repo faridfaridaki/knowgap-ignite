@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { normalizeMathText } from "@/lib/math-format";
 
 function renderInline(text: string): ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\$[^$]+\$)/g).filter(Boolean);
+  const parts = normalizeMathText(text)
+    .split(/(\*\*[^*]+\*\*|`[^`]+`|\$[^$]+\$)/g)
+    .filter(Boolean);
 
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -50,7 +53,7 @@ function flushList(items: ReactNode[], ordered: boolean, key: string): ReactNode
 }
 
 export function MarkdownText({ text, className = "" }: { text: string; className?: string }) {
-  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const lines = normalizeMathText(text).replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let paragraph: string[] = [];
   let listItems: ReactNode[] = [];
