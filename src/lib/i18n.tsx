@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type Lang = "en" | "ru";
+export type Lang = "en" | "ru" | "kk";
 
 const STORAGE_KEY = "knowgap:lang";
 
@@ -314,6 +314,155 @@ const dict = {
     activityScored: "Результат {score}/{total} в финальном тесте — {topic}",
     activityStarted: "Начато изучение темы {topic}",
   },
+  kk: {
+    signIn: "Кіру",
+    signOut: "Шығу",
+    dashboard: "Панель",
+    home: "Басты бет",
+    back: "Артқа",
+    backToDashboard: "← Панельге қайту",
+    homeConfirmTitle: "Басты бетке қайту керек пе?",
+    homeConfirmBody: "Басты бетке қайтқың келе ме? Қазіргі прогресс сақталады.",
+    yesGoHome: "Иә, басты бетке",
+    cancel: "Болдырмау",
+    legendCorrect: "Дұрыс (1 балл)",
+    legendHint: "Көмекпен дұрыс (0.5 балл)",
+    legendWrong: "Қате (0 балл)",
+    hintUsedShort: "Көмек қолданылды",
+
+    badge: "ЖИ арқылы оқу",
+    landingTitle1: "Кез келген нәрсені үйрен.",
+    landingTitle2: "Шынымен түсін.",
+    landingSubtitle:
+      "Конспектіңді қой немесе тақырып жаз. KnowGap сенің білімдегі бос орындарыңды тауып, жеке курс арқылы үйретеді.",
+    landingPlaceholder: "Мысалы: «Француз революциясы» немесе конспектіңді осында қой...",
+    analyzeBtn: "Түсінігімді талдау →",
+    signInToAnalyze: "Талдау үшін кір →",
+    chip1: "Әлсіз тұстарыңды табады",
+    chip2: "Толық курс құрады",
+    chip3: "Сенің деңгейіңе бейімделеді",
+
+    stage1: "1-кезең · Алдын ала тест",
+    preTestTitle: "Алдымен не білетініңді көрейік",
+    generatingPreTest: "Жеке тестің дайындалып жатыр...",
+    generatingPreTestSub: "Осы тақырыпқа сай 5 сұрақ құрып жатырмыз.",
+
+    stage2: "2-кезең · Нәтижелер",
+    youGot: "Сен",
+    outOf: "ішінен",
+    correct: "дұрыс жауап бердің",
+    dontWorry: "Уайымдама — дәл осыны бірге түзетеміз.",
+    startLearning: "Оқуды бастау →",
+    yourAnswer: "Сенің жауабың:",
+    correctLabel: "Дұрыс жауап:",
+
+    stage3: "3-кезең · Курс",
+    buildingCourse: "10 сабақтан тұратын курс құрылып жатыр...",
+    buildingCourseSub: "Әдетте 5-10 секунд алады.",
+    lessons: "Сабақтар",
+    lesson: "Сабақ",
+    of: "ішінен",
+    completed: "аяқталды",
+    lessonsCompleted: "сабақ аяқталды",
+    explanation: "Түсіндіру",
+    keyTerms: "Негізгі терминдер",
+    formulas: "Формулалар",
+    realLifeExamples: "Өмірлік мысалдар",
+    practiceProblems: "Практикалық есептер",
+    problem: "Есеп",
+    showAnswer: "Жауапты көрсету",
+    hideAnswer: "Жауапты жасыру",
+    finalAnswer: "Қорытынды жауап",
+    stepByStep: "Қадамдық шешім",
+    previousLesson: "Алдыңғы сабақ",
+    nextLesson: "Келесі сабақ",
+    markComplete: "Аяқталды деп белгілеу",
+    completedBtn: "Аяқталды",
+    lessonCheckpoint: "Сабақ тексерісі",
+    checkpointIntro: "Келесі сабақты ашу үшін дұрыс жауап бер.",
+    checkAnswer: "Жауапты тексеру",
+    correctCheckpoint: "Дұрыс — келесі сабақ ашылды.",
+    wrongCheckpoint: "Әлі дұрыс емес. Осы сабақ бойынша жаңа сұрақ.",
+    generatingNewQuestion: "Жаңа сұрақ құрылып жатыр...",
+    chooseAnswer: "Алдымен жауапты таңда.",
+    courseCompleteCta: "Курс аяқталды! Финалдық тестке →",
+    takeFinalTest: "Финалдық тестке →",
+
+    stage5: "5-кезең · Финалдық тест",
+    finalTestTitle: "Не үйренгеніңді көрсет",
+    buildingFinalTest: "Финалдық тест дайындалып жатыр...",
+    buildingFinalTestSub: "Сол ұғымдар бойынша жаңа сұрақтар құрып жатырмыз.",
+    submitFinalTest: "Финалдық тестті жіберу",
+    submitTest: "Тестті жіберу",
+
+    question: "Сұрақ",
+    previous: "← Алдыңғы",
+    next: "Келесі →",
+    useHint: "Көмек алу",
+    hintUsedNote: "Көмек қолданылды — дұрыс жауап 0.5 балл береді",
+    selectAnswerFirst: "Жалғастыру үшін жауап таңда",
+
+    stage6: "6-кезең · Финалдық талдау",
+    yourReport: "Оқу есебің",
+    scoreComparison: "Нәтижелерді салыстыру",
+    preTest: "Алдын ала тест",
+    finalTest: "Финалдық тест",
+    conceptByConcept: "Ұғымдар бойынша",
+    conceptByConceptSub: "Екі тесттегі әр сұрақ бойынша нәтижең.",
+    needMoreWork: "Қосымша жұмыс керек аймақтар",
+    noGaps: "Бұл тестте қалған бос орын жоқ — өте жақсы.",
+    suggestedNext: "Келесі ұсынылатын тақырыптар",
+    savingSession: "Сессия сақталып жатыр...",
+    savedCloud: "✓ Аккаунтыңа сақталды",
+    savedLocal: "Жергілікті сақталды (синхрондау үшін кір)",
+    studyGaps: "Осы бос орындарды оқы",
+    startNewTopic: "Жаңа тақырып бастау",
+    viewDashboard: "Панельді ашу",
+    restartTopic: "Бұл тақырыпты қайта бастау →",
+
+    welcomeBack: "Қайта оралуыңмен",
+    loadingDashboard: "Панель жүктеліп жатыр...",
+    loadingDashboardSub: "Сақталған курстар, әрекеттер және әлсіз тұстар жүктеліп жатыр.",
+    coursesCompleted: "Аяқталған курстар",
+    lessonsDone: "Аяқталған сабақтар",
+    avgImprovement: "Орташа прогресс",
+    myCourses: "Менің курстарым",
+    viewCourse: "Курсты ашу",
+    viewFullAnalysis: "Толық талдауды ашу",
+    retakeCourse: "Курсты қайта өту",
+    savedCourse: "Сақталған курс",
+    savedLessons: "Сақталған сабақтар",
+    savedFlashcards: "Сақталған карточкалар",
+    noSavedCourse: "Бұл курс үшін сақталған сабақтар немесе карточкалар табылмады.",
+    viewAnalysis: "Талдауды ашу",
+    recentActivity: "Соңғы әрекеттер",
+    focusAreas: "Назар аударатын жерлер",
+    focusAreasSub: "Сессиялар барысында жиі қателескен ұғымдар.",
+    suggestedForYou: "Ұсынылатын тақырыптар",
+    noCoursesYet: "Әзірге курс жоқ. Төменнен баста.",
+    progress: "Прогресс",
+    viewMore: "Тағы көрсету",
+
+    welcomeBackTitle: "Қайта оралуыңмен",
+    createAccount: "Аккаунт жасау",
+    signInSub: "Оқу сессияларын сақтау үшін кір.",
+    signUpSub: "Сессияларды сақтау және қайта ашу үшін тіркел.",
+    emailPlaceholder: "Эл. пошта",
+    passwordPlaceholder: "Құпиясөз",
+    pleaseWait: "Күте тұр...",
+    signUp: "Тіркелу",
+    newHere: "Мұнда бірінші рет пе?",
+    haveAccount: "Аккаунтың бар ма?",
+    createAccountLink: "Аккаунт жасау",
+    signInInstead: "Кіру",
+    continueWithGoogle: "Google арқылы кіру",
+    orDivider: "немесе",
+    checkEmail: "Аккаунтыңды растау үшін поштаңды тексер, содан кейін кір.",
+
+    activityCompletedLesson: "{topic} тақырыбындағы {n}-сабақ аяқталды",
+    activityScored: "Финалдық тест нәтижесі {score}/{total} — {topic}",
+    activityStarted: "{topic} тақырыбын оқу басталды",
+  },
 } as const;
 
 export type TKey = keyof typeof dict.en;
@@ -329,10 +478,11 @@ function detectLang(): Lang {
   if (typeof window === "undefined") return "en";
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "ru" || saved === "en") return saved;
+    if (saved === "ru" || saved === "en" || saved === "kk") return saved;
   } catch {}
   try {
     const nav = navigator.language?.toLowerCase() ?? "";
+    if (nav.startsWith("kk")) return "kk";
     if (nav.startsWith("ru")) return "ru";
   } catch {}
   return "en";
@@ -378,5 +528,7 @@ export function getStoredLang(): Lang {
 }
 
 export function languageName(lang: Lang): string {
-  return lang === "ru" ? "Russian" : "English";
+  if (lang === "ru") return "Russian";
+  if (lang === "kk") return "Kazakh";
+  return "English";
 }

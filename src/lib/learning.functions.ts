@@ -2,15 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { callGroqJson } from "./groq";
 import { AI_BUSY_MESSAGE } from "./ai-error";
 
-type Lang = "en" | "ru";
+type Lang = "en" | "ru" | "kk";
 
 function langInstruction(lang: Lang): string {
-  const name = lang === "ru" ? "Russian" : "English";
+  const name = lang === "ru" ? "Russian" : lang === "kk" ? "Kazakh" : "English";
   return `Respond entirely in ${name}. ALL questions, options, explanations, lesson text, examples, terms, problems, and answers must be in ${name}.`;
 }
 
 function normLang(input: unknown): Lang {
-  return input === "ru" ? "ru" : "en";
+  if (input === "ru" || input === "kk") return input;
+  return "en";
 }
 
 interface QuizQuestion {
@@ -198,125 +199,186 @@ Rules:
 
 function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): QuizQuestion[] {
   const isRu = lang === "ru";
+  const isKk = lang === "kk";
   const label = kind === "pre" ? "pre-test" : "final test";
   const ruLabel = kind === "pre" ? "предварительного теста" : "итогового теста";
-  const templates = isRu
+  const kkLabel = kind === "pre" ? "алдын ала тест" : "финалдық тест";
+  const templates = isKk
     ? [
         {
-          question: `Что лучше всего описывает главную цель темы "${topic}"?`,
+          question: `"${topic}" тақырыбын үйренудің негізгі мақсаты қандай?`,
           options: [
-            `Понять основные идеи темы "${topic}" и уметь применять их`,
-            "Запомнить случайные факты без связи между ними",
-            "Избегать примеров и практики",
-            "Использовать только сложные определения",
+            `"${topic}" тақырыбының негізгі идеяларын түсініп, оларды қолдану`,
+            "Бір-бірімен байланысы жоқ кездейсоқ фактілерді жаттау",
+            "Мысалдар мен практиканы айналып өту",
+            "Тек күрделі анықтамаларды қолдану",
           ],
-          correct: `Понять основные идеи темы "${topic}" и уметь применять их`,
-          explanation:
-            "Понимание темы означает знание ключевых идей и умение применять их в задачах.",
+          correct: `"${topic}" тақырыбының негізгі идеяларын түсініп, оларды қолдану`,
+          explanation: "Түсіну дегеніміз негізгі идеяларды біліп, оларды қолдана алу.",
         },
         {
-          question: `Какой первый шаг лучше сделать при изучении "${topic}"?`,
+          question: `"${topic}" тақырыбын оқығанда ең жақсы бірінші қадам қандай?`,
           options: [
-            "Определить ключевые понятия простыми словами",
-            "Сразу переходить к самым сложным деталям",
-            "Игнорировать непонятные слова",
-            "Учить ответы без объяснения",
+            "Негізгі ұғымдарды қарапайым сөзбен анықтау",
+            "Бірден ең қиын бөлшектерге көшу",
+            "Түсініксіз терминдерді елемеу",
+            "Жауаптарды түсіндірмесіз жаттау",
           ],
-          correct: "Определить ключевые понятия простыми словами",
-          explanation: "Простые определения создают основу для более сложного понимания.",
+          correct: "Негізгі ұғымдарды қарапайым сөзбен анықтау",
+          explanation: "Қарапайым анықтамалар терең түсінуге негіз болады.",
         },
         {
-          question: `Что показывает, что ученик действительно понимает "${topic}"?`,
+          question: `Оқушының "${topic}" тақырыбын шынымен түсінгенін не көрсетеді?`,
           options: [
-            "Он может объяснить идею своими словами и привести пример",
-            "Он может повторить фразу без понимания",
-            "Он избегает вопросов по теме",
-            "Он знает только название темы",
+            "Идеяны өз сөзімен түсіндіріп, мысал келтіре алады",
+            "Сөйлемді түсінбей қайталай алады",
+            "Тақырып бойынша сұрақтардан қашады",
+            "Тек тақырыптың атауын біледі",
           ],
-          correct: "Он может объяснить идею своими словами и привести пример",
-          explanation: "Собственное объяснение и пример показывают реальное понимание.",
+          correct: "Идеяны өз сөзімен түсіндіріп, мысал келтіре алады",
+          explanation: "Өз түсіндіруі мен мысалы шынайы түсінудің белгісі.",
         },
         {
-          question: `Что делать, если часть темы "${topic}" непонятна?`,
+          question: `"${topic}" тақырыбының бір бөлігі түсініксіз болса, не істеу керек?`,
           options: [
-            "Разбить её на меньшие вопросы и разобрать по шагам",
-            "Пропустить всю тему",
-            "Учить только ответы",
-            "Не использовать примеры",
+            "Оны шағын сұрақтарға бөліп, қадаммен талдау",
+            "Бүкіл тақырыпты өткізіп жіберу",
+            "Тек жауаптарды жаттау",
+            "Мысалдарды қолданбау",
           ],
-          correct: "Разбить её на меньшие вопросы и разобрать по шагам",
-          explanation: "Сложные темы легче понять, когда они разделены на понятные части.",
+          correct: "Оны шағын сұрақтарға бөліп, қадаммен талдау",
+          explanation: "Күрделі идеялар шағын бөліктерге бөлінгенде оңай түсініледі.",
         },
         {
-          question: `Какой способ лучше всего закрепляет "${topic}"?`,
+          question: `"${topic}" тақырыбын бекітудің ең жақсы жолы қандай?`,
           options: [
-            "Решить задачу или объяснить пример самостоятельно",
-            "Просто перечитать заголовок",
-            "Не проверять себя",
-            "Смотреть только готовые ответы",
+            "Есеп шығару немесе мысалды өзің түсіндіру",
+            "Тек тақырып атауын қайта оқу",
+            "Өзіңді ешқашан тексермеу",
+            "Тек дайын жауаптарға қарау",
           ],
-          correct: "Решить задачу или объяснить пример самостоятельно",
-          explanation: "Активная практика помогает проверить и укрепить понимание.",
+          correct: "Есеп шығару немесе мысалды өзің түсіндіру",
+          explanation: "Белсенді практика түсінуді тексеріп, нығайтады.",
         },
       ]
-    : [
-        {
-          question: `What best describes the main goal of learning "${topic}"?`,
-          options: [
-            `Understand the core ideas of "${topic}" and apply them`,
-            "Memorize random facts with no connection",
-            "Avoid examples and practice",
-            "Use only complicated definitions",
-          ],
-          correct: `Understand the core ideas of "${topic}" and apply them`,
-          explanation: "Understanding means knowing the key ideas and being able to use them.",
-        },
-        {
-          question: `What is the best first step when studying "${topic}"?`,
-          options: [
-            "Define the key concepts in simple words",
-            "Jump straight to the hardest details",
-            "Ignore unfamiliar terms",
-            "Memorize answers without explanations",
-          ],
-          correct: "Define the key concepts in simple words",
-          explanation: "Simple definitions create a base for deeper understanding.",
-        },
-        {
-          question: `What shows that a student really understands "${topic}"?`,
-          options: [
-            "They can explain the idea in their own words and give an example",
-            "They can repeat a sentence without understanding it",
-            "They avoid questions about the topic",
-            "They only know the topic name",
-          ],
-          correct: "They can explain the idea in their own words and give an example",
-          explanation: "A personal explanation and example are strong signs of real understanding.",
-        },
-        {
-          question: `What should you do if part of "${topic}" is confusing?`,
-          options: [
-            "Break it into smaller questions and work step by step",
-            "Skip the whole topic",
-            "Only memorize answers",
-            "Avoid using examples",
-          ],
-          correct: "Break it into smaller questions and work step by step",
-          explanation:
-            "Complex ideas are easier to learn when they are divided into smaller parts.",
-        },
-        {
-          question: `What is the best way to strengthen your understanding of "${topic}"?`,
-          options: [
-            "Solve a problem or explain an example yourself",
-            "Only reread the title",
-            "Never test yourself",
-            "Only look at finished answers",
-          ],
-          correct: "Solve a problem or explain an example yourself",
-          explanation: "Active practice checks and strengthens understanding.",
-        },
-      ];
+    : isRu
+      ? [
+          {
+            question: `Что лучше всего описывает главную цель темы "${topic}"?`,
+            options: [
+              `Понять основные идеи темы "${topic}" и уметь применять их`,
+              "Запомнить случайные факты без связи между ними",
+              "Избегать примеров и практики",
+              "Использовать только сложные определения",
+            ],
+            correct: `Понять основные идеи темы "${topic}" и уметь применять их`,
+            explanation:
+              "Понимание темы означает знание ключевых идей и умение применять их в задачах.",
+          },
+          {
+            question: `Какой первый шаг лучше сделать при изучении "${topic}"?`,
+            options: [
+              "Определить ключевые понятия простыми словами",
+              "Сразу переходить к самым сложным деталям",
+              "Игнорировать непонятные слова",
+              "Учить ответы без объяснения",
+            ],
+            correct: "Определить ключевые понятия простыми словами",
+            explanation: "Простые определения создают основу для более сложного понимания.",
+          },
+          {
+            question: `Что показывает, что ученик действительно понимает "${topic}"?`,
+            options: [
+              "Он может объяснить идею своими словами и привести пример",
+              "Он может повторить фразу без понимания",
+              "Он избегает вопросов по теме",
+              "Он знает только название темы",
+            ],
+            correct: "Он может объяснить идею своими словами и привести пример",
+            explanation: "Собственное объяснение и пример показывают реальное понимание.",
+          },
+          {
+            question: `Что делать, если часть темы "${topic}" непонятна?`,
+            options: [
+              "Разбить её на меньшие вопросы и разобрать по шагам",
+              "Пропустить всю тему",
+              "Учить только ответы",
+              "Не использовать примеры",
+            ],
+            correct: "Разбить её на меньшие вопросы и разобрать по шагам",
+            explanation: "Сложные темы легче понять, когда они разделены на понятные части.",
+          },
+          {
+            question: `Какой способ лучше всего закрепляет "${topic}"?`,
+            options: [
+              "Решить задачу или объяснить пример самостоятельно",
+              "Просто перечитать заголовок",
+              "Не проверять себя",
+              "Смотреть только готовые ответы",
+            ],
+            correct: "Решить задачу или объяснить пример самостоятельно",
+            explanation: "Активная практика помогает проверить и укрепить понимание.",
+          },
+        ]
+      : [
+          {
+            question: `What best describes the main goal of learning "${topic}"?`,
+            options: [
+              `Understand the core ideas of "${topic}" and apply them`,
+              "Memorize random facts with no connection",
+              "Avoid examples and practice",
+              "Use only complicated definitions",
+            ],
+            correct: `Understand the core ideas of "${topic}" and apply them`,
+            explanation: "Understanding means knowing the key ideas and being able to use them.",
+          },
+          {
+            question: `What is the best first step when studying "${topic}"?`,
+            options: [
+              "Define the key concepts in simple words",
+              "Jump straight to the hardest details",
+              "Ignore unfamiliar terms",
+              "Memorize answers without explanations",
+            ],
+            correct: "Define the key concepts in simple words",
+            explanation: "Simple definitions create a base for deeper understanding.",
+          },
+          {
+            question: `What shows that a student really understands "${topic}"?`,
+            options: [
+              "They can explain the idea in their own words and give an example",
+              "They can repeat a sentence without understanding it",
+              "They avoid questions about the topic",
+              "They only know the topic name",
+            ],
+            correct: "They can explain the idea in their own words and give an example",
+            explanation:
+              "A personal explanation and example are strong signs of real understanding.",
+          },
+          {
+            question: `What should you do if part of "${topic}" is confusing?`,
+            options: [
+              "Break it into smaller questions and work step by step",
+              "Skip the whole topic",
+              "Only memorize answers",
+              "Avoid using examples",
+            ],
+            correct: "Break it into smaller questions and work step by step",
+            explanation:
+              "Complex ideas are easier to learn when they are divided into smaller parts.",
+          },
+          {
+            question: `What is the best way to strengthen your understanding of "${topic}"?`,
+            options: [
+              "Solve a problem or explain an example yourself",
+              "Only reread the title",
+              "Never test yourself",
+              "Only look at finished answers",
+            ],
+            correct: "Solve a problem or explain an example yourself",
+            explanation: "Active practice checks and strengthens understanding.",
+          },
+        ];
 
   return templates.map((q, index) => {
     const shuffledOptions = shuffleOptions(q.options);
@@ -326,9 +388,11 @@ function fallbackQuestions(topic: string, lang: Lang, kind: "pre" | "final"): Qu
       question:
         kind === "pre"
           ? q.question
-          : isRu
-            ? `${q.question} (Вопрос ${ruLabel})`
-            : `${q.question} (${label} question)`,
+          : isKk
+            ? `${q.question} (${kkLabel} сұрағы)`
+            : isRu
+              ? `${q.question} (Вопрос ${ruLabel})`
+              : `${q.question} (${label} question)`,
       options: shuffledOptions,
       correct_answer: q.correct,
       explanation: q.explanation,
@@ -686,20 +750,28 @@ function makeCheckpointQuestion(
   explanation: string,
 ): LessonCheckpointQuestion {
   const isRu = data.language === "ru";
+  const isKk = data.language === "kk";
   const correctAnswer = correct.trim();
-  const fillOptions = isRu
+  const fillOptions = isKk
     ? [
-        "Использовать только название урока без проверки примера",
-        "Выбрать первый знакомый вариант",
-        "Игнорировать детали ситуации",
-        "Взять правило из другого урока",
+        "Мысалды тексермей, тек сабақ атауына сүйену",
+        "Бірінші таныс нұсқаны таңдау",
+        "Жағдайдың маңызды бөлшектерін елемеу",
+        "Басқа сабақтағы ережені қолдану",
       ]
-    : [
-        "Use only the lesson title without checking the example",
-        "Choose the first familiar option",
-        "Ignore the details in the situation",
-        "Use a rule from a different lesson",
-      ];
+    : isRu
+      ? [
+          "Использовать только название урока без проверки примера",
+          "Выбрать первый знакомый вариант",
+          "Игнорировать детали ситуации",
+          "Взять правило из другого урока",
+        ]
+      : [
+          "Use only the lesson title without checking the example",
+          "Choose the first familiar option",
+          "Ignore the details in the situation",
+          "Use a rule from a different lesson",
+        ];
   const options = uniqueOptionStrings([correctAnswer, ...wrong, ...fillOptions]).slice(0, 4);
   return {
     id: data.lessonNumber,
@@ -1271,60 +1343,91 @@ function emptyLesson(n: number, title: string): CourseLesson {
 function fallbackCourse(topic: string, lang: Lang): Course {
   const mathTopic = isMathTopic(topic);
   const titles =
-    mathTopic && lang === "ru"
+    mathTopic && lang === "kk"
       ? [
-          "Пропорции, проценты и дроби",
-          "Быстрый счёт и оценка результата",
-          "Алгебраическое мышление и неизвестные",
-          "Геометрия площади, объёма и пространства",
-          "Степени, масштабирование и рост",
-          "Вероятность, шансы и риск",
-          "Средние значения, медианы и графики",
-          "Логика, условия и таблицы истинности",
-          "Финансовая математика: проценты и кредиты",
-          "Стратегии решения сложных задач",
+          "Пропорциялар, пайыздар және бөлшектер",
+          "Жылдам есептеу және нәтижені бағалау",
+          "Алгебралық ойлау және белгісіздерді табу",
+          "Аудан, көлем және кеңістік геометриясы",
+          "Дәрежелер, масштабтау және өсу",
+          "Ықтималдық, шанс және тәуекел",
+          "Орташа мән, медиана және графиктер",
+          "Логика, шарттар және ақиқат кестелері",
+          "Қаржылық математика: пайыздар мен несиелер",
+          "Күрделі есептерді шешу стратегиялары",
         ]
-      : mathTopic
+      : mathTopic && lang === "ru"
         ? [
-            "Mastering Proportions, Percentages, Ratios, and Fractions",
-            "Mental Math Shortcuts for Estimation and Scaling",
-            "Algebraic Thinking and Solving for Unknowns",
-            "Geometry of Area, Volume, and Space",
-            "Exponents, Scaling, Growth, and Large Numbers",
-            "Probability, Odds, Risk, and Expected Outcomes",
-            "Reading Data with Averages, Medians, and Graphs",
-            "Logic, Conditions, and Truth Tables",
-            "Financial Math with Interest, Loans, and Inflation",
-            "Problem-Solving Frameworks for Unfamiliar Problems",
+            "Пропорции, проценты и дроби",
+            "Быстрый счёт и оценка результата",
+            "Алгебраическое мышление и неизвестные",
+            "Геометрия площади, объёма и пространства",
+            "Степени, масштабирование и рост",
+            "Вероятность, шансы и риск",
+            "Средние значения, медианы и графики",
+            "Логика, условия и таблицы истинности",
+            "Финансовая математика: проценты и кредиты",
+            "Стратегии решения сложных задач",
           ]
-        : lang === "ru"
+        : mathTopic
           ? [
-              `Практические основы темы: ${topic}`,
-              "Ключевые термины и рабочие правила",
-              "Как работает главный процесс",
-              "Категории, признаки и типичные шаблоны",
-              "Разбор реального примера",
-              "Частые ошибки и как их находить",
-              "Применение правила к новым случаям",
-              "Сравнение и оценка двух решений",
-              "Практический чеклист для задач",
-              "Итоговая интеграция и применение в жизни",
+              "Mastering Proportions, Percentages, Ratios, and Fractions",
+              "Mental Math Shortcuts for Estimation and Scaling",
+              "Algebraic Thinking and Solving for Unknowns",
+              "Geometry of Area, Volume, and Space",
+              "Exponents, Scaling, Growth, and Large Numbers",
+              "Probability, Odds, Risk, and Expected Outcomes",
+              "Reading Data with Averages, Medians, and Graphs",
+              "Logic, Conditions, and Truth Tables",
+              "Financial Math with Interest, Loans, and Inflation",
+              "Problem-Solving Frameworks for Unfamiliar Problems",
             ]
-          : [
-              `Practical Foundations of ${topic}`,
-              "Key Terms and Working Rules",
-              "How the Main Process Works",
-              "Categories, Signals, and Patterns",
-              "Reading a Real Example",
-              "Common Mistakes and How to Catch Them",
-              "Applying the Rule to New Cases",
-              "Comparing and Evaluating Two Answers",
-              "A Practical Checklist for Tasks",
-              "Final Integration and Real-World Use",
-            ];
+          : lang === "kk"
+            ? [
+                `${topic} тақырыбының практикалық негіздері`,
+                "Негізгі терминдер және жұмыс ережелері",
+                "Негізгі процесс қалай жұмыс істейді",
+                "Санаттар, белгілер және үлгілер",
+                "Нақты мысалды талдау",
+                "Жиі қателер және оларды табу жолдары",
+                "Ережені жаңа жағдайларға қолдану",
+                "Екі жауапты салыстыру және бағалау",
+                "Тапсырмаларға арналған практикалық чеклист",
+                "Қорытынды біріктіру және өмірде қолдану",
+              ]
+            : lang === "ru"
+              ? [
+                  `Практические основы темы: ${topic}`,
+                  "Ключевые термины и рабочие правила",
+                  "Как работает главный процесс",
+                  "Категории, признаки и типичные шаблоны",
+                  "Разбор реального примера",
+                  "Частые ошибки и как их находить",
+                  "Применение правила к новым случаям",
+                  "Сравнение и оценка двух решений",
+                  "Практический чеклист для задач",
+                  "Итоговая интеграция и применение в жизни",
+                ]
+              : [
+                  `Practical Foundations of ${topic}`,
+                  "Key Terms and Working Rules",
+                  "How the Main Process Works",
+                  "Categories, Signals, and Patterns",
+                  "Reading a Real Example",
+                  "Common Mistakes and How to Catch Them",
+                  "Applying the Rule to New Cases",
+                  "Comparing and Evaluating Two Answers",
+                  "A Practical Checklist for Tasks",
+                  "Final Integration and Real-World Use",
+                ];
 
   return {
-    course_title: lang === "ru" ? `Курс по теме: ${topic}` : `Course on ${topic}`,
+    course_title:
+      lang === "kk"
+        ? `${topic} тақырыбы бойынша курс`
+        : lang === "ru"
+          ? `Курс по теме: ${topic}`
+          : `Course on ${topic}`,
     lessons: titles.map((title, index) => emptyLesson(index + 1, title)),
   };
 }
@@ -2188,10 +2291,21 @@ function hasMathSignal(value: string): boolean {
 function hasPracticalLessonStructure(explanation: string): boolean {
   const normalized = explanation.toLowerCase();
   return (
-    (normalized.includes("core concept") || normalized.includes("главная идея")) &&
-    (normalized.includes("real-life anchor") || normalized.includes("пример из жизни")) &&
-    (normalized.includes("step-by-step") || normalized.includes("пошаг")) &&
-    (normalized.includes("practice before answers") || normalized.includes("практика"))
+    (normalized.includes("core concept") ||
+      normalized.includes("главная идея") ||
+      normalized.includes("негізгі ұғым") ||
+      normalized.includes("негізгі идея")) &&
+    (normalized.includes("real-life anchor") ||
+      normalized.includes("пример из жизни") ||
+      normalized.includes("өмірлік") ||
+      normalized.includes("нақты жағдай")) &&
+    (normalized.includes("step-by-step") ||
+      normalized.includes("пошаг") ||
+      normalized.includes("қадам")) &&
+    (normalized.includes("practice before answers") ||
+      normalized.includes("практика") ||
+      normalized.includes("жауаптарға дейін") ||
+      normalized.includes("тәжірибе"))
   );
 }
 
@@ -2210,6 +2324,10 @@ function isGenericCheckpointQuestion(question: LessonCheckpointQuestion | undefi
     "запомнить только название темы",
     "пропустить пример и перейти дальше",
     "выбрать ответ без проверки причины",
+    "нақты мысалды таңдап, сабақ ережесін қолдану және нәтижені тексеру",
+    "тек тақырып атауын жаттау",
+    "мысалды өткізіп жіберу",
+    "себебін тексермей жауап таңдау",
   ].some((phrase) => text.includes(phrase));
 }
 
@@ -2548,7 +2666,7 @@ Rules:
 - Use the full course outline to avoid repetition. Do not reteach earlier or later lessons except for one short connection sentence when useful.
 - Make the lesson progressively appropriate: early lessons should be simple and concrete, middle lessons should add tools and patterns, later lessons should combine ideas and use more complex examples.
 - Structure every lesson with these Markdown headings in this order:
-  1. The Core Concept - explain what the concept is in plain English and include the actual rules, method, pattern, process, or criteria.
+  1. The Core Concept - explain what the concept is in plain, accessible language and include the actual rules, method, pattern, process, or criteria.
   2. The Real-Life Anchor - give a concrete scenario where the concept is used.
   3. Step-by-Step Walkthrough - solve or analyze one specific example and show the exact steps required.
   4. Practice Before Answers - tell the student to try the practice problems below before opening answers.
