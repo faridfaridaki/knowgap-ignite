@@ -92,6 +92,10 @@ function normalizeLanguage(value: unknown, fallback: LearningLanguage = "en"): L
   return value === "ru" || value === "kk" || value === "en" ? value : fallback;
 }
 
+function isLearningLanguage(value: unknown): value is LearningLanguage {
+  return value === "ru" || value === "kk" || value === "en";
+}
+
 function getStoredLanguage(): LearningLanguage {
   if (typeof window === "undefined") return "en";
   try {
@@ -108,9 +112,21 @@ export function loadState(): LearningState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as LearningState;
     // backward-compat for older saved state without hints arrays
+    const hadLanguage = isLearningLanguage(parsed.language);
     parsed.language = normalizeLanguage(parsed.language, getStoredLanguage());
     if (!Array.isArray(parsed.preTestHints)) parsed.preTestHints = [];
     if (!Array.isArray(parsed.finalTestHints)) parsed.finalTestHints = [];
+    if (!hadLanguage) {
+      parsed.lesson = [];
+      parsed.flashcards = [];
+      parsed.finalTestQuestions = [];
+      parsed.finalTestAnswers = [];
+      parsed.finalTestHints = [];
+      parsed.finalTestScore = 0;
+      parsed.course = null;
+      parsed.completedLessons = [];
+      parsed.currentLesson = 1;
+    }
     return parsed;
   } catch {
     return null;
